@@ -31,8 +31,8 @@ AUTH_SECRET="ランダムな64文字の値"
 AUTH_URL="http://localhost:3000"
 
 # Google OAuth（開発用クライアント）
-GOOGLE_CLIENT_ID="xxx-dev.apps.googleusercontent.com"
-GOOGLE_CLIENT_SECRET="xxxxx"
+AUTH_GOOGLE_ID="xxx-dev.apps.googleusercontent.com"
+AUTH_GOOGLE_SECRET="xxxxx"
 
 # OpenAI
 OPENAI_API_KEY="xxxxx"

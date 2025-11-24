@@ -1,15 +1,17 @@
 import { PrismaClient } from '@prisma/client'
+import { Pool } from 'pg'
+import { PrismaPg } from '@prisma/adapter-pg'
 
-const accelerateUrl = process.env.DATABASE_URL
+const connectionString = process.env.DATABASE_URL
 
-if (!accelerateUrl) {
-  throw new Error('DATABASE_URL is required for Prisma Accelerate')
-}
+const pool = new Pool({ 
+  connectionString,
+  ssl: { rejectUnauthorized: false } 
+})
+const adapter = new PrismaPg(pool)
 
 const prismaClientSingleton = () => {
-  return new PrismaClient({
-    accelerateUrl,
-  })
+  return new PrismaClient({ adapter })
 }
 
 declare global {

@@ -7,49 +7,58 @@ generator client {
 }
 
 model User {
-  id            String          @id @default(cuid())
+  id            String    @id @default(uuid())
+  email         String    @unique
   name          String?
-  email         String          @unique
-  emailVerified DateTime?
+  imageUrl      String?   @map("image_url")
+  planType      String    @default("free") @map("plan_type")
+  stripeCustomerId      String? @map("stripe_customer_id")
+  stripeSubscriptionId  String? @map("stripe_subscription_id")
+  
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Auth.js required fields (keeping them for compatibility if needed, but spec emphasizes the above)
+  emailVerified DateTime? @map("email_verified")
   image         String?
   accounts      Account[]
   sessions      Session[]
-  // Optional for WebAuthn support
-  Authenticator Authenticator[]
+  
+  conversations Conversation[]
+  usageStats    UsageStat[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  @@map("users")
 }
 
+// Auth.js models
 model Account {
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?
-  session_state     String?
- 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String  @id @default(cuid())
+  userId             String  @map("user_id")
+  type               String
+  provider           String
+  providerAccountId  String  @map("provider_account_id")
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String?
  
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
  
-  @@id([provider, providerAccountId])
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
 }
 
 model Session {
-  sessionToken String   @unique
-  userId       String
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  @@map("sessions")
 }
 
 model VerificationToken {
@@ -57,21 +66,56 @@ model VerificationToken {
   token      String
   expires    DateTime
  
-  @@id([identifier, token])
+  @@unique([identifier, token])
+  @@map("verification_tokens")
 }
 
-// Optional for WebAuthn support
-model Authenticator {
-  credentialID         String  @unique
-  userId               String
-  providerAccountId    String
-  credentialPublicKey  String
-  counter              Int
-  credentialDeviceType String
-  credentialBackedUp   Boolean
-  transports           String?
- 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
- 
-  @@id([userId, credentialID])
+model Conversation {
+  id            String    @id @default(uuid())
+  userId        String    @map("user_id")
+  title         String
+  languageCode  String    @map("language_code")
+  rootMessageId String?   @map("root_message_id")
+  isArchived    Boolean   @default(false) @map("is_archived")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  user     User      @relation(fields: [userId], references: [id])
+  messages Message[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id               String    @id @default(uuid())
+  conversationId   String    @map("conversation_id")
+  parentMessageId  String?   @map("parent_message_id")
+  role             String
+  content          String
+  modelProvider    String?   @map("model_provider")
+  modelName        String?   @map("model_name")
+  autoTitle        String?   @map("auto_title")
+  isCollapsed      Boolean   @default(false) @map("is_collapsed")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  parent       Message?     @relation("MessageToMessage", fields: [parentMessageId], references: [id])
+  children     Message[]    @relation("MessageToMessage")
+
+  @@map("messages")
+}
+
+model UsageStat {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  date          DateTime @db.Date
+  messageCount  Int      @default(0) @map("message_count")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+  @@map("usage_stats")
 }

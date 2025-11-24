@@ -46,8 +46,8 @@
 
 **Google OAuth**
 
-- クライアントID: `GOOGLE_CLIENT_ID`  
-- クライアントシークレット: `GOOGLE_CLIENT_SECRET`  
+- クライアントID: `AUTH_GOOGLE_ID`  
+- クライアントシークレット: `AUTH_GOOGLE_SECRET`  
 
 **Auth.js 用環境変数**
 
