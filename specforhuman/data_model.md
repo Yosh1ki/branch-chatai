@@ -1,14 +1,12 @@
+# データモデル仕様書（Branch: MVP 版）
 
-
-# データモデル仕様書（Branches: MVP版）
-
-Branches プロジェクトにおけるデータモデル（DBスキーマ）の仕様を定義します。  
+Branch プロジェクトにおけるデータモデル（DB スキーマ）の仕様を定義します。  
 MVP では以下のテーブルを対象とします。
 
-- `users`
-- `chats`
-- `messages`
-- `usage_stats`
+-   `users`
+-   `chats`
+-   `messages`
+-   `usage_stats`
 
 将来的に `model_configs` や `subscriptions` などを追加する余地を残した設計とします。
 
@@ -32,94 +30,94 @@ erDiagram
 
 ### 2.1 `users` テーブル
 
-Branches のユーザー（Google OAuth によるアカウント）を管理します。
+Branch のユーザー（Google OAuth によるアカウント）を管理します。
 
-| カラム名              | 型                | NOT NULL | デフォルト          | 説明                                      |
-|-----------------------|-------------------|----------|---------------------|-------------------------------------------|
-| id                    | uuid              | YES      | `gen_random_uuid()` | 主キー                                    |
-| email                 | text              | YES      |                     | メールアドレス（ユニーク）                |
-| name                  | text              | NO       |                     | 表示名                                    |
-| image_url             | text              | NO       |                     | アイコン画像URL                           |
-| plan_type             | text              | YES      | `'free'`            | プラン種別：`'free'` / `'pro'`            |
-| stripe_customer_id    | text              | NO       |                     | Stripe 顧客ID（Pro で使用予定）           |
-| stripe_subscription_id| text              | NO       |                     | Stripe サブスクリプションID（将来用）     |
-| created_at            | timestamptz       | YES      | `now()`             | 作成日時                                  |
-| updated_at            | timestamptz       | YES      | `now()`             | 更新日時                                  |
+| カラム名               | 型          | NOT NULL | デフォルト          | 説明                                   |
+| ---------------------- | ----------- | -------- | ------------------- | -------------------------------------- |
+| id                     | uuid        | YES      | `gen_random_uuid()` | 主キー                                 |
+| email                  | text        | YES      |                     | メールアドレス（ユニーク）             |
+| name                   | text        | NO       |                     | 表示名                                 |
+| image_url              | text        | NO       |                     | アイコン画像 URL                       |
+| plan_type              | text        | YES      | `'free'`            | プラン種別：`'free'` / `'pro'`         |
+| stripe_customer_id     | text        | NO       |                     | Stripe 顧客 ID（Pro で使用予定）       |
+| stripe_subscription_id | text        | NO       |                     | Stripe サブスクリプション ID（将来用） |
+| created_at             | timestamptz | YES      | `now()`             | 作成日時                               |
+| updated_at             | timestamptz | YES      | `now()`             | 更新日時                               |
 
 制約:
 
-- `email` はユニーク制約
-- `plan_type` はアプリケーション側で `'free' | 'pro'` のみに制御
+-   `email` はユニーク制約
+-   `plan_type` はアプリケーション側で `'free' | 'pro'` のみに制御
 
 ---
 
 ### 2.2 `chats` テーブル
 
-1つの「木（会話ツリー）」を表します。  
+1 つの「木（会話ツリー）」を表します。  
 ユーザーごとに複数の会話が紐づきます。
 
-| カラム名          | 型          | NOT NULL | デフォルト          | 説明                                           |
-|-------------------|-------------|----------|---------------------|------------------------------------------------|
-| id                | uuid        | YES      | `gen_random_uuid()` | 主キー                                         |
-| user_id           | uuid        | YES      |                     | `users.id` への外部キー                        |
-| title             | text        | NO       |                     | 会話のタイトル（自動要約またはユーザー編集可）|
-| language_code     | text        | NO       |                     | 会話の主な言語コード（例: 'ja', 'en'）        |
-| root_message_id   | uuid        | NO       |                     | ルートメッセージID（最初のメッセージ）        |
-| is_archived       | boolean     | YES      | `false`             | アーカイブフラグ                               |
-| created_at        | timestamptz | YES      | `now()`             | 作成日時                                       |
-| updated_at        | timestamptz | YES      | `now()`             | 更新日時                                       |
+| カラム名        | 型          | NOT NULL | デフォルト          | 説明                                           |
+| --------------- | ----------- | -------- | ------------------- | ---------------------------------------------- |
+| id              | uuid        | YES      | `gen_random_uuid()` | 主キー                                         |
+| user_id         | uuid        | YES      |                     | `users.id` への外部キー                        |
+| title           | text        | NO       |                     | 会話のタイトル（自動要約またはユーザー編集可） |
+| language_code   | text        | NO       |                     | 会話の主な言語コード（例: 'ja', 'en'）         |
+| root_message_id | uuid        | NO       |                     | ルートメッセージ ID（最初のメッセージ）        |
+| is_archived     | boolean     | YES      | `false`             | アーカイブフラグ                               |
+| created_at      | timestamptz | YES      | `now()`             | 作成日時                                       |
+| updated_at      | timestamptz | YES      | `now()`             | 更新日時                                       |
 
 制約:
 
-- `user_id` は `users(id)` を参照
-- `root_message_id` は `messages(id)` を参照（nullable）
+-   `user_id` は `users(id)` を参照
+-   `root_message_id` は `messages(id)` を参照（nullable）
 
 ---
 
 ### 2.3 `messages` テーブル
 
-会話の各メッセージ（ユーザー発話・AI応答・システムメッセージ）を表します。  
+会話の各メッセージ（ユーザー発話・AI 応答・システムメッセージ）を表します。  
 `parent_message_id` によってツリー構造（ブランチ）を表現します。
 
-| カラム名          | 型          | NOT NULL | デフォルト          | 説明                                                      |
-|-------------------|-------------|----------|---------------------|-----------------------------------------------------------|
-| id                | uuid        | YES      | `gen_random_uuid()` | 主キー                                                    |
-| chat_id           | uuid        | YES      |                     | `chats.id` への外部キー                                   |
-| parent_message_id | uuid        | NO       |                     | 親メッセージID（ルートメッセージの場合は NULL）          |
-| role              | text        | YES      |                     | `'user'` / `'assistant'` / `'system'`                     |
-| content           | text        | YES      |                     | メッセージ本文（MVPでは text として保持）                |
-| model_provider    | text        | NO       |                     | 使用したモデルプロバイダ（例: 'openai', 'anthropic'）    |
-| model_name        | text        | NO       |                     | モデル名（例: 'gpt-4.1-mini'）                           |
-| auto_title        | text        | NO       |                     | このメッセージ以下を表すタイトル（折りたたみ時に使用）   |
-| is_collapsed      | boolean     | YES      | `false`             | 折りたたみ状態フラグ                                      |
-| created_at        | timestamptz | YES      | `now()`             | 作成日時                                                  |
-| updated_at        | timestamptz | YES      | `now()`             | 更新日時                                                  |
+| カラム名          | 型          | NOT NULL | デフォルト          | 説明                                                   |
+| ----------------- | ----------- | -------- | ------------------- | ------------------------------------------------------ |
+| id                | uuid        | YES      | `gen_random_uuid()` | 主キー                                                 |
+| chat_id           | uuid        | YES      |                     | `chats.id` への外部キー                                |
+| parent_message_id | uuid        | NO       |                     | 親メッセージ ID（ルートメッセージの場合は NULL）       |
+| role              | text        | YES      |                     | `'user'` / `'assistant'` / `'system'`                  |
+| content           | text        | YES      |                     | メッセージ本文（MVP では text として保持）             |
+| model_provider    | text        | NO       |                     | 使用したモデルプロバイダ（例: 'openai', 'anthropic'）  |
+| model_name        | text        | NO       |                     | モデル名（例: 'gpt-4.1-mini'）                         |
+| auto_title        | text        | NO       |                     | このメッセージ以下を表すタイトル（折りたたみ時に使用） |
+| is_collapsed      | boolean     | YES      | `false`             | 折りたたみ状態フラグ                                   |
+| created_at        | timestamptz | YES      | `now()`             | 作成日時                                               |
+| updated_at        | timestamptz | YES      | `now()`             | 更新日時                                               |
 
 制約:
 
-- `chat_id` は `chats(id)` を参照
-- `parent_message_id` は `messages(id)` を参照（nullable）
-- `role` はアプリケーション側で `'user' | 'assistant' | 'system'` に制限
+-   `chat_id` は `chats(id)` を参照
+-   `parent_message_id` は `messages(id)` を参照（nullable）
+-   `role` はアプリケーション側で `'user' | 'assistant' | 'system'` に制限
 
 ---
 
 ### 2.4 `usage_stats` テーブル
 
-Free プランのメッセージ上限（例: 1日 10 メッセージ）を管理するための利用状況テーブルです。
+Free プランのメッセージ上限（例: 1 日 10 メッセージ）を管理するための利用状況テーブルです。
 
-| カラム名       | 型          | NOT NULL | デフォルト          | 説明                               |
-|----------------|-------------|----------|---------------------|------------------------------------|
-| id             | uuid        | YES      | `gen_random_uuid()` | 主キー                             |
-| user_id        | uuid        | YES      |                     | `users.id` への外部キー           |
-| date           | date        | YES      |                     | 日付（JST 基準での1日単位）       |
-| message_count  | integer     | YES      | `0`                 | 当日送信されたメッセージ数        |
-| created_at     | timestamptz | YES      | `now()`             | 作成日時                           |
-| updated_at     | timestamptz | YES      | `now()`             | 更新日時                           |
+| カラム名      | 型          | NOT NULL | デフォルト          | 説明                          |
+| ------------- | ----------- | -------- | ------------------- | ----------------------------- |
+| id            | uuid        | YES      | `gen_random_uuid()` | 主キー                        |
+| user_id       | uuid        | YES      |                     | `users.id` への外部キー       |
+| date          | date        | YES      |                     | 日付（JST 基準での 1 日単位） |
+| message_count | integer     | YES      | `0`                 | 当日送信されたメッセージ数    |
+| created_at    | timestamptz | YES      | `now()`             | 作成日時                      |
+| updated_at    | timestamptz | YES      | `now()`             | 更新日時                      |
 
 制約:
 
-- `user_id` は `users(id)` を参照
-- `(user_id, date)` にユニーク制約を付与し、1ユーザー1日1レコードにする
+-   `user_id` は `users(id)` を参照
+-   `(user_id, date)` にユニーク制約を付与し、1 ユーザー 1 日 1 レコードにする
 
 ---
 
@@ -193,7 +191,7 @@ model UsageStat {
 
 ---
 
-以上が Branches MVP 版のデータモデル仕様です。  
+以上が Branch MVP 版のデータモデル仕様です。  
 今後、Pro プランやモデル設定、共有機能などの拡張に応じてテーブル追加を検討します。
 
 ---
