@@ -37,7 +37,7 @@ export default async function ConversationsPage() {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Conversations</h1>
-          <p className="text-muted-foreground">Manage your branching chats.</p>
+          <p className="text-muted-foreground">Pick a conversation to continue chatting.</p>
         </div>
         <form
           action={async () => {

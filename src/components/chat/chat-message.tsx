@@ -1,7 +1,5 @@
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import { GitBranch } from "lucide-react"
 
 interface Message {
   id: string
@@ -11,14 +9,7 @@ interface Message {
   modelName?: string | null
 }
 
-interface ChatMessageProps {
-  message: Message
-  isBranchable?: boolean
-  onBranch?: (messageId: string) => void
-  isRoot?: boolean
-}
-
-export function ChatMessage({ message, isBranchable, onBranch, isRoot }: ChatMessageProps) {
+export function ChatMessage({ message }: { message: Message }) {
   const isUser = message.role === "user"
 
   return (
@@ -48,18 +39,6 @@ export function ChatMessage({ message, isBranchable, onBranch, isRoot }: ChatMes
         >
           {message.content}
         </div>
-
-        {!isUser && isBranchable && onBranch && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => onBranch(message.id)}
-          >
-            <GitBranch className="mr-1 h-3 w-3" />
-            Branch
-          </Button>
-        )}
       </div>
     </div>
   )

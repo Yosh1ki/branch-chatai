@@ -4,6 +4,8 @@ import { NextResponse } from "next/server"
 import OpenAI from "openai"
 
 const FREE_PLAN_DAILY_LIMIT = 10;
+const DEV_ASSISTANT_RESPONSE =
+  "白ワインのおすすめは以下の通りです。好みによって選ぶと良いでしょう。 1. **ソーヴィニヨン・ブラン**： - **代表的な産地**：ニュージーランド、フランス（ロワール渓谷） - **特徴**：フレッシュで爽やかな酸味、柑橘系の香りやトロピカルフルーツの風味。魚料理やサラダとも相性抜群です。 2. **シャルドネ**： - **代表的な産地**：フランス（ブルゴーニュ）、アメリカ（カリフォルニア） - **特徴**：豊かでクリーミーな味わい、樽熟成によるバターやバニラのニュアンス。チキンやクリームソースの料理に合います。 3. **リースリング**： - **代表的な産地**：ドイツ、オーストラリア - **特徴**：甘口から辛口まで幅広いスタイルがあり、蜜や桃の香りが特徴的。辛口のリースリングはアジア料理とよく合います。 4. **ピノ・グリージョ**： - **代表的な産地**：イタリア、アメリカ - **特徴**：軽やかで飲みやすい、洋梨やリンゴの香り。前菜や軽い料理と相性が良いです。 5. **グルナッシュ・ブラン**： - **代表的な産地**：フランス（ローヌ地方） - **特徴**：果実味とハーブのニュアンス。魚料理や野菜料理によく合います。 これらの白ワインは、料理やシチュエーションに応じて楽しむことができるので、ぜひ試してみてください。好みに合わせて選ぶと良いでしょう。";
 
 // Initialize OpenAI client lazily or check for key
 const getOpenAIClient = () => {
@@ -93,20 +95,48 @@ export async function POST(req: Request) {
     }
 
     // Call OpenAI
-    // For MVP, we'll just send the current message. 
-    // Ideally, we should traverse the tree back to root to build history.
-    // TODO: Build message history from tree
-    
-    const openai = getOpenAIClient();
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Default model
-      messages: [
-        { role: "system", content: "You are a helpful AI assistant." },
-        { role: "user", content: content }
-      ],
+    // Build message history from tree
+    // 1. Fetch all messages for this conversation to traverse the tree
+    // (Optimization: In a real app, use a recursive CTE or store path/materialized view)
+    const allMessages = await prisma.message.findMany({
+      where: { conversationId: conversation.id },
+      select: { id: true, role: true, content: true, parentMessageId: true }
     });
 
-    const assistantContent = completion.choices[0].message.content || "";
+    // 2. Reconstruct path from current message (userMessage) back to root
+    const path: typeof allMessages = [userMessage];
+    let parentId = userMessage.parentMessageId;
+
+    while (parentId) {
+      const parent = allMessages.find(m => m.id === parentId);
+      if (parent) {
+        path.unshift(parent);
+        parentId = parent.parentMessageId;
+      } else {
+        break;
+      }
+    }
+
+    // 3. Format for OpenAI
+    const messagesForLLM = [
+      { role: "system" as const, content: "You are a helpful AI assistant." },
+      ...path.map(m => ({
+        role: m.role as "user" | "assistant",
+        content: m.content
+      }))
+    ];
+    
+    const assistantContent =
+      (
+        process.env.NODE_ENV === "development"
+          ? DEV_ASSISTANT_RESPONSE
+          : (
+              await getOpenAIClient().chat.completions.create({
+                model: "gpt-4o-mini", // Default model
+                messages: messagesForLLM,
+              })
+            ).choices[0].message.content
+      ) || "";
 
     const assistantMessage = await prisma.message.create({
       data: {
@@ -143,8 +173,18 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ conversation, userMessage, assistantMessage })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error in chat API:", error);
+    const err = error as { code?: string };
+
+    // Handle OpenAI specific errors
+    if (err?.code === "insufficient_quota") {
+      return NextResponse.json(
+        { error: "OpenAI API quota exceeded. Please check your billing details." },
+        { status: 429 }
+      );
+    }
+
     return new NextResponse("Internal Server Error", { status: 500 })
   }
 }
