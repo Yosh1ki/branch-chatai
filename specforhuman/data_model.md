@@ -6,7 +6,7 @@ Branches プロジェクトにおけるデータモデル（DBスキーマ）の
 MVP では以下のテーブルを対象とします。
 
 - `users`
-- `conversations`
+- `chats`
 - `messages`
 - `usage_stats`
 
@@ -20,9 +20,9 @@ MVP では以下のテーブルを対象とします。
 
 ```mermaid
 erDiagram
-  users ||--o{ conversations : has
+  users ||--o{ chats : has
   users ||--o{ usage_stats : has
-  conversations ||--o{ messages : has
+  chats ||--o{ messages : has
   messages ||--o{ messages : replies
 ```
 
@@ -53,7 +53,7 @@ Branches のユーザー（Google OAuth によるアカウント）を管理し�
 
 ---
 
-### 2.2 `conversations` テーブル
+### 2.2 `chats` テーブル
 
 1つの「木（会話ツリー）」を表します。  
 ユーザーごとに複数の会話が紐づきます。
@@ -84,7 +84,7 @@ Branches のユーザー（Google OAuth によるアカウント）を管理し�
 | カラム名          | 型          | NOT NULL | デフォルト          | 説明                                                      |
 |-------------------|-------------|----------|---------------------|-----------------------------------------------------------|
 | id                | uuid        | YES      | `gen_random_uuid()` | 主キー                                                    |
-| conversation_id   | uuid        | YES      |                     | `conversations.id` への外部キー                          |
+| chat_id           | uuid        | YES      |                     | `chats.id` への外部キー                                   |
 | parent_message_id | uuid        | NO       |                     | 親メッセージID（ルートメッセージの場合は NULL）          |
 | role              | text        | YES      |                     | `'user'` / `'assistant'` / `'system'`                     |
 | content           | text        | YES      |                     | メッセージ本文（MVPでは text として保持）                |
@@ -97,7 +97,7 @@ Branches のユーザー（Google OAuth によるアカウント）を管理し�
 
 制約:
 
-- `conversation_id` は `conversations(id)` を参照
+- `chat_id` は `chats(id)` を参照
 - `parent_message_id` は `messages(id)` を参照（nullable）
 - `role` はアプリケーション側で `'user' | 'assistant' | 'system'` に制限
 
@@ -141,11 +141,11 @@ model User {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
-  conversations Conversation[]
+  chats Chat[]
   usageStats    UsageStat[]
 }
 
-model Conversation {
+model Chat {
   id            String    @id @default(uuid())
   userId        String
   title         String?
@@ -161,7 +161,7 @@ model Conversation {
 
 model Message {
   id               String    @id @default(uuid())
-  conversationId   String
+  chatId           String
   parentMessageId  String?
   role             String
   content          String
@@ -172,7 +172,7 @@ model Message {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  conversation Conversation @relation(fields: [conversationId], references: [id])
+  chat Chat @relation(fields: [chatId], references: [id])
   parent       Message?     @relation("MessageToMessage", fields: [parentMessageId], references: [id])
   children     Message[]    @relation("MessageToMessage")
 }

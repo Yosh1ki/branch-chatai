@@ -9,28 +9,22 @@
 
 */
 -- DropForeignKey
-ALTER TABLE "Account" DROP CONSTRAINT "Account_userId_fkey";
+ALTER TABLE IF EXISTS "Account" DROP CONSTRAINT IF EXISTS "Account_userId_fkey";
 
--- DropForeignKey
-ALTER TABLE "Authenticator" DROP CONSTRAINT "Authenticator_userId_fkey";
+ALTER TABLE IF EXISTS "Authenticator" DROP CONSTRAINT IF EXISTS "Authenticator_userId_fkey";
 
--- DropForeignKey
-ALTER TABLE "Session" DROP CONSTRAINT "Session_userId_fkey";
+ALTER TABLE IF EXISTS "Session" DROP CONSTRAINT IF EXISTS "Session_userId_fkey";
 
 -- DropTable
-DROP TABLE "Account";
+DROP TABLE IF EXISTS "Account";
 
--- DropTable
-DROP TABLE "Authenticator";
+DROP TABLE IF EXISTS "Authenticator";
 
--- DropTable
-DROP TABLE "Session";
+DROP TABLE IF EXISTS "Session";
 
--- DropTable
-DROP TABLE "User";
+DROP TABLE IF EXISTS "User";
 
--- DropTable
-DROP TABLE "VerificationToken";
+DROP TABLE IF EXISTS "VerificationToken";
 
 -- CreateTable
 CREATE TABLE "users" (

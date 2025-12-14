@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const {
-      conversationId,
+      chatId,
       role,
       content,
       modelProvider,
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
       parentMessageId,
     } = body;
 
-    if (!conversationId || !role || !content) {
+    if (!chatId || !role || !content) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
     // 2. Create Message
     const message = await prisma.message.create({
       data: {
-        conversationId,
+        chatId,
         role,
         content,
         modelProvider,
@@ -68,19 +68,19 @@ export async function POST(req: Request) {
       },
     });
 
-    // 3. Update Conversation rootMessageId if it's the first message
-    // (Optional optimization: check if conversation.rootMessageId is null)
+    // 3. Update chat rootMessageId if it's the first message
+    // (Optional optimization: check if chat.rootMessageId is null)
     // For now, if parentMessageId is null, we can assume it might be a root candidate.
-    // But usually the client knows if it's starting a conversation.
+    // But usually the client knows if it's starting a chat thread.
     // Let's just rely on the client or check if it's the first one.
     if (!parentMessageId) {
-       const conversation = await prisma.conversation.findUnique({
-         where: { id: conversationId },
+       const chat = await prisma.chat.findUnique({
+         where: { id: chatId },
          select: { rootMessageId: true }
        });
-       if (!conversation?.rootMessageId) {
-         await prisma.conversation.update({
-           where: { id: conversationId },
+       if (!chat?.rootMessageId) {
+         await prisma.chat.update({
+           where: { id: chatId },
            data: { rootMessageId: message.id }
          });
        }

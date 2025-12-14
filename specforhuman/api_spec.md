@@ -33,9 +33,9 @@ https://api.branches.app
 | メソッド | エンドポイント                | 説明                           |
 |----------|-------------------------------|--------------------------------|
 | `POST`   | `/api/chat`                   | LLMにメッセージを送信し、返答を受け取る |
-| `GET`    | `/api/conversations`          | ユーザーの会話一覧を取得する         |
-| `POST`   | `/api/conversations`          | 新しい会話を作成する               |
-| `GET`    | `/api/conversations/{id}`     | 指定の会話内容（メッセージツリー）を取得 |
+| `GET`    | `/api/chats`          | ユーザーのチャット一覧を取得する         |
+| `POST`   | `/api/chats`          | 新しいチャットを作成する               |
+| `GET`    | `/api/chats/{id}`     | 指定のチャット内容（メッセージツリー）を取得 |
 | `POST`   | `/api/messages/{id}/branch`   | 指定メッセージからブランチを作成する   |
 | `GET`    | `/api/usage`                  | ユーザーの使用状況（残りメッセージなど） |
 
@@ -52,7 +52,7 @@ https://api.branches.app
 
 ```json
 {
-  "conversationId": "1234",
+  "chatId": "1234",
   "message": "What's the ROI of this investment?",
   "model": "gpt-4o-mini",
   "parentMessageId": "5678"
@@ -71,10 +71,10 @@ https://api.branches.app
 
 ---
 
-### 2. `GET /api/conversations`
+### 2. `GET /api/chats`
 
 **説明**  
-ログインユーザーの会話一覧を取得します。
+ログインユーザーのチャット一覧を取得します。
 
 **レスポンス例**
 
@@ -90,10 +90,10 @@ https://api.branches.app
 
 ---
 
-### 3. `POST /api/conversations`
+### 3. `POST /api/chats`
 
 **説明**  
-空の会話を新規作成します。初回メッセージの送信は `/api/chat` で行います。
+空のチャットを新規作成します。初回メッセージの送信は `/api/chat` で行います。
 
 **リクエスト例**
 
@@ -107,16 +107,16 @@ https://api.branches.app
 
 ```json
 {
-  "conversationId": "abcd1234"
+  "chatId": "abcd1234"
 }
 ```
 
 ---
 
-### 4. `GET /api/conversations/{id}`
+### 4. `GET /api/chats/{id}`
 
 **説明**  
-指定した会話IDのメッセージ（ブランチ構造）を取得します。
+指定したチャットIDのメッセージ（ブランチ構造）を取得します。
 
 **レスポンス例**
 

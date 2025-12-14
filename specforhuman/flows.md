@@ -56,23 +56,23 @@ sequenceDiagram
 
 ---
 
-## 🧭 3. 初回ログイン→会話取得フロー
+## 🧭 3. 初回ログイン→チャット取得フロー
 
 ```mermaid
 sequenceDiagram
   participant U as User
   participant FE as Frontend
-  participant API as /api/conversations
+  participant API as /api/chats
   participant DB as Database
 
   U->>FE: /login 画面にアクセス
   FE->>GoogleOAuth: ログインリクエスト
   GoogleOAuth-->>FE: 成功ステータス＋トークン
-  FE->>API: GET /api/conversations（Authorizationヘッダー）
+  FE->>API: GET /api/chats（Authorizationヘッダー）
   API->>DB: user_idで絞り込みクエリ
-  DB-->>API: 会話一覧
+  DB-->>API: チャット一覧
   API-->>FE: JSON形式で返却
-  FE-->>U: 会話一覧画面に表示
+  FE-->>U: チャット一覧画面に表示
 ```
 
 ---

@@ -1,7 +1,7 @@
 # 🌿 Branches – Product Specification (v0.1)
 
 > **Branches** is a mind-map style multi-branching AI chat application  
-> that allows users to organize conversations without losing sight of the main topic.
+> that allows users to organize chats without losing sight of the main topic.
 
 ---
 
@@ -52,7 +52,7 @@ Web Application
 - ブランチは該当メッセージの横に展開され、全体構造は左右＋縦スクロールで視認可能
 - ミニマップ機能により、全体的な構造を俯瞰し、任意のブランチへ即座にジャンプできる
 
-### 4.3 Automatic Conversation Titles
+### 4.3 Automatic Chat Titles
 - 各チャットは「生成された言語」で自動要約し、タイトルとして設定
 - メッセージ単位の「インラインタイトル」も自動生成（折りたたみ表示用）
 
@@ -99,10 +99,10 @@ users:
   - stripe_subscription_id (nullable)
   - created_at, updated_at
 
-conversations:
+chats:
   - id (PK)
   - user_id (FK -> users.id)
-  - title (auto-generated in conversation language)
+  - title (auto-generated in chat language)
   - language_code ('ja', 'en' etc.)
   - root_message_id (FK -> messages.id, nullable)
   - is_archived (boolean)
@@ -110,7 +110,7 @@ conversations:
 
 messages:
   - id (PK)
-  - conversation_id (FK)
+  - chat_id (FK)
   - parent_message_id (FK -> messages.id, nullable)
   - role ('user'|'assistant'|'system')
   - content (text or jsonb)
@@ -137,6 +137,7 @@ usage_stats:
 - **Auth.js**（旧 NextAuth） for Google OAuth
 - **API Routes**
   - `/api/chat`（LLMストリーミング）
+  - `/api/chats`（チャット一覧・作成）
   - `/api/messages`（CRUD）
 - **Database**
   - PostgreSQL（Supabase or Railway/Renderなど）

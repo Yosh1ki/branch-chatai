@@ -37,10 +37,10 @@ export default async function SettingsPage() {
   return (
     <div className="container mx-auto py-10 px-4 max-w-2xl">
       <div className="mb-8">
-        <Link href="/conversations">
+        <Link href="/chats">
           <Button variant="ghost" className="pl-0">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Conversations
+            Back to Chats
           </Button>
         </Link>
       </div>

@@ -4,19 +4,19 @@ import { NextResponse } from "next/server";
 
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ conversationId: string }> }
+  { params }: { params: Promise<{ chatId: string }> }
 ) {
   const session = await auth();
-  const { conversationId } = await params;
+  const { chatId } = await params;
 
   if (!session || !session.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    const conversation = await prisma.conversation.findUnique({
+    const chat = await prisma.chat.findUnique({
       where: {
-        id: conversationId,
+        id: chatId,
         userId: session.user.id,
       },
       include: {
@@ -28,18 +28,18 @@ export async function GET(
       },
     });
 
-    if (!conversation) {
+    if (!chat) {
       return NextResponse.json(
-        { error: "Conversation not found" },
+        { error: "Chat not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(conversation);
+    return NextResponse.json(chat);
   } catch (error) {
-    console.error("Error fetching conversation:", error);
+    console.error("Error fetching chat:", error);
     return NextResponse.json(
-      { error: "Failed to fetch conversation" },
+      { error: "Failed to fetch chat" },
       { status: 500 }
     );
   }

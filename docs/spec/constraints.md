@@ -2,7 +2,7 @@
 
 ## Technical Constraints
 - Language / Framework: Next.js (App Router) with React client components, Auth.js (Google OAuth), Prisma ORM, and PostgreSQL (Supabase/Railway/Render) as defined in the base project and architecture specs.
-- Runtime environment: Next.js API routes (`/api/chat`, `/api/messages`, `/api/conversations`, `/api/usage`) orchestrate LangChain/LangGraph calls to ChatGPT, Claude, and Gemini; messages include provider/model metadata plus branching relationships.
+- Runtime environment: Next.js API routes (`/api/chat`, `/api/messages`, `/api/chats`, `/api/usage`) orchestrate LangChain/LangGraph calls to ChatGPT, Claude, and Gemini; messages include provider/model metadata plus branching relationships.
 - Deployment assumptions: Host on Vercel (primary) or Fly.io/Render (backup) with a managed Postgres instance (Supabase preferred); integrate Google OAuth via `AUTH_GOOGLE_ID/SECRET` and prepare Stripe keys when the Pro plan is enabled.
 
 ## Business Constraints

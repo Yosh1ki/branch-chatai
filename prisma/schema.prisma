@@ -24,7 +24,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   
-  conversations Conversation[]
+  chats Chat[]
   usageStats    UsageStat[]
 
   @@map("users")
@@ -70,7 +70,7 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
-model Conversation {
+model Chat {
   id            String    @id @default(uuid())
   userId        String    @map("user_id")
   title         String
@@ -83,12 +83,12 @@ model Conversation {
   user     User      @relation(fields: [userId], references: [id])
   messages Message[]
 
-  @@map("conversations")
+  @@map("chats")
 }
 
 model Message {
   id               String    @id @default(uuid())
-  conversationId   String    @map("conversation_id")
+  chatId           String    @map("chat_id")
   parentMessageId  String?   @map("parent_message_id")
   role             String
   content          String
@@ -99,7 +99,7 @@ model Message {
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
-  conversation Conversation @relation(fields: [conversationId], references: [id])
+  chat          Chat       @relation(fields: [chatId], references: [id])
   parent       Message?     @relation("MessageToMessage", fields: [parentMessageId], references: [id])
   children     Message[]    @relation("MessageToMessage")
 

@@ -16,7 +16,7 @@ export default function LoginPage() {
           <form
             action={async () => {
               "use server"
-              await signIn("google", { redirectTo: "/conversations" })
+              await signIn("google", { redirectTo: "/chats" })
             }}
           >
             <Button className="w-full" type="submit">

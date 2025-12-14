@@ -17,55 +17,55 @@ interface Message {
   parentMessageId?: string | null;
 }
 
-interface Conversation {
+interface Chat {
   id: string;
   title: string;
   messages: Message[];
 }
 
-export default function ConversationPage() {
+export default function ChatPage() {
   const params = useParams();
-  const conversationId = params.conversationId as string;
-  const [conversation, setConversation] = useState<Conversation | null>(null);
+  const chatId = params.chatId as string;
+  const [chat, setChat] = useState<Chat | null>(null);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Fetch conversation data
+  // Fetch chat data
   useEffect(() => {
-    const fetchConversation = async () => {
+    const fetchChat = async () => {
       try {
-        const res = await fetch(`/api/conversations/${conversationId}`);
+        const res = await fetch(`/api/chats/${chatId}`);
         if (res.ok) {
           const data = await res.json();
           const messages = data.messages.map((m: Message & { createdAt: string }) => ({
             ...m,
             createdAt: new Date(m.createdAt),
           }));
-          setConversation({ ...data, messages });
+          setChat({ ...data, messages });
         }
       } catch (error) {
-        console.error("Failed to fetch conversation", error);
+        console.error("Failed to fetch chat", error);
       }
     };
-    fetchConversation();
-  }, [conversationId]);
+    fetchChat();
+  }, [chatId]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [conversation?.messages]);
+  }, [chat?.messages]);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
     const userMessageContent = input;
     const parentMessageId =
-      conversation && conversation.messages.length > 0
-        ? conversation.messages[conversation.messages.length - 1].id
+      chat && chat.messages.length > 0
+        ? chat.messages[chat.messages.length - 1].id
         : null;
     setInput("");
     setIsLoading(true);
@@ -80,7 +80,7 @@ export default function ConversationPage() {
         parentMessageId,
       };
 
-      setConversation((prev) =>
+      setChat((prev) =>
         prev
           ? {
               ...prev,
@@ -93,7 +93,7 @@ export default function ConversationPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          conversationId,
+          chatId,
           content: userMessageContent,
           parentMessageId,
         }),
@@ -107,7 +107,7 @@ export default function ConversationPage() {
       const data = await res.json();
 
       // Update with real messages
-      setConversation((prev) => {
+      setChat((prev) => {
         if (!prev) return null;
         const filtered = prev.messages.filter((m) => m.id !== tempUserMessage.id);
         return {
@@ -126,9 +126,9 @@ export default function ConversationPage() {
     }
   };
 
-  if (!conversation) return <div className="p-8 text-center">Loading...</div>;
+  if (!chat) return <div className="p-8 text-center">Loading...</div>;
 
-  const sortedMessages = [...conversation.messages].sort(
+  const sortedMessages = [...chat.messages].sort(
     (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
   );
 
@@ -137,7 +137,7 @@ export default function ConversationPage() {
       <div className="flex-1 flex flex-col max-w-5xl mx-auto w-full">
         <header className="border-b px-6 py-4">
           <div>
-            <h1 className="font-semibold text-lg">{conversation.title}</h1>
+            <h1 className="font-semibold text-lg">{chat.title}</h1>
             <p className="text-sm text-muted-foreground">シンプルビューで表示しています。</p>
           </div>
         </header>

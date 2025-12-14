@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   }
 
   const json = await req.json()
-  const { content, conversationId, parentMessageId, modelProvider, modelName } = json
+  const { content, chatId, parentMessageId, modelProvider, modelName } = json
 
   if (!content) {
     return new NextResponse("Content is required", { status: 400 })
@@ -57,16 +57,16 @@ export async function POST(req: Request) {
       }
     }
 
-    let conversation
-    if (conversationId) {
-      conversation = await prisma.conversation.findUnique({
-        where: { id: conversationId, userId: session.user.id },
+    let chat
+    if (chatId) {
+      chat = await prisma.chat.findUnique({
+        where: { id: chatId, userId: session.user.id },
       })
-      if (!conversation) {
-        return new NextResponse("Conversation not found", { status: 404 })
+      if (!chat) {
+        return new NextResponse("Chat not found", { status: 404 })
       }
     } else {
-      conversation = await prisma.conversation.create({
+      chat = await prisma.chat.create({
         data: {
           userId: session.user.id,
           title: content.slice(0, 50),
@@ -78,7 +78,7 @@ export async function POST(req: Request) {
     // Create user message
     const userMessage = await prisma.message.create({
       data: {
-        conversationId: conversation.id,
+        chatId: chat.id,
         role: "user",
         content,
         parentMessageId,
@@ -87,19 +87,19 @@ export async function POST(req: Request) {
       },
     })
 
-    if (!conversation.rootMessageId && !parentMessageId) {
-      await prisma.conversation.update({
-        where: { id: conversation.id },
+    if (!chat.rootMessageId && !parentMessageId) {
+      await prisma.chat.update({
+        where: { id: chat.id },
         data: { rootMessageId: userMessage.id },
       })
     }
 
     // Call OpenAI
     // Build message history from tree
-    // 1. Fetch all messages for this conversation to traverse the tree
+    // 1. Fetch all messages for this chat to traverse the tree
     // (Optimization: In a real app, use a recursive CTE or store path/materialized view)
     const allMessages = await prisma.message.findMany({
-      where: { conversationId: conversation.id },
+      where: { chatId: chat.id },
       select: { id: true, role: true, content: true, parentMessageId: true }
     });
 
@@ -140,7 +140,7 @@ export async function POST(req: Request) {
 
     const assistantMessage = await prisma.message.create({
       data: {
-        conversationId: conversation.id,
+        chatId: chat.id,
         role: "assistant",
         content: assistantContent,
         parentMessageId: userMessage.id,
@@ -172,7 +172,7 @@ export async function POST(req: Request) {
       });
     }
 
-    return NextResponse.json({ conversation, userMessage, assistantMessage })
+    return NextResponse.json({ chat, userMessage, assistantMessage })
   } catch (error: unknown) {
     console.error("Error in chat API:", error);
     const err = error as { code?: string };

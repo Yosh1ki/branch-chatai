@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
+  void req;
   const session = await auth();
 
   if (!session || !session.user?.id) {
@@ -10,7 +11,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    const conversations = await prisma.conversation.findMany({
+    const chats = await prisma.chat.findMany({
       where: {
         userId: session.user.id,
         isArchived: false,
@@ -28,11 +29,11 @@ export async function GET(req: Request) {
       },
     });
 
-    return NextResponse.json(conversations);
+    return NextResponse.json(chats);
   } catch (error) {
-    console.error("Error fetching conversations:", error);
+    console.error("Error fetching chats:", error);
     return NextResponse.json(
-      { error: "Failed to fetch conversations" },
+      { error: "Failed to fetch chats" },
       { status: 500 }
     );
   }
@@ -49,19 +50,19 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { title, languageCode } = body;
 
-    const conversation = await prisma.conversation.create({
+    const chat = await prisma.chat.create({
       data: {
         userId: session.user.id,
-        title: title || "New Conversation",
+        title: title || "New Chat",
         languageCode: languageCode || "en",
       },
     });
 
-    return NextResponse.json(conversation);
+    return NextResponse.json(chat);
   } catch (error) {
-    console.error("Error creating conversation:", error);
+    console.error("Error creating chat:", error);
     return NextResponse.json(
-      { error: "Failed to create conversation" },
+      { error: "Failed to create chat" },
       { status: 500 }
     );
   }

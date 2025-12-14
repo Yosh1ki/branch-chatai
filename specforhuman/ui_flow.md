@@ -11,11 +11,11 @@ MVP段階で必要な画面間の遷移パターンを明確化します。
 
 ```mermaid
 flowchart TD
-  Login[ログイン画面] -->|Google認証成功| Conversations[会話一覧画面]
-  Conversations -->|会話をクリック| ConversationDetail[会話詳細画面]
-  Conversations -->|新規作成| ConversationDetail
-  ConversationDetail -->|設定アイコン| Settings[設定画面]
-  Settings --> Conversations
+  Login[ログイン画面] -->|Google認証成功| Chats[チャット一覧画面]
+  Chats -->|チャットをクリック| ChatDetail[チャット詳細画面]
+  Chats -->|新規作成| ChatDetail
+  ChatDetail -->|設定アイコン| Settings[設定画面]
+  Settings --> Chats
 ```
 
 ---
@@ -24,27 +24,27 @@ flowchart TD
 
 ### 1. `/login` ログイン画面
 
-- Google OAuthボタンを押下 → 認証成功後 `/conversations` へ遷移
+- Google OAuthボタンを押下 → 認証成功後 `/chats` へ遷移
 - 初回ログインの場合、自動的にユーザー登録される（別画面なし）
 
 ---
 
-### 2. `/conversations` 会話一覧画面
+### 2. `/chats` チャット一覧画面
 
 | 遷移条件         | 遷移先                       |
 |------------------|------------------------------|
-| 会話項目をクリック | `/conversations/[id]`        |
-| 「新しい会話」ボタン | `/conversations/[new]`（内部的に新規作成 → `[id]` へ遷移）|
+| チャット項目をクリック | `/chats/[id]`        |
+| 「新しいチャット」ボタン | `/chats/[new]`（内部的に新規作成 → `[id]` へ遷移）|
 | 設定アイコンクリック | `/settings`                  |
 
 ---
 
-### 3. `/conversations/[id]` 会話詳細画面
+### 3. `/chats/[id]` チャット詳細画面
 
 | 遷移条件              | 遷移先               |
 |-----------------------|----------------------|
 | 設定アイコンを押下    | `/settings`          |
-| ブランチから新会話作成 | （内部的に更新・同一画面内）|
+| ブランチから新チャット作成 | （内部的に更新・同一画面内）|
 
 - 入力フォームで送信 → メッセージが追加される（遷移なし）
 
@@ -54,7 +54,7 @@ flowchart TD
 
 | 遷移条件          | 遷移先                      |
 |-------------------|-----------------------------|
-| 「戻る」リンク or ロゴクリック | `/conversations` |
+| 「戻る」リンク or ロゴクリック | `/chats` |
 | モデル変更         | （保存後）stay on page      |
 
 ---
@@ -62,7 +62,7 @@ flowchart TD
 ## 📝 備考
 
 - MVPフェーズではオンボーディング画面はなし
-- `/login` と `/conversations` 間の認証判定はNext.js API / Middlewareで行う
+- `/login` と `/chats` 間の認証判定はNext.js API / Middlewareで行う
 - ブランチ機能は画面遷移を伴わず、同一画面内でDOM更新する
 
 ---
