@@ -1,4 +1,4 @@
-import { auth } from "@/auth"
+import { auth, signOut } from "@/auth"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { PlusCircle, MessageSquare } from "lucide-react"
@@ -35,31 +35,43 @@ export default async function ChatsPage() {
   return (
     <div className="container mx-auto py-10 px-4">
       <div className="flex justify-between items-center mb-8">
-        <div>
+        <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Chats</h1>
           <p className="text-muted-foreground">Pick a chat to continue branching ideas.</p>
         </div>
-        <form
-          action={async () => {
-            "use server"
-            const session = await auth()
-            if (!session?.user?.id) return
+        <div className="flex items-center gap-2">
+          <form
+            action={async () => {
+              "use server"
+              await signOut({ redirectTo: "/login" })
+            }}
+          >
+            <Button type="submit" variant="outline">
+              Log out
+            </Button>
+          </form>
+          <form
+            action={async () => {
+              "use server"
+              const session = await auth()
+              if (!session?.user?.id) return
 
-            const chat = await prisma.chat.create({
-              data: {
-                userId: session.user.id,
-                title: "New Chat",
-                languageCode: "en",
-              },
-            })
-            redirect(`/chats/${chat.id}`)
-          }}
-        >
-          <Button type="submit">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            New Chat
-          </Button>
-        </form>
+              const chat = await prisma.chat.create({
+                data: {
+                  userId: session.user.id,
+                  title: "New Chat",
+                  languageCode: "en",
+                },
+              })
+              redirect(`/chats/${chat.id}`)
+            }}
+          >
+            <Button type="submit">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              New Chat
+            </Button>
+          </form>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

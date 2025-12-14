@@ -76,6 +76,20 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --color-main-text: #421f1f;
+  --color-theme-main: #d0f5d3;
+  --color-theme-sub: #e7ffc8;
+  --color-placeholder: #aaa1a1;
+  --color-white: #f9f7f7;
+  --color-red: #fa4545;
+  --font-size-title: 64px;
+  --font-size-login: 24px;
+  --font-size-normal: 24px;
+  --font-size-small: 16px;
+  --font-family-title: var(--font-pacifico);
+  --font-family-login: var(--font-pacifico);
+  --font-family-normal: var(--font-geist-sans);
+  --font-family-small: var(--font-geist-sans);
 }
 
 .dark {
@@ -110,6 +124,20 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --color-main-text: #421f1f;
+  --color-theme-main: #d0f5d3;
+  --color-theme-sub: #e7ffc8;
+  --color-placeholder: #aaa1a1;
+  --color-white: #f9f7f7;
+  --color-red: #fa4545;
+  --font-size-title: 64px;
+  --font-size-login: 24px;
+  --font-size-normal: 24px;
+  --font-size-small: 16px;
+  --font-family-title: var(--font-pacifico);
+  --font-family-login: var(--font-pacifico);
+  --font-family-normal: var(--font-geist-sans);
+  --font-family-small: var(--font-geist-sans);
 }
 
 @layer base {
@@ -117,6 +145,25 @@
     @apply border-border outline-ring/50;
   }
   body {
+    font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
     @apply bg-background text-foreground;
   }
+}
+
+.font-title {
+  font-family: var(--font-family-title), "Pacifico", cursive;
+}
+
+.font-login {
+  font-family: var(--font-family-login), "Pacifico", cursive;
+}
+
+.font-normal {
+  font-family: var(--font-family-normal), "Inter", system-ui, -apple-system,
+    sans-serif;
+}
+
+.font-small {
+  font-family: var(--font-family-small), "Inter", system-ui, -apple-system,
+    sans-serif;
 }

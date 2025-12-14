@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { ChatSidebar } from "./chat-sidebar"
 import { ChatArea } from "./chat-area"
 import { MessageInput } from "./message-input"

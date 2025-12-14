@@ -1,6 +1,3 @@
-import { auth } from "@/auth"
-import { POST } from "@/app/api/chat/route"
-
 // Mock request and auth for testing
 // This is a bit complex to mock fully in a script without running the server.
 // Instead, let's just create a simple script that uses the OpenAI SDK directly to verify the key works.
