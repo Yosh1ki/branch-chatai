@@ -76,9 +76,12 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
-  --color-main-text: #421f1f;
-  --color-theme-main: #d0f5d3;
-  --color-theme-sub: #e7ffc8;
+  --color-main-text: #4b2418;
+  --color-main-text-soft: rgba(75, 36, 24, 0.8);
+  --color-main-text-lite: rgba(75, 36, 24, 0.7);
+  --color-main-text-muted: rgba(75, 36, 24, 0.6);
+  --color-theme-main: #cbeec6;
+  --color-theme-sub: #e6f6b5;
   --color-placeholder: #aaa1a1;
   --color-white: #f9f7f7;
   --color-red: #fa4545;
@@ -124,9 +127,12 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
-  --color-main-text: #421f1f;
-  --color-theme-main: #d0f5d3;
-  --color-theme-sub: #e7ffc8;
+  --color-main-text: #4b2418;
+  --color-main-text-soft: rgba(75, 36, 24, 0.8);
+  --color-main-text-lite: rgba(75, 36, 24, 0.7);
+  --color-main-text-muted: rgba(75, 36, 24, 0.6);
+  --color-theme-main: #cbeec6;
+  --color-theme-sub: #e6f6b5;
   --color-placeholder: #aaa1a1;
   --color-white: #f9f7f7;
   --color-red: #fa4545;
@@ -166,4 +172,32 @@
 .font-small {
   font-family: var(--font-family-small), "Inter", system-ui, -apple-system,
     sans-serif;
+}
+
+.text-main {
+  color: var(--color-main-text);
+}
+
+.text-main-soft {
+  color: var(--color-main-text-soft);
+}
+
+.text-main-lite {
+  color: var(--color-main-text-lite);
+}
+
+.text-main-muted {
+  color: var(--color-main-text-muted);
+}
+
+.bg-main {
+  background-color: var(--color-main-text);
+}
+
+.bg-theme-main {
+  background-color: var(--color-theme-main);
+}
+
+.bg-theme-sub {
+  background-color: var(--color-theme-sub);
 }

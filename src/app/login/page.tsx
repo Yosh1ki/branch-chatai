@@ -1,27 +1,19 @@
 import Image from "next/image";
 
 import { signIn } from "@/auth";
+import { textStyle } from "@/styles/typography";
 
 export default function LoginPage() {
     return (
         <div className="flex min-h-screen flex-row">
-            <div className="flex flex-[6] flex-col items-center justify-center gap-10 bg-[#cbeec6] px-6 py-12 text-[#4b2418]">
+            <div className="flex flex-[6] flex-col items-center justify-center gap-10 bg-theme-main px-6 py-12 text-main">
                 <div className="space-y-5 text-center">
-                    <p
-                        className="text-6xl leading-none"
-                        style={{
-                            fontFamily:
-                                "var(--font-pacifico, 'Pacifico'), cursive",
-                        }}
-                    >
+                    <p className="leading-none" style={textStyle("pacifico", "title")}>
                         Branch
                     </p>
                     <p
-                        className="text-2xl text-[#4b2418cc]"
-                        style={{
-                            fontFamily:
-                                "var(--font-pacifico, 'Pacifico'), cursive",
-                        }}
+                        className="text-main-soft"
+                        style={textStyle("pacifico", "login")}
                     >
                         Grow Your Ideas as You Chat
                     </p>
@@ -50,7 +42,7 @@ export default function LoginPage() {
                     </button>
                 </form>
             </div>
-            <div className="flex flex-[4] bg-[#e6f6b5]" aria-hidden="true" />
+            <div className="flex flex-[4] bg-theme-sub" aria-hidden="true" />
         </div>
     );
 }
