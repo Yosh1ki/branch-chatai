@@ -1,10 +1,8 @@
 import { auth, signOut } from "@/auth"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { PlusCircle, MessageSquare } from "lucide-react"
+import prisma from "@/lib/prisma"
+import { ArrowRight, MessageSquare, Menu } from "lucide-react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import prisma from "@/lib/prisma"
 
 async function getChats(userId: string) {
   return await prisma.chat.findMany({
@@ -23,6 +21,29 @@ async function getChats(userId: string) {
   })
 }
 
+async function createChatAction() {
+  "use server"
+  const session = await auth()
+  if (!session?.user?.id) {
+    redirect("/login")
+  }
+
+  const chat = await prisma.chat.create({
+    data: {
+      userId: session.user.id,
+      title: "New Chat",
+      languageCode: "en",
+    },
+  })
+
+  redirect(`/chats/${chat.id}`)
+}
+
+async function logoutAction() {
+  "use server"
+  await signOut({ redirectTo: "/login" })
+}
+
 export default async function ChatsPage() {
   const session = await auth()
 
@@ -33,70 +54,76 @@ export default async function ChatsPage() {
   const chats = await getChats(session.user.id)
 
   return (
-    <div className="container mx-auto py-10 px-4">
-      <div className="flex justify-between items-center mb-8">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Chats</h1>
-          <p className="text-muted-foreground">Pick a chat to continue branching ideas.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <form
-            action={async () => {
-              "use server"
-              await signOut({ redirectTo: "/login" })
-            }}
+    <div className="min-h-screen bg-[#f8f4f1] text-[#4b2418]">
+      <header className="flex w-full max-w-4xl items-center mx-5 py-4">
+        <div className="flex items-center gap-3 justify-start">
+          <button
+            type="button"
+            aria-label="Open menu"
+            className="flex h-12 w-12 items-center justify-center rounded-full border border-[#f1d0c7] bg-white text-[#4b2418] shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b5a2]"
           >
-            <Button type="submit" variant="outline">
+            <Menu className="h-6 w-6" />
+          </button>
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              className="rounded-full border border-[#f1d0c7] bg-white px-5 py-2 text-sm font-semibold text-[#4b2418] shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c5a091]"
+            >
               Log out
-            </Button>
-          </form>
-          <form
-            action={async () => {
-              "use server"
-              const session = await auth()
-              if (!session?.user?.id) return
-
-              const chat = await prisma.chat.create({
-                data: {
-                  userId: session.user.id,
-                  title: "New Chat",
-                  languageCode: "en",
-                },
-              })
-              redirect(`/chats/${chat.id}`)
-            }}
-          >
-            <Button type="submit">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              New Chat
-            </Button>
+            </button>
           </form>
         </div>
-      </div>
+      </header>
+      <p
+        className="mx-auto max-w-4xl px-6 text-center font-title text-5xl tracking-wide text-[#4b2418] md:text-6xl"
+        style={{ fontFamily: "var(--font-pacifico, 'Pacifico', cursive)" }}
+      >
+        Branch
+      </p>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {chats.map((chat) => (
-          <Link key={chat.id} href={`/chats/${chat.id}`}>
-            <Card className="hover:bg-accent transition-colors cursor-pointer h-full">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg truncate">{chat.title}</CardTitle>
-                <CardDescription>
-                  {new Date(chat.updatedAt).toLocaleDateString()}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  {chat._count.messages} messages
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+      <div className="mx-auto mt-6 flex w-full max-w-4xl flex-col gap-16 px-6 pb-12">
+        <section className="rounded-[32px] bg-white/90 p-8 shadow-[0_20px_80px_rgba(68,41,33,0.08)] backdrop-blur">
+          <div className="flex flex-col gap-6 md:flex-row md:items-center">
+            <div className="flex-1">
+              <p className="font-small text-2xl text-[#4b2418]/60">Branchを育てる</p>
+              <span className="mt-5 inline-flex items-center rounded-full bg-[#cbeec6] px-4 py-1 text-sm font-semibold text-[#417539]">
+                ChatGPT 5.2
+              </span>
+            </div>
+            <form action={createChatAction}>
+              <button
+                type="submit"
+                aria-label="Start a new chat"
+                className="flex h-14 w-14 items-center justify-center rounded-full bg-[#4b2418] text-white transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#c5a091]"
+              >
+                <ArrowRight className="h-6 w-6" />
+              </button>
+            </form>
+          </div>
+        </section>
 
-        {chats.length === 0 && (
-          <div className="col-span-full text-center py-12 text-muted-foreground">
-            No chats yet. Start a new one!
+        {chats.length === 0 ? (
+          <p className="text-center text-2xl text-[#4b2418]/70">No any chats. Let&apos;s grow branch!</p>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid gap-5 md:grid-cols-2">
+              {chats.map((chat) => (
+                <Link
+                  key={chat.id}
+                  href={`/chats/${chat.id}`}
+                  className="rounded-[24px] bg-white/90 p-6 shadow-[0_10px_40px_rgba(68,41,33,0.08)] transition hover:-translate-y-1"
+                >
+                  <div className="text-lg font-semibold leading-tight">{chat.title}</div>
+                  <p className="mt-1 text-sm text-[#4b2418]/60">
+                    {new Date(chat.updatedAt).toLocaleDateString()}
+                  </p>
+                  <div className="mt-4 flex items-center gap-2 text-sm text-[#4b2418]/70">
+                    <MessageSquare className="h-4 w-4" />
+                    {chat._count.messages} messages
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
         )}
       </div>
