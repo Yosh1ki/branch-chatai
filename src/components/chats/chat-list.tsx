@@ -95,7 +95,7 @@ function ChatCard({ chat, onDeleted }: ChatCardProps) {
                 <div>
                   <div className="text-lg font-semibold leading-tight">{chat.title}</div>
                   <p className="mt-1 text-sm text-main-muted">
-                    {new Date(chat.updatedAt).toLocaleDateString()}
+                    {new Date(chat.updatedAt).toLocaleDateString("ja-JP", { timeZone : "Asia/Tokyo" })}
                   </p>
           </div>
           <div className="relative" onMouseLeave={() => setMenuOpen(false)}>

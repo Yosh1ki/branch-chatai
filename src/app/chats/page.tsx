@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma"
 import { textStyle } from "@/styles/typography"
 import { redirect } from "next/navigation"
 import { AccountMenu } from "@/components/chats/account-menu"
+import { sendChatMessage } from "@/lib/chat-service"
 
 async function getChats(userId: string) {
   return await prisma.chat.findMany({
@@ -23,19 +24,24 @@ async function getChats(userId: string) {
   })
 }
 
-async function createChatAction() {
+async function createChatAction(formData: FormData) {
   "use server"
   const session = await auth()
   if (!session?.user?.id) {
     redirect("/login")
   }
 
-  const chat = await prisma.chat.create({
-    data: {
-      userId: session.user.id,
-      title: "New Chat",
-      languageCode: "en",
-    },
+  const prompt = formData.get("prompt")
+  const model = formData.get("model")
+
+  if (typeof prompt !== "string" || !prompt.trim()) {
+    throw new Error("Prompt is required")
+  }
+
+  const { chat } = await sendChatMessage({
+    userId: session.user.id,
+    content: prompt,
+    modelName: typeof model === "string" ? model : undefined,
   })
 
   redirect(`/chats/${chat.id}`)

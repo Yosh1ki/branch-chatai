@@ -138,7 +138,6 @@ export default function ChatPage() {
         <header className="border-b px-6 py-4">
           <div>
             <h1 className="font-semibold text-lg">{chat.title}</h1>
-            <p className="text-sm text-muted-foreground">シンプルビューで表示しています。</p>
           </div>
         </header>
 
