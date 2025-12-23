@@ -104,7 +104,7 @@ function ChatCard({ chat, onDeleted }: ChatCardProps) {
               type="button"
               aria-label="Open chat actions"
               onClick={toggleMenu}
-              className="rounded-full p-2 text-main-muted transition hover:bg-[#f6ece7]"
+              className="rounded-md p-2 text-main-muted transition hover:bg-[#f6ece7]"
             >
               <MoreVertical className="h-5 w-5" aria-hidden />
             </button>
