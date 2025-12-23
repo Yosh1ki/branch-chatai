@@ -8,7 +8,7 @@ import { AccountMenu } from "@/components/chats/account-menu"
 import { sendChatMessage } from "@/lib/chat-service"
 
 async function getChats(userId: string) {
-  return await prisma.chat.findMany({
+  const chats = await prisma.chat.findMany({
     where: {
       userId,
       isArchived: false,
@@ -16,12 +16,34 @@ async function getChats(userId: string) {
     orderBy: {
       updatedAt: "desc",
     },
-    include: {
-      _count: {
-        select: { messages: true },
-      },
+    select: {
+      id: true,
+      title: true,
+      updatedAt: true,
+      rootMessageId: true,
     },
   })
+
+  const rootIds = chats.map((chat) => chat.rootMessageId).filter(Boolean) as string[]
+
+  const branchCounts = rootIds.length
+    ? await prisma.message.groupBy({
+        by: ["chatId", "parentMessageId"],
+        where: {
+          parentMessageId: { in: rootIds },
+        },
+        _count: {
+          id: true,
+        },
+      })
+    : []
+
+  const countByRootId = new Map(branchCounts.map((item) => [item.parentMessageId, item._count.id]))
+
+  return chats.map((chat, index) => ({
+    ...chat,
+    branchCount: chat.rootMessageId ? countByRootId.get(chat.rootMessageId) ?? 0 : 0,
+  }))
 }
 
 async function createChatAction(formData: FormData) {
@@ -81,7 +103,7 @@ export default async function ChatsPage() {
             id: chat.id,
             title: chat.title,
             updatedAt: chat.updatedAt.toISOString(),
-            messagesCount: chat._count.messages,
+            branchCount: chat.branchCount,
           }))}
         />
       </div>

@@ -17,6 +17,7 @@ export function PromptCard({ action }: PromptCardProps) {
   const [model, setModel] = useState(MODELS[0])
   const [pickerOpen, setPickerOpen] = useState(false)
   const [prompt, setPrompt] = useState("")
+  const [isInputFocused, setIsInputFocused] = useState(false)
   const pickerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -55,7 +56,7 @@ export function PromptCard({ action }: PromptCardProps) {
       <form
         action={action}
         onSubmit={handleSubmit}
-        className="flex items-end gap-4 rounded-[32px] border border-[#f1d0c7] bg-white px-5 py-4 shadow-[0_8px_30px_rgba(249,220,209,0.4)]"
+        className={`flex items-end gap-4 rounded-[32px] border ${isInputFocused ? "border-[#f1d0c7]" : "border-transparent"} bg-white px-5 py-4 shadow-[0_8px_30px_rgba(249,220,209,0.4)]`}
       >
         <div className="flex flex-1 flex-col gap-5">
           <textarea
@@ -66,6 +67,8 @@ export function PromptCard({ action }: PromptCardProps) {
             value={prompt}
             onInput={(event) => handleTextareaInput(event.currentTarget.value)}
             onKeyDown={handleKeyDown}
+            onFocus={() => setIsInputFocused(true)}
+            onBlur={() => setIsInputFocused(false)}
             className="w-full resize-none bg-transparent text-lg font-normal text-main placeholder:text-main-muted focus:outline-none"
           />
           <div className="relative" ref={pickerRef}>

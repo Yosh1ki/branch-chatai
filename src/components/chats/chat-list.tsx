@@ -8,7 +8,7 @@ type ChatSummary = {
   id: string
   title: string
   updatedAt: string
-  messagesCount: number
+  branchCount: number
 }
 
 type ChatListProps = {
@@ -46,6 +46,7 @@ function ChatCard({ chat, onDeleted }: ChatCardProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const branchCount = chat.branchCount ?? 0
 
   const toggleMenu = (event: MouseEvent) => {
     event.preventDefault()
@@ -91,12 +92,12 @@ function ChatCard({ chat, onDeleted }: ChatCardProps) {
         href={`/chats/${chat.id}`}
         className="relative rounded-[24px] bg-white/90 p-6 shadow-[0_10px_40px_rgba(68,41,33,0.08)] transition hover:-translate-y-1"
       >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-lg font-semibold leading-tight">{chat.title}</div>
-                  <p className="mt-1 text-sm text-main-muted">
-                    {new Date(chat.updatedAt).toLocaleDateString("ja-JP", { timeZone : "Asia/Tokyo" })}
-                  </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-lg font-semibold leading-tight">{chat.title}</div>
+            <p className="mt-1 text-sm text-main-muted">
+              {new Date(chat.updatedAt).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })}
+            </p>
           </div>
           <div className="relative" onMouseLeave={() => setMenuOpen(false)}>
             <button
@@ -123,7 +124,7 @@ function ChatCard({ chat, onDeleted }: ChatCardProps) {
         </div>
         <div className="mt-4 flex items-center gap-2 text-sm text-main-lite">
           <MessageSquare className="h-4 w-4" />
-          {chat.messagesCount} messages
+          {branchCount} {branchCount === 1 ? "branch" : "branches"}
         </div>
       </Link>
 
