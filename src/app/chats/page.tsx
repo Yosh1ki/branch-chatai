@@ -1,5 +1,5 @@
 import { PromptCard } from "@/components/chats/prompt-card"
-import { ChatList } from "@/components/chats/chat-list"
+import { ChatListSection } from "@/components/chats/chat-list-section"
 import { auth, signOut } from "@/auth"
 import prisma from "@/lib/prisma"
 import { textStyle } from "@/styles/typography"
@@ -95,10 +95,9 @@ export default async function ChatsPage() {
         Branch
       </p>
 
-      <div className="mx-auto mt-6 flex w-full max-w-4xl flex-col gap-16 px-6 pb-12">
+      <div className="mx-auto mt-6 flex w-full max-w-4xl flex-col gap-6 px-6 pb-12">
         <PromptCard action={createChatAction} />
-
-        <ChatList
+        <ChatListSection
           initialChats={chats.map((chat) => ({
             id: chat.id,
             title: chat.title,

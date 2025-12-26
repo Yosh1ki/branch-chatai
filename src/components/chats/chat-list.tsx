@@ -1,35 +1,40 @@
 "use client"
 
-import { useState, type MouseEvent } from "react"
+import { useMemo, useState, type MouseEvent } from "react"
 import Link from "next/link"
 import { MoreVertical, MessageSquare, Trash2, X } from "lucide-react"
+import { sortChatsByUpdatedAt } from "@/lib/chat-sort"
 
 type ChatSummary = {
   id: string
   title: string
-  updatedAt: string
+  updatedAt?: string | null
   branchCount: number
 }
 
+type SortOrder = "newest" | "oldest"
+
 type ChatListProps = {
   initialChats: ChatSummary[]
+  sortOrder: SortOrder
 }
 
-export function ChatList({ initialChats }: ChatListProps) {
+export function ChatList({ initialChats, sortOrder }: ChatListProps) {
   const [chats, setChats] = useState<ChatSummary[]>(initialChats)
+  const sortedChats = useMemo(() => sortChatsByUpdatedAt(chats, sortOrder), [chats, sortOrder])
 
   const handleDeleted = (id: string) => {
     setChats((prev) => prev.filter((chat) => chat.id !== id))
   }
 
-  if (chats.length === 0) {
+  if (sortedChats.length === 0) {
     return <p className="text-center text-xl text-main-lite">No any chats. Let&apos;s grow branch!</p>
   }
 
   return (
     <div className="space-y-4">
       <div className="grid gap-5 md:grid-cols-2">
-        {chats.map((chat) => (
+        {sortedChats.map((chat) => (
           <ChatCard key={chat.id} chat={chat} onDeleted={handleDeleted} />
         ))}
       </div>
@@ -47,6 +52,16 @@ function ChatCard({ chat, onDeleted }: ChatCardProps) {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const branchCount = chat.branchCount ?? 0
+  const updatedAtLabel = useMemo(() => {
+    if (!chat.updatedAt) {
+      return "更新日不明"
+    }
+    const timestamp = new Date(chat.updatedAt)
+    if (Number.isNaN(timestamp.getTime())) {
+      return "更新日不明"
+    }
+    return timestamp.toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })
+  }, [chat.updatedAt])
 
   const toggleMenu = (event: MouseEvent) => {
     event.preventDefault()
@@ -95,9 +110,7 @@ function ChatCard({ chat, onDeleted }: ChatCardProps) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-lg font-semibold leading-tight">{chat.title}</div>
-            <p className="mt-1 text-sm text-main-muted">
-              {new Date(chat.updatedAt).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })}
-            </p>
+            <p className="mt-1 text-sm text-main-muted">{updatedAtLabel}</p>
           </div>
           <div className="relative" onMouseLeave={() => setMenuOpen(false)}>
             <button
