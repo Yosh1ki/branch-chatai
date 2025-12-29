@@ -7,12 +7,12 @@ export default function LoginPage() {
     return (
         <div className="min-h-screen bg-[#f9f7f7] text-main">
             <header className="flex w-full items-center justify-between gap-6 px-2 py-6">
-                <div
-                    className="text-2xl leading-none sm:text-3xl"
-                    style={textStyle("pacifico", "login")}
+                <p
+                    className="text-left font-title text-3xl tracking-wide text-main md:text-2xl"
+                    style={textStyle("pacifico")}
                 >
                     Branch
-                </div>
+                </p>
                 <div className="flex items-center gap-4 text-xs text-main-soft sm:gap-6 sm:text-sm">
                     <div className="group relative">
                         <button
@@ -98,7 +98,7 @@ export default function LoginPage() {
                     </div>
                     <button
                         type="button"
-                        className="rounded-full bg-theme-main px-4 py-2 text-sm text-main shadow-sm transition-transform hover:-translate-y-0.5"
+                        className="rounded-full bg-theme-main px-4 py-2 text-sm text-main transition-transform hover:-translate-y-0.5"
                     >
                         Branchを使ってみる
                     </button>

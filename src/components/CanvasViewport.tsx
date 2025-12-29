@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { clampOffsets, clampScale, getPanLimits, normalizeScaleRange } from "@/lib/canvas-state";
+import { getPointerDragBehavior, getWheelBehavior } from "@/lib/canvas-input";
 
 type CanvasState = {
   scale: number;
@@ -43,6 +44,7 @@ export function CanvasViewport({
   const pinchState = useRef<PinchState | null>(null);
   const stateRef = useRef(state);
   const [isDragging, setIsDragging] = useState(false);
+  const [allowSelection, setAllowSelection] = useState(false);
 
   useEffect(() => {
     stateRef.current = state;
@@ -65,7 +67,26 @@ export function CanvasViewport({
     applyState({ scale, offsetX: clamped.offsetX, offsetY: clamped.offsetY });
   };
 
+  const isSelectableTarget = (target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) return false;
+    if (target.closest("[data-allow-selection='true']")) return true;
+    if (target.isContentEditable) return true;
+    const tag = target.tagName;
+    return tag === "INPUT" || tag === "TEXTAREA";
+  };
+
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    const behavior = getPointerDragBehavior({
+      isMetaPressed: event.metaKey,
+      isSelectableTarget: isSelectableTarget(event.target),
+    });
+
+    setAllowSelection(behavior.allowSelection);
+    if (!behavior.allowDrag) {
+      return;
+    }
+
+    event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     pointerMap.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
     setIsDragging(true);
@@ -116,26 +137,38 @@ export function CanvasViewport({
     }
     if (pointerMap.current.size === 0) {
       setIsDragging(false);
+      setAllowSelection(false);
     }
   };
 
   const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
     event.preventDefault();
-    const { minScale: minValue, maxScale: maxValue } = normalizeScaleRange(minScale, maxScale);
-    const zoomFactor = event.deltaY < 0 ? 1.08 : 0.92;
+    const behavior = getWheelBehavior({ isCtrlPressed: event.ctrlKey });
     const current = stateRef.current;
-    const nextScale = clampScale(current.scale * zoomFactor, minValue, maxValue);
 
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
+    if (behavior.mode === "zoom") {
+      const { minScale: minValue, maxScale: maxValue } = normalizeScaleRange(minScale, maxScale);
+      const zoomFactor = event.deltaY < 0 ? 1.06 : 0.94;
+      const nextScale = clampScale(current.scale * zoomFactor, minValue, maxValue);
 
-    const originX = event.clientX - rect.left - rect.width / 2;
-    const originY = event.clientY - rect.top - rect.height / 2;
-    const ratio = nextScale / current.scale;
-    const nextOffsetX = (current.offsetX - originX) * ratio + originX;
-    const nextOffsetY = (current.offsetY - originY) * ratio + originY;
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
 
-    updateOffsets(nextOffsetX, nextOffsetY, nextScale);
+      const originX = event.clientX - rect.left - rect.width / 2;
+      const originY = event.clientY - rect.top - rect.height / 2;
+      const ratio = nextScale / current.scale;
+      const nextOffsetX = (current.offsetX - originX) * ratio + originX;
+      const nextOffsetY = (current.offsetY - originY) * ratio + originY;
+
+      updateOffsets(nextOffsetX, nextOffsetY, nextScale);
+      return;
+    }
+
+    updateOffsets(
+      current.offsetX - event.deltaX,
+      current.offsetY - event.deltaY,
+      current.scale
+    );
   };
 
   return (
@@ -147,7 +180,11 @@ export function CanvasViewport({
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       onWheel={handleWheel}
-      style={{ touchAction: "none", cursor: isDragging ? "grabbing" : "grab" }}
+      style={{
+        touchAction: "none",
+        cursor: isDragging ? "grabbing" : "grab",
+        userSelect: allowSelection ? "text" : "none",
+      }}
     >
       <div
         className="min-h-screen w-full"

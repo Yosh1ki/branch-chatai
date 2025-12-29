@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { PromptCard } from "@/components/chats/prompt-card"
 import { ChatListSection } from "@/components/chats/chat-list-section"
 import { auth, signOut } from "@/auth"
@@ -100,12 +101,13 @@ export default async function ChatsPage() {
   return (
     <div className="min-h-screen bg-[#f9f7f7] text-main">
       <header className="flex w-full items-center justify-between px-2 py-6">
-        <p
+        <Link
+          href="/chats"
           className="text-left font-title text-3xl tracking-wide text-main md:text-2xl"
           style={textStyle("pacifico")}
         >
           Branch
-        </p>
+        </Link>
         <AccountMenu user={session.user} onLogout={logoutAction} />
       </header>
 

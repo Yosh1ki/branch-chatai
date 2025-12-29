@@ -118,7 +118,7 @@ export function AssistantCard({ chatId }: AssistantCardProps) {
   return (
     <>
       <div className="relative w-full max-w-3xl rounded-[28px] border border-[#efe5dc] bg-white p-8 text-main">
-        <div className="space-y-6 text-sm leading-relaxed">
+        <div className="space-y-6 text-sm leading-relaxed" data-allow-selection="true">
           {isLoading ? (
             <p className="text-base text-main-soft">回答を取得中です...</p>
           ) : errorMessage ? (

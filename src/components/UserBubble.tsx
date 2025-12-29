@@ -73,7 +73,10 @@ export function UserBubble({ chatId }: UserBubbleProps) {
 
   return (
     <div className="relative">
-      <div className="rounded-full bg-white px-5 py-2 text-base text-main ring-1 ring-[#efe5dc]">
+      <div
+        data-allow-selection="true"
+        className="rounded-full bg-white px-5 py-2 text-base text-main ring-1 ring-[#efe5dc]"
+      >
         {isLoading ? (
           "読み込み中..."
         ) : errorMessage ? (
