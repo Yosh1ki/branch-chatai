@@ -87,7 +87,7 @@ export default async function ChatsPage() {
     <div className="min-h-screen bg-[#f9f7f7] text-main">
       <header className="flex w-full items-center justify-between px-6 py-4">
         <p
-          className="text-left font-title text-3xl tracking-wide text-main md:text-3xl"
+          className="text-left font-title text-3xl tracking-wide text-main md:text-2xl"
           style={textStyle("pacifico")}
         >
           Branch

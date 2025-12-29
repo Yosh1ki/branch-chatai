@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type MouseEvent } from "react"
 import Link from "next/link"
-import { MoreVertical, MessageSquare, Trash2, X } from "lucide-react"
+import { MessageSquare, MoreHorizontal, Trash2, X } from "lucide-react"
 import { sortChatsByUpdatedAt } from "@/lib/chat-sort"
 
 type ChatSummary = {
@@ -119,7 +119,7 @@ function ChatCard({ chat, onDeleted }: ChatCardProps) {
               onClick={toggleMenu}
               className="rounded-md p-2 text-main-muted transition hover:bg-[#f6ece7]"
             >
-              <MoreVertical className="h-5 w-5" aria-hidden />
+              <MoreHorizontal className="h-5 w-5" aria-hidden />
             </button>
             {menuOpen && (
               <div className="absolute right-0 top-0 z-20 w-40 rounded-2xl border border-[#f1d0c7] bg-white p-2 shadow-lg">
