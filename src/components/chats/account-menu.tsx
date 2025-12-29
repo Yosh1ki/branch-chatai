@@ -46,13 +46,13 @@ export function AccountMenu({ user, onLogout }: AccountMenuProps) {
         aria-label="Open account menu"
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
-        className="flex h-12 w-12 items-center justify-center rounded-lg border border-[#f1d0c7] bg-white text-main shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b5a2]"
+        className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#f1d0c7] bg-white text-main shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b5a2]"
       >
-        <Menu className="h-6 w-6" />
+        <Menu className="h-5 w-5" />
       </button>
 
       {open && (
-        <div className="absolute left-0 mt-2 w-72 rounded-2xl border border-[#f1d0c7] bg-white shadow-lg">
+        <div className="absolute right-0 mt-2 w-72 rounded-2xl border border-[#f1d0c7] bg-white shadow-lg">
           <div className="flex items-center gap-3 border-b border-[#f1d0c7] px-4 py-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f6ece7] text-base font-semibold text-main">
               {initials}

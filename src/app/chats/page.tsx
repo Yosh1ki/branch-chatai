@@ -84,18 +84,18 @@ export default async function ChatsPage() {
   const chats = await getChats(session.user.id)
 
   return (
-    <div className="min-h-screen bg-[#f8f4f1] text-main">
-      <header className="flex w-full max-w-4xl items-center mx-5 py-4">
+    <div className="min-h-screen bg-[#f9f7f7] text-main">
+      <header className="flex w-full items-center justify-between px-6 py-4">
+        <p
+          className="text-left font-title text-3xl tracking-wide text-main md:text-3xl"
+          style={textStyle("pacifico")}
+        >
+          Branch
+        </p>
         <AccountMenu user={session.user} onLogout={logoutAction} />
       </header>
-      <p
-        className="mx-auto max-w-4xl px-6 text-center font-title text-5xl tracking-wide text-main md:text-6xl"
-        style={textStyle("pacifico")}
-      >
-        Branch
-      </p>
 
-      <div className="mx-auto mt-6 flex w-full max-w-4xl flex-col gap-6 px-6 pb-12">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 pb-12">
         <PromptCard action={createChatAction} />
         <ChatListSection
           initialChats={chats.map((chat) => ({

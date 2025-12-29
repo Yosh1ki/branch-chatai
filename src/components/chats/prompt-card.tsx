@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react"
+import Image from "next/image"
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react"
 import { ArrowRight, Check, ChevronDown } from "lucide-react"
 
 type PromptCardProps = {
@@ -13,13 +14,29 @@ const MODELS = [
   { label: "Gemini 3 Pro", value: "gemini-3-pro" },
 ]
 
+const TAGLINES = [
+  "思考を止めたくないんじゃないですか？",
+  "今のひらめきを枝分かれさせよう。",
+  "話題が広がるほど、整理は美しくなる。",
+  "気になる分岐点を、今ここで。",
+  "考えの地図を一緒に広げよう。",
+]
+
 export function PromptCard({ action }: PromptCardProps) {
   const [model, setModel] = useState(MODELS[0])
   const [pickerOpen, setPickerOpen] = useState(false)
   const [prompt, setPrompt] = useState("")
   const [isInputFocused, setIsInputFocused] = useState(false)
+  const taglineId = useId()
   const pickerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const tagline = useMemo(() => {
+    let hash = 0
+    for (let i = 0; i < taglineId.length; i += 1) {
+      hash = (hash + taglineId.charCodeAt(i)) % TAGLINES.length
+    }
+    return TAGLINES[hash]
+  }, [taglineId])
 
   useEffect(() => {
     const handler = (event: MouseEvent) => {
@@ -52,7 +69,17 @@ export function PromptCard({ action }: PromptCardProps) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4">
+    <div className="w-full">
+      <div className="my-6 flex flex-col items-center">
+        <Image
+          src="/icons/Branch-logo.svg"
+          alt="Branch logo"
+          width={160}
+          height={160}
+          className="mb-3 h-20 w-20 md:h-28 md:w-28"
+        />
+        <p className="text-center text-xl font-semibold text-main md:text-2xl">{tagline}</p>
+      </div>
       <form
         action={action}
         onSubmit={handleSubmit}
@@ -62,7 +89,7 @@ export function PromptCard({ action }: PromptCardProps) {
           <textarea
             ref={textareaRef}
             name="prompt"
-            placeholder="Branchを育てる"
+            placeholder="なんでも聞いてみましょう"
             rows={1}
             value={prompt}
             onInput={(event) => handleTextareaInput(event.currentTarget.value)}
