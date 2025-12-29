@@ -1,5 +1,4 @@
 import { AssistantCard } from "@/components/AssistantCard";
-import { BranchSelector } from "@/components/BranchSelector";
 import { ChatHeader } from "@/components/ChatHeader";
 import { UserBubble } from "@/components/UserBubble";
 
@@ -16,7 +15,6 @@ export default async function ChatPage({ params }: ChatPageProps) {
         <UserBubble chatId={chatId} />
         <div className="h-10 w-px bg-[#e2d8cf]" />
         <AssistantCard chatId={chatId} />
-        <BranchSelector />
       </main>
     </div>
   );
