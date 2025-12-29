@@ -1,11 +1,15 @@
 "use client"
 
 import Image from "next/image"
-import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react"
+import { useActionState, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react"
 import { ArrowRight, Check, ChevronDown } from "lucide-react"
 
+type PromptCardActionState = {
+  error?: string
+}
+
 type PromptCardProps = {
-  action: (formData: FormData) => Promise<void>
+  action: (state: PromptCardActionState, formData: FormData) => Promise<PromptCardActionState>
 }
 
 const MODELS = [
@@ -23,6 +27,7 @@ const TAGLINES = [
 ]
 
 export function PromptCard({ action }: PromptCardProps) {
+  const [state, formAction] = useActionState(action, { error: "" })
   const [model, setModel] = useState(MODELS[0])
   const [pickerOpen, setPickerOpen] = useState(false)
   const [prompt, setPrompt] = useState("")
@@ -81,7 +86,7 @@ export function PromptCard({ action }: PromptCardProps) {
         <p className="text-center text-xl font-semibold text-main md:text-2xl">{tagline}</p>
       </div>
       <form
-        action={action}
+        action={formAction}
         onSubmit={handleSubmit}
         className={`flex items-end gap-4 rounded-[32px] border ${isInputFocused ? "border-[#f1d0c7]" : "border-transparent"} bg-white px-5 py-4 shadow-[0_8px_30px_rgba(249,220,209,0.4)]`}
       >
@@ -127,6 +132,11 @@ export function PromptCard({ action }: PromptCardProps) {
               </div>
             )}
           </div>
+          {state.error ? (
+            <p className="text-sm text-red-500" role="status">
+              {state.error}
+            </p>
+          ) : null}
         </div>
         <button
           type="submit"

@@ -58,7 +58,8 @@ export async function sendChatMessage({
     select: { planType: true },
   })
 
-  if (user?.planType === "free") {
+  const disableDailyLimit = process.env.DISABLE_DAILY_LIMIT === "true"
+  if (user?.planType === "free" && !disableDailyLimit) {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
@@ -152,9 +153,10 @@ export async function sendChatMessage({
     })),
   ]
 
+  const useDevResponse = process.env.USE_DEV_ASSISTANT_RESPONSE === "true"
   const assistantContent =
     (
-      process.env.NODE_ENV === "development"
+      useDevResponse
         ? DEV_ASSISTANT_RESPONSE
         : (await getOpenAIClient().chat.completions.create({
             model: "gpt-4o-mini",

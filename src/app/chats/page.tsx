@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma"
 import { textStyle } from "@/styles/typography"
 import { redirect } from "next/navigation"
 import { AccountMenu } from "@/components/chats/account-menu"
-import { sendChatMessage } from "@/lib/chat-service"
+import { ChatActionError, sendChatMessage } from "@/lib/chat-service"
 
 async function getChats(userId: string) {
   const chats = await prisma.chat.findMany({
@@ -40,13 +40,20 @@ async function getChats(userId: string) {
 
   const countByRootId = new Map(branchCounts.map((item) => [item.parentMessageId, item._count.id]))
 
-  return chats.map((chat, index) => ({
+  return chats.map((chat) => ({
     ...chat,
     branchCount: chat.rootMessageId ? countByRootId.get(chat.rootMessageId) ?? 0 : 0,
   }))
 }
 
-async function createChatAction(formData: FormData) {
+type ChatActionState = {
+  error?: string
+}
+
+async function createChatAction(
+  _prevState: ChatActionState,
+  formData: FormData
+): Promise<ChatActionState> {
   "use server"
   const session = await auth()
   if (!session?.user?.id) {
@@ -60,13 +67,20 @@ async function createChatAction(formData: FormData) {
     throw new Error("Prompt is required")
   }
 
-  const { chat } = await sendChatMessage({
-    userId: session.user.id,
-    content: prompt,
-    modelName: typeof model === "string" ? model : undefined,
-  })
+  try {
+    const { chat } = await sendChatMessage({
+      userId: session.user.id,
+      content: prompt,
+      modelName: typeof model === "string" ? model : undefined,
+    })
 
-  redirect(`/chats/${chat.id}`)
+    redirect(`/chats/${chat.id}`)
+  } catch (error) {
+    if (error instanceof ChatActionError && error.status === 429) {
+      return { error: "上限に達しました" }
+    }
+    throw error
+  }
 }
 
 async function logoutAction() {
@@ -85,7 +99,7 @@ export default async function ChatsPage() {
 
   return (
     <div className="min-h-screen bg-[#f9f7f7] text-main">
-      <header className="flex w-full items-center justify-between px-6 py-4">
+      <header className="flex w-full items-center justify-between px-2 py-6">
         <p
           className="text-left font-title text-3xl tracking-wide text-main md:text-2xl"
           style={textStyle("pacifico")}

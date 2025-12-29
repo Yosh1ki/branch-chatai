@@ -37,6 +37,10 @@ AUTH_GOOGLE_SECRET="xxxxx"
 # OpenAI
 OPENAI_API_KEY="xxxxx"
 DEFAULT_MODEL_NAME="gpt-4o-mini"
+
+# 開発用フラグ（任意）
+USE_DEV_ASSISTANT_RESPONSE="false" # trueで固定文言を返す
+DISABLE_DAILY_LIMIT="false"        # trueで1日の上限チェックを無効化
 ```
 
 ※ Prisma CLI は `.env.local` を読みません。そのため次の `.env` も必須です。
@@ -75,6 +79,17 @@ pnpm dev
 以下にアクセスするとアプリが動作します：
 
 http://localhost:3000
+
+---
+
+## 🧪 開発用フラグ
+
+開発中に挙動を切り替えたい場合は、`.env` に以下のフラグを追加してください。
+
+- `USE_DEV_ASSISTANT_RESPONSE=true` で固定のデモ回答を返します。
+- `DISABLE_DAILY_LIMIT=true` でFreeプランの1日上限チェックを無効化します。
+
+本番環境では未設定か `false` を推奨します。
 
 ---
 

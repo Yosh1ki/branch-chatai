@@ -6,7 +6,7 @@ import { textStyle } from "@/styles/typography";
 export default function LoginPage() {
     return (
         <div className="min-h-screen bg-[#f9f7f7] text-main">
-            <header className="flex w-full items-center justify-between gap-6 px-6 pt-6">
+            <header className="flex w-full items-center justify-between gap-6 px-2 py-6">
                 <div
                     className="text-2xl leading-none sm:text-3xl"
                     style={textStyle("pacifico", "login")}

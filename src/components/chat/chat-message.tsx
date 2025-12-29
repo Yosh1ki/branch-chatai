@@ -1,7 +1,9 @@
+import type { ComponentPropsWithoutRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import type { Components, ExtraProps } from "react-markdown";
 
 interface Message {
     id: string;
@@ -10,6 +12,51 @@ interface Message {
     createdAt: Date;
     modelName?: string | null;
 }
+
+type CodeProps = ComponentPropsWithoutRef<"code"> &
+    ExtraProps & {
+        inline?: boolean;
+    };
+
+const markdownComponents = {
+    a: ({ ...props }) => (
+        <a
+            {...props}
+            target="_blank"
+            rel="noreferrer"
+            className="underline"
+        />
+    ),
+    pre: ({ ...props }) => (
+        <pre
+            {...props}
+            className={cn(
+                "overflow-x-auto rounded-md bg-background/60 p-3 text-xs text-foreground",
+                props.className
+            )}
+        />
+    ),
+    code: ({ inline, className, children, ...rest }: CodeProps) => {
+        if (inline) {
+            return (
+                <code
+                    {...rest}
+                    className={cn(
+                        "rounded bg-background/80 px-1 py-0.5 text-xs font-semibold",
+                        className
+                    )}
+                >
+                    {children}
+                </code>
+            );
+        }
+        return (
+            <code {...rest} className={cn("text-xs", className)}>
+                {children}
+            </code>
+        );
+    },
+} satisfies Components;
 
 export function ChatMessage({ message }: { message: Message }) {
     const isUser = message.role === "user";
@@ -61,57 +108,7 @@ export function ChatMessage({ message }: { message: Message }) {
                         <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:mt-4 prose-headings:mb-2 prose-p:mt-2 prose-p:mb-2">
                             <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
-                                components={{
-                                    a: ({ ...props }) => (
-                                        <a
-                                            {...props}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="underline"
-                                        />
-                                    ),
-                                    pre: ({ ...props }) => (
-                                        <pre
-                                            {...props}
-                                            className={cn(
-                                                "overflow-x-auto rounded-md bg-background/60 p-3 text-xs text-foreground",
-                                                props.className
-                                            )}
-                                        />
-                                    ),
-                                    code: (props: any) => {
-                                        const {
-                                            inline,
-                                            className,
-                                            children,
-                                            ...rest
-                                        } = props;
-                                        if (inline) {
-                                            return (
-                                                <code
-                                                    {...rest}
-                                                    className={cn(
-                                                        "rounded bg-background/80 px-1 py-0.5 text-xs font-semibold",
-                                                        className
-                                                    )}
-                                                >
-                                                    {children}
-                                                </code>
-                                            );
-                                        }
-                                        return (
-                                            <code
-                                                {...rest}
-                                                className={cn(
-                                                    "text-xs",
-                                                    className
-                                                )}
-                                            >
-                                                {children}
-                                            </code>
-                                        );
-                                    },
-                                }}
+                                components={markdownComponents}
                             >
                                 {message.content}
                             </ReactMarkdown>

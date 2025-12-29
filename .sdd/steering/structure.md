@@ -4,9 +4,11 @@
 ```
 /
 ├── src/          # アプリ本体
+├── tests/        # テストコード
 ├── prisma/       # Prismaスキーマとマイグレーション
 ├── public/       # 公開アセット
 ├── docs/         # 仕様とルール
+├── specforhuman/ # 仕様ドキュメント（詳細）
 ├── scripts/      # 開発スクリプト
 ├── .sdd/         # SDD関連ファイル
 └── package.json  # Node.js設定
