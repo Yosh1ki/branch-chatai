@@ -1,78 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Copy } from "lucide-react";
-import { copyToClipboard } from "@/lib/chat-screen-state";
+import { Check, Copy } from "lucide-react";
+import { useCopyFeedback } from "@/hooks/use-copy-feedback";
+import { useLatestChatMessage } from "@/hooks/use-latest-chat-message";
 
 type UserBubbleProps = {
   chatId: string;
 };
 
-type ChatMessage = {
-  role: string;
-  content: string;
-};
-
-type ChatResponse = {
-  messages?: ChatMessage[];
-};
-
 export function UserBubble({ chatId }: UserBubbleProps) {
-  const [userText, setUserText] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchUserMessage = async () => {
-      try {
-        const response = await fetch(`/api/chats/${chatId}`);
-        const data: ChatResponse = await response.json();
-
-        if (!response.ok) {
-          const errorText =
-            (data as { error?: string })?.error || "レスポンスの取得に失敗しました。";
-          if (isMounted) {
-            setErrorMessage(errorText);
-            setUserText("");
-          }
-          return;
-        }
-
-        const messages = data.messages ?? [];
-        const lastUser = [...messages].reverse().find((message) => message.role === "user");
-        const content = lastUser?.content || "";
-        if (isMounted) {
-          setUserText(content);
-          setErrorMessage("");
-        }
-      } catch {
-        if (isMounted) {
-          setErrorMessage("通信に失敗しました。");
-          setUserText("");
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    fetchUserMessage();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [chatId]);
-
-  const handleCopy = async () => {
-    if (!userText) return;
-    await copyToClipboard(userText);
-  };
+  const { content: userText, errorMessage, isLoading } = useLatestChatMessage(chatId, "user");
+  const { isCopied, handleCopy } = useCopyFeedback(userText);
 
   return (
-    <div className="relative">
+    <div className="relative inline-block pb-4 pr-4">
       <div
         data-allow-selection="true"
         className="rounded-full bg-white px-5 py-2 text-base text-main ring-1 ring-[#efe5dc]"
@@ -92,9 +33,9 @@ export function UserBubble({ chatId }: UserBubbleProps) {
         onClick={handleCopy}
         aria-label="Copy user message"
         disabled={!userText}
-        className="absolute -bottom-2 right-3 flex h-6 w-6 items-center justify-center rounded-lg border border-[#e6ddd3] bg-white text-main-muted transition hover:text-main"
+        className="absolute -bottom-2 right-2 flex h-6 w-6 items-center justify-center rounded-lg border border-[#e6ddd3] bg-white text-main-muted transition-colors duration-150 hover:border-[#d6c9be] hover:bg-[#f8f3ee] hover:text-main active:border-[#cbb9aa]"
       >
-        <Copy className="h-3 w-3" />
+        {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
       </button>
     </div>
   );
