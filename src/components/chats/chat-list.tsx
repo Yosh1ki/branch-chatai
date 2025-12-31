@@ -21,7 +21,13 @@ type ChatListProps = {
 
 export function ChatList({ initialChats, sortOrder }: ChatListProps) {
   const [chats, setChats] = useState<ChatSummary[]>(initialChats)
+  const [visibleCount, setVisibleCount] = useState(12)
   const sortedChats = useMemo(() => sortChatsByUpdatedAt(chats, sortOrder), [chats, sortOrder])
+  const visibleChats = useMemo(
+    () => sortedChats.slice(0, visibleCount),
+    [sortedChats, visibleCount]
+  )
+
 
   const handleDeleted = (id: string) => {
     setChats((prev) => prev.filter((chat) => chat.id !== id))
@@ -34,10 +40,21 @@ export function ChatList({ initialChats, sortOrder }: ChatListProps) {
   return (
     <div className="space-y-4">
       <div className="grid gap-5 md:grid-cols-2">
-        {sortedChats.map((chat) => (
+        {visibleChats.map((chat) => (
           <ChatCard key={chat.id} chat={chat} onDeleted={handleDeleted} />
         ))}
       </div>
+      {visibleChats.length < sortedChats.length ? (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => setVisibleCount((count) => count + 12)}
+            className="rounded-full border border-[#f1d0c7] px-4 py-2 text-sm font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f1d0c7]"
+          >
+            さらに表示
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }

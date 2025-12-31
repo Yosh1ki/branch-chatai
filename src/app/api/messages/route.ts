@@ -1,8 +1,7 @@
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
+import { FREE_PLAN_DAILY_LIMIT, getStartOfToday } from "@/lib/usage-limits";
 import { NextResponse } from "next/server";
-
-const FREE_PLAN_DAILY_LIMIT = 10;
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -36,9 +35,10 @@ export async function POST(req: Request) {
       select: { planType: true },
     });
 
-    if (user?.planType === "free") {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+    const isFreePlan = user?.planType === "free";
+    const today = isFreePlan ? getStartOfToday() : null;
+
+    if (isFreePlan && today) {
 
       const usage = await prisma.usageStat.findUnique({
         where: {
@@ -89,10 +89,7 @@ export async function POST(req: Request) {
     }
 
     // 4. Update Usage Stats
-    if (user?.planType === "free") {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
+    if (isFreePlan && today) {
       await prisma.usageStat.upsert({
         where: {
           userId_date: {

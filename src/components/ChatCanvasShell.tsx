@@ -320,7 +320,22 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
   }, [messages]);
 
   const pairs = useMemo(() => groupConversationPairs(mainThreadMessages), [mainThreadMessages]);
-  const displayPairs = pairs.length ? pairs : [{ user: null, assistant: null }];
+  const displayPairs = useMemo(
+    () => (pairs.length ? pairs : [{ user: null, assistant: null }]),
+    [pairs]
+  );
+  const branchesByParent = useMemo(() => {
+    const map = new Map<string, BranchDraft[]>();
+    Object.values(branches).forEach((branch) => {
+      const list = map.get(branch.parentMessageId) ?? [];
+      list.push(branch);
+      map.set(branch.parentMessageId, list);
+    });
+    map.forEach((list) => {
+      list.sort((a, b) => a.createdAt - b.createdAt);
+    });
+    return map;
+  }, [branches]);
   const promptInputEnabled = true;
   const branchOffset = "clamp(380px, 35vw, 560px)";
   const showBranchCenterGuide = false;
@@ -689,9 +704,7 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
                 const userNodeId = pair.user?.id ?? `user-${index}`;
                 const assistantNodeId = pair.assistant?.id ?? `assistant-${index}`;
                 const branchesForAssistant = assistantId
-                  ? Object.values(branches)
-                      .filter((branch) => branch.parentMessageId === assistantId)
-                      .sort((a, b) => a.createdAt - b.createdAt)
+                  ? branchesByParent.get(assistantId) ?? []
                   : [];
                 const hiddenBranchSides = branchesForAssistant
                   .filter((branch) => branch.hasSubmitted)

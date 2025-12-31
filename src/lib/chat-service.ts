@@ -14,9 +14,10 @@ import {
   serializeRichTextContent,
 } from "@/lib/rich-text"
 import type { RichTextDoc } from "@/lib/rich-text"
+import { FREE_PLAN_DAILY_LIMIT, getStartOfToday } from "@/lib/usage-limits"
 
-const FREE_PLAN_DAILY_LIMIT = 10
 const SYSTEM_PROMPT = "You are a helpful AI assistant."
+let openAIClient: OpenAI | null = null
 const DEV_ASSISTANT_DOC: RichTextDoc = {
   version: "1.0",
   blocks: [
@@ -73,11 +74,15 @@ const DEV_ASSISTANT_DOC: RichTextDoc = {
 }
 
 const getOpenAIClient = () => {
+  if (openAIClient) {
+    return openAIClient
+  }
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
     throw new Error("OPENAI_API_KEY is not set")
   }
-  return new OpenAI({ apiKey })
+  openAIClient = new OpenAI({ apiKey })
+  return openAIClient
 }
 
 const getAnthropicApiKey = () => {
@@ -178,8 +183,7 @@ export async function sendChatMessage({
 
   const disableDailyLimit = process.env.DISABLE_DAILY_LIMIT === "true"
   if (user?.planType === "free" && !disableDailyLimit) {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    const today = getStartOfToday()
 
     const usage = await prisma.usageStat.findUnique({
       where: {
@@ -271,6 +275,8 @@ export async function sendChatMessage({
     },
   })
 
+  const messageById = new Map(allMessages.map((message) => [message.id, message]))
+
   const path: MessageForTree[] = [
     {
       id: userMessage.id,
@@ -283,7 +289,7 @@ export async function sendChatMessage({
   let parentId = userMessage.parentMessageId
 
   while (parentId) {
-    const parent = allMessages.find((m) => m.id === parentId)
+    const parent = messageById.get(parentId)
     if (parent) {
       path.unshift(parent)
       parentId = parent.parentMessageId
@@ -321,8 +327,7 @@ export async function sendChatMessage({
   })
 
   if (user?.planType === "free") {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    const today = getStartOfToday()
 
     await prisma.usageStat.upsert({
       where: {

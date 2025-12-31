@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { FREE_PLAN_DAILY_LIMIT, getStartOfToday } from "@/lib/usage-limits"
 
 export default async function SettingsPage() {
   const session = await auth()
@@ -22,8 +23,7 @@ export default async function SettingsPage() {
     },
   })
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const today = getStartOfToday()
 
   const usage = await prisma.usageStat.findUnique({
     where: {
@@ -81,12 +81,17 @@ export default async function SettingsPage() {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Daily Messages</span>
-                <span>{usage?.messageCount || 0} / 10</span>
+                <span>{usage?.messageCount || 0} / {FREE_PLAN_DAILY_LIMIT}</span>
               </div>
               <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-primary transition-all" 
-                  style={{ width: `${Math.min(((usage?.messageCount || 0) / 10) * 100, 100)}%` }}
+                  style={{
+                    width: `${Math.min(
+                      ((usage?.messageCount || 0) / FREE_PLAN_DAILY_LIMIT) * 100,
+                      100
+                    )}%`,
+                  }}
                 />
               </div>
               <p className="text-xs text-muted-foreground">

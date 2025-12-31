@@ -1,9 +1,6 @@
-import type { ComponentPropsWithoutRef } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { memo, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { Components, ExtraProps } from "react-markdown";
 import { parseMessageContent } from "@/lib/rich-text";
 import { RichTextRenderer } from "@/components/RichTextRenderer";
 
@@ -15,54 +12,12 @@ interface Message {
     modelName?: string | null;
 }
 
-type CodeProps = ComponentPropsWithoutRef<"code"> &
-    ExtraProps & {
-        inline?: boolean;
-    };
-
-const markdownComponents = {
-    a: ({ ...props }) => (
-        <a
-            {...props}
-            target="_blank"
-            rel="noreferrer"
-            className="underline"
-        />
-    ),
-    pre: ({ ...props }) => (
-        <pre
-            {...props}
-            className={cn(
-                "overflow-x-auto rounded-md bg-background/60 p-3 text-xs text-foreground",
-                props.className
-            )}
-        />
-    ),
-    code: ({ inline, className, children, ...rest }: CodeProps) => {
-        if (inline) {
-            return (
-                <code
-                    {...rest}
-                    className={cn(
-                        "rounded bg-background/80 px-1 py-0.5 text-xs font-semibold",
-                        className
-                    )}
-                >
-                    {children}
-                </code>
-            );
-        }
-        return (
-            <code {...rest} className={cn("text-xs", className)}>
-                {children}
-            </code>
-        );
-    },
-} satisfies Components;
-
-export function ChatMessage({ message }: { message: Message }) {
+const ChatMessageComponent = ({ message }: { message: Message }) => {
     const isUser = message.role === "user";
-    const parsedContent = isUser ? null : parseMessageContent(message.content);
+    const parsedContent = useMemo(
+        () => (isUser ? null : parseMessageContent(message.content)),
+        [isUser, message.content]
+    );
 
     return (
         <div
@@ -110,17 +65,14 @@ export function ChatMessage({ message }: { message: Message }) {
                     ) : parsedContent?.format === "richjson" && parsedContent.doc ? (
                         <RichTextRenderer value={parsedContent.doc} />
                     ) : (
-                        <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:mt-4 prose-headings:mb-2 prose-p:mt-2 prose-p:mb-2">
-                            <ReactMarkdown
-                                remarkPlugins={[remarkGfm]}
-                                components={markdownComponents}
-                            >
-                                {parsedContent?.text ?? message.content}
-                            </ReactMarkdown>
+                        <div className="whitespace-pre-wrap">
+                            {parsedContent?.text ?? message.content}
                         </div>
                     )}
                 </div>
             </div>
         </div>
     );
-}
+};
+
+export const ChatMessage = memo(ChatMessageComponent);
