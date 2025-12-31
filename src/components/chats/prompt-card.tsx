@@ -1,8 +1,18 @@
 "use client"
 
 import Image from "next/image"
-import { useActionState, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react"
+import {
+  useActionState,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react"
 import { ArrowRight, Check, ChevronDown } from "lucide-react"
+import { MODEL_OPTIONS, type ModelOption } from "@/lib/model-catalog"
 
 type PromptCardActionState = {
   error?: string
@@ -11,12 +21,6 @@ type PromptCardActionState = {
 type PromptCardProps = {
   action: (state: PromptCardActionState, formData: FormData) => Promise<PromptCardActionState>
 }
-
-const MODELS = [
-  { label: "ChatGPT 5.2 Thinking", value: "gpt-5.2-thinking" },
-  { label: "Claude 3.5 Sonnet", value: "claude-3-5-sonnet" },
-  { label: "Gemini 3 Pro", value: "gemini-3-pro" },
-]
 
 const TAGLINES = [
   "思考を止めたくないんじゃないですか？",
@@ -28,7 +32,7 @@ const TAGLINES = [
 
 export function PromptCard({ action }: PromptCardProps) {
   const [state, formAction] = useActionState(action, { error: "" })
-  const [model, setModel] = useState(MODELS[0])
+  const [model, setModel] = useState<ModelOption>(MODEL_OPTIONS[0])
   const [pickerOpen, setPickerOpen] = useState(false)
   const [prompt, setPrompt] = useState("")
   const [isInputFocused, setIsInputFocused] = useState(false)
@@ -45,7 +49,8 @@ export function PromptCard({ action }: PromptCardProps) {
 
   useEffect(() => {
     const handler = (event: MouseEvent) => {
-      if (!pickerRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node
+      if (!pickerRef.current?.contains(target)) {
         setPickerOpen(false)
       }
     }
@@ -104,7 +109,8 @@ export function PromptCard({ action }: PromptCardProps) {
             className="w-full resize-none bg-transparent text-lg font-normal text-main placeholder:text-main-muted focus:outline-none"
           />
           <div className="relative" ref={pickerRef}>
-            <input type="hidden" name="model" value={model.value} />
+            <input type="hidden" name="modelProvider" value={model.provider} />
+            <input type="hidden" name="modelName" value={model.model} />
             <button
               type="button"
               onClick={() => setPickerOpen((prev) => !prev)}
@@ -114,10 +120,10 @@ export function PromptCard({ action }: PromptCardProps) {
               <ChevronDown className="h-3 w-3" />
             </button>
             {pickerOpen && (
-              <div className="absolute left-0 top-[calc(100%+6px)] z-10 w-52 rounded-2xl border border-[#f1d0c7] bg-white p-2 shadow-lg">
-                {MODELS.map((option) => (
+              <div className="absolute left-0 top-[calc(100%+6px)] z-10 w-56 rounded-2xl border border-[#f1d0c7] bg-white p-2 shadow-lg">
+                {MODEL_OPTIONS.map((option) => (
                   <button
-                    key={option.value}
+                    key={option.model}
                     type="button"
                     onClick={() => {
                       setModel(option)
@@ -126,7 +132,7 @@ export function PromptCard({ action }: PromptCardProps) {
                     className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs text-main transition hover:bg-[#fbf7f3]"
                   >
                     {option.label}
-                    {model.value === option.value && <Check className="h-3.5 w-3.5 text-main" />}
+                    {model.model === option.model && <Check className="h-3.5 w-3.5 text-main" />}
                   </button>
                 ))}
               </div>

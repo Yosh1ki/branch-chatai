@@ -60,7 +60,8 @@ async function createChatAction(
   }
 
   const prompt = formData.get("prompt")
-  const model = formData.get("model")
+  const modelProvider = formData.get("modelProvider")
+  const modelName = formData.get("modelName")
 
   if (typeof prompt !== "string" || !prompt.trim()) {
     throw new Error("Prompt is required")
@@ -70,7 +71,8 @@ async function createChatAction(
     const { chat } = await sendChatMessage({
       userId: session.user.id,
       content: prompt,
-      modelName: typeof model === "string" ? model : undefined,
+      modelProvider: typeof modelProvider === "string" ? modelProvider : undefined,
+      modelName: typeof modelName === "string" ? modelName : undefined,
     })
 
     redirect(`/chats/${chat.id}`)

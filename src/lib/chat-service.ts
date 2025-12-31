@@ -1,8 +1,15 @@
 import prisma from "@/lib/prisma"
 import OpenAI from "openai"
 import type { Chat, Message } from "@prisma/client"
+import {
+  getModelsForProvider,
+  isModelProvider,
+  MODEL_OPTIONS,
+  type ModelProvider,
+} from "@/lib/model-catalog"
 
 const FREE_PLAN_DAILY_LIMIT = 10
+const SYSTEM_PROMPT = "You are a helpful AI assistant."
 const DEV_ASSISTANT_RESPONSE =
   "白ワインのおすすめは以下の通りです。好みによって選ぶと良いでしょう。 1. **ソーヴィニヨン・ブラン**： - **代表的な産地**：ニュージーランド、フランス（ロワール渓谷） - **特徴**：フレッシュで爽やかな酸味、柑橘系の香りやトロピカルフルーツの風味。魚料理やサラダとも相性抜群です。 2. **シャルドネ**： - **代表的な産地**：フランス（ブルゴーニュ）、アメリカ（カリフォルニア） - **特徴**：豊かでクリーミーな味わい、樽熟成によるバターやバニラのニュアンス。チキンやクリームソースの料理に合います。 3. **リースリング**： - **代表的な産地**：ドイツ、オーストラリア - **特徴**：甘口から辛口まで幅広いスタイルがあり、蜜や桃の香りが特徴的。辛口のリースリングはアジア料理とよく合います。 4. **ピノ・グリージョ**： - **代表的な産地**：イタリア、アメリカ - **特徴**：軽やかで飲みやすい、洋梨やリンゴの香り。前菜や軽い料理と相性が良いです。 5. **グルナッシュ・ブラン**： - **代表的な産地**：フランス（ローヌ地方） - **特徴**：果実味とハーブのニュアンス。魚料理や野菜料理によく合います。 これらの白ワインは、料理やシチュエーションに応じて楽しむことができるので、ぜひ試してみてください。好みに合わせて選ぶと良いでしょう。"
 
@@ -12,6 +19,54 @@ const getOpenAIClient = () => {
     throw new Error("OPENAI_API_KEY is not set")
   }
   return new OpenAI({ apiKey })
+}
+
+const getAnthropicApiKey = () => {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) {
+    throw new Error("ANTHROPIC_API_KEY is not set")
+  }
+  return apiKey
+}
+
+const getGeminiApiKey = () => {
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not set")
+  }
+  return apiKey
+}
+
+const DEFAULT_MODEL = { provider: "openai" as ModelProvider, name: "gpt-5.2-chat-latest" }
+
+type ResolvedModel = {
+  provider: ModelProvider
+  name: string
+}
+
+const resolveModelSelection = (
+  provider: ModelProvider | undefined,
+  modelName: string | undefined
+): ResolvedModel => {
+  if (provider && modelName) {
+    return { provider, name: modelName }
+  }
+
+  if (!provider && modelName) {
+    const match = MODEL_OPTIONS.find((option) => option.model === modelName)
+    if (match) {
+      return { provider: match.provider, name: match.model }
+    }
+  }
+
+  if (provider) {
+    const models = getModelsForProvider(provider)
+    if (models.length) {
+      return { provider, name: models[0].model }
+    }
+  }
+
+  return DEFAULT_MODEL
 }
 
 export class ChatActionError extends Error {
@@ -124,6 +179,10 @@ export async function sendChatMessage({
     resolvedBranchId = branch.id
   }
 
+  const resolvedProvider = isModelProvider(modelProvider) ? modelProvider : undefined
+  const resolvedModelName = typeof modelName === "string" ? modelName : undefined
+  const resolvedModel = resolveModelSelection(resolvedProvider, resolvedModelName)
+
   const userMessage = await prisma.message.create({
     data: {
       chatId: chatRecord.id,
@@ -131,8 +190,8 @@ export async function sendChatMessage({
       content: trimmedContent,
       parentMessageId,
       branchId: resolvedBranchId,
-      modelProvider,
-      modelName,
+      modelProvider: resolvedModel.provider,
+      modelName: resolvedModel.name,
     },
   })
 
@@ -175,7 +234,6 @@ export async function sendChatMessage({
   }
 
   const messagesForLLM = [
-    { role: "system" as const, content: "You are a helpful AI assistant." },
     ...path.map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content,
@@ -187,10 +245,7 @@ export async function sendChatMessage({
     (
       useDevResponse
         ? DEV_ASSISTANT_RESPONSE
-        : (await getOpenAIClient().chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: messagesForLLM,
-          })).choices[0].message.content
+        : await generateAssistantResponse(resolvedModel, messagesForLLM)
     ) || ""
 
   const assistantMessage = await prisma.message.create({
@@ -200,8 +255,8 @@ export async function sendChatMessage({
       content: assistantContent,
       parentMessageId: userMessage.id,
       branchId: resolvedBranchId,
-      modelProvider: "openai",
-      modelName: "gpt-4o-mini",
+      modelProvider: resolvedModel.provider,
+      modelName: resolvedModel.name,
     },
   })
 
@@ -228,4 +283,96 @@ export async function sendChatMessage({
   }
 
   return { chat: chatRecord, userMessage, assistantMessage }
+}
+
+async function generateAssistantResponse(
+  resolvedModel: ResolvedModel,
+  messagesForLLM: Array<{ role: "user" | "assistant"; content: string }>
+) {
+  switch (resolvedModel.provider) {
+    case "openai":
+      return generateOpenAIResponse(resolvedModel.name, messagesForLLM)
+    case "anthropic":
+      return generateAnthropicResponse(resolvedModel.name, messagesForLLM)
+    case "gemini":
+      return generateGeminiResponse(resolvedModel.name, messagesForLLM)
+    default:
+      return generateOpenAIResponse(resolvedModel.name, messagesForLLM)
+  }
+}
+
+async function generateOpenAIResponse(
+  model: string,
+  messagesForLLM: Array<{ role: "user" | "assistant"; content: string }>
+) {
+  const completion = await getOpenAIClient().chat.completions.create({
+    model,
+    messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messagesForLLM],
+  })
+  return completion.choices[0]?.message?.content || ""
+}
+
+async function generateAnthropicResponse(
+  model: string,
+  messagesForLLM: Array<{ role: "user" | "assistant"; content: string }>
+) {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": getAnthropicApiKey(),
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 1024,
+      system: SYSTEM_PROMPT,
+      messages: messagesForLLM,
+    }),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const message =
+      typeof data?.error?.message === "string" ? data.error.message : "Anthropic API error"
+    throw new ChatActionError(message, response.status)
+  }
+
+  const contentParts = Array.isArray(data?.content) ? data.content : []
+  const text = contentParts.map((part: { text?: string }) => part.text ?? "").join("")
+  return text
+}
+
+async function generateGeminiResponse(
+  model: string,
+  messagesForLLM: Array<{ role: "user" | "assistant"; content: string }>
+) {
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${getGeminiApiKey()}`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents: messagesForLLM.map((message) => ({
+          role: message.role === "assistant" ? "model" : "user",
+          parts: [{ text: message.content }],
+        })),
+        generationConfig: {
+          maxOutputTokens: 1024,
+        },
+      }),
+    }
+  )
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const message =
+      typeof data?.error?.message === "string" ? data.error.message : "Gemini API error"
+    throw new ChatActionError(message, response.status)
+  }
+
+  const parts = data?.candidates?.[0]?.content?.parts ?? []
+  const text = parts.map((part: { text?: string }) => part.text ?? "").join("")
+  return text
 }

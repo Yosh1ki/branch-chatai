@@ -4,12 +4,15 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { Check, Copy, MoreHorizontal } from "lucide-react";
 import { toggleMenu } from "@/lib/chat-screen-state";
 import { useCopyFeedback } from "@/hooks/use-copy-feedback";
+import { getModelLabel, isModelProvider } from "@/lib/model-catalog";
 
 type AssistantCardProps = {
   content: string;
   isLoading: boolean;
   errorMessage: string;
   showPromptInput: boolean;
+  modelProvider?: string | null;
+  modelName?: string | null;
   cardRef?: (node: HTMLDivElement | null) => void;
   showAllBranchPills?: boolean;
   hiddenBranchSides?: BranchSelection[];
@@ -43,6 +46,8 @@ export function AssistantCard({
   isLoading,
   errorMessage,
   showPromptInput,
+  modelProvider,
+  modelName,
   cardRef,
   showAllBranchPills = false,
   hiddenBranchSides,
@@ -54,6 +59,10 @@ export function AssistantCard({
     () => new Set(hiddenBranchSides ?? []),
     [hiddenBranchSides]
   );
+  const modelLabel = useMemo(() => {
+    const provider = isModelProvider(modelProvider ?? undefined) ? modelProvider : undefined;
+    return getModelLabel(provider, modelName);
+  }, [modelProvider, modelName]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [selectedBranches, setSelectedBranches] = useState<BranchSelection[]>([]);
   const [activeBranch, setActiveBranch] = useState<BranchSelection | null>(null);
@@ -157,7 +166,7 @@ export function AssistantCard({
         </div>
 
         <div className="mt-8 flex items-center justify-between text-xs text-main-muted">
-          <span>ChatGPT 5.2</span>
+          <span>{modelLabel}</span>
           <div className="flex items-center gap-2">
             <button
               type="button"

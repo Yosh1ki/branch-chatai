@@ -4,6 +4,8 @@ export type ChatMessage = {
   content: string;
   parentMessageId?: string | null;
   branchId?: string | null;
+  modelProvider?: string | null;
+  modelName?: string | null;
 };
 
 export type ChatBranch = {

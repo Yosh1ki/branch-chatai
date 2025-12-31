@@ -12,6 +12,7 @@ import { createCanvasState, resetCanvasState } from "@/lib/canvas-state";
 import { fetchChatMessages } from "@/lib/chat-messages";
 import { groupConversationPairs } from "@/lib/chat-conversation";
 import { insertAfterMessage } from "@/lib/chat-message-insert";
+import { isModelProvider, type ModelProvider } from "@/lib/model-catalog";
 type BranchSide = "left" | "right";
 
 type ChatCanvasShellProps = {
@@ -24,6 +25,8 @@ type ChatMessage = {
   content: string;
   parentMessageId?: string | null;
   branchId?: string | null;
+  modelProvider?: string | null;
+  modelName?: string | null;
 };
 
 type ChatBranch = {
@@ -51,9 +54,15 @@ type BranchDraft = {
   createdAt: number;
 };
 
+type SelectedModel = {
+  provider: ModelProvider;
+  name: string;
+};
+
 export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
   const [state, setState] = useState(createCanvasState());
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [selectedModel, setSelectedModel] = useState<SelectedModel | null>(null);
   const [promptText, setPromptText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState("");
@@ -146,6 +155,7 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
     let isActive = true;
     setIsLoading(true);
     setLoadError("");
+    setSelectedModel(null);
 
     fetchChatMessages(chatId)
       .then((data) => {
@@ -154,6 +164,19 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
         const loadedBranches = (data.branches ?? []) as ChatBranch[];
         setMessages(loadedMessages);
         setBranches(buildBranchState(loadedMessages, loadedBranches));
+        const latestModel = [...loadedMessages]
+          .reverse()
+          .find(
+            (message) =>
+              typeof message.modelName === "string" &&
+              isModelProvider(message.modelProvider ?? undefined)
+          );
+        if (latestModel && isModelProvider(latestModel.modelProvider ?? undefined)) {
+          setSelectedModel({
+            provider: latestModel.modelProvider as ModelProvider,
+            name: latestModel.modelName as string,
+          });
+        }
         setIsLoading(false);
       })
       .catch((error) => {
@@ -219,7 +242,12 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: trimmed, chatId }),
+        body: JSON.stringify({
+          content: trimmed,
+          chatId,
+          modelProvider: selectedModel?.provider,
+          modelName: selectedModel?.name,
+        }),
       });
 
       const payload = await response.json().catch(() => ({}));
@@ -243,6 +271,15 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
         }
         if (payload?.assistantMessage) {
           const assistantMessage = payload.assistantMessage;
+          if (
+            assistantMessage?.modelName &&
+            isModelProvider(assistantMessage.modelProvider ?? undefined)
+          ) {
+            setSelectedModel({
+              provider: assistantMessage.modelProvider as ModelProvider,
+              name: assistantMessage.modelName as string,
+            });
+          }
           if (!payload?.userMessage && assistantMessage?.parentMessageId == null) {
             nextMessages.push({ ...assistantMessage, parentMessageId: tempId });
           } else {
@@ -444,6 +481,8 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
           parentMessageId: branch.parentMessageId,
           branchId: branch.branchId,
           branchSide: branch.side,
+          modelProvider: selectedModel?.provider,
+          modelName: selectedModel?.name,
         }),
       });
 
@@ -481,6 +520,15 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
         }
         if (payload?.assistantMessage) {
           const assistantMessage = payload.assistantMessage;
+          if (
+            assistantMessage?.modelName &&
+            isModelProvider(assistantMessage.modelProvider ?? undefined)
+          ) {
+            setSelectedModel({
+              provider: assistantMessage.modelProvider as ModelProvider,
+              name: assistantMessage.modelName as string,
+            });
+          }
           if (!payload?.userMessage && assistantMessage?.parentMessageId == null) {
             additions.push({ ...assistantMessage, parentMessageId: tempId });
           } else {
@@ -621,6 +669,8 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
                 const isLast = index === displayPairs.length - 1;
                 const userContent = pair.user?.content ?? "";
                 const assistantContent = pair.assistant?.content ?? "";
+                const assistantModelProvider = pair.assistant?.modelProvider ?? null;
+                const assistantModelName = pair.assistant?.modelName ?? null;
                 const assistantId = pair.assistant?.id ?? null;
                 const assistantLoading =
                   (pendingUserId && pendingUserId === pair.user?.id) ||
@@ -736,6 +786,8 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
                         content={assistantContent}
                         isLoading={assistantLoading}
                         errorMessage={assistantError}
+                        modelProvider={assistantModelProvider}
+                        modelName={assistantModelName}
                         showPromptInput={isLast && promptInputEnabled}
                         showAllBranchPills={isLast && promptInputEnabled}
                         hiddenBranchSides={isLast ? hiddenBranchSides : undefined}
@@ -832,6 +884,8 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
                                       content={branch.reply.assistantMessage?.content ?? ""}
                                       isLoading={branch.reply.isLoading}
                                       errorMessage={branch.reply.error}
+                                      modelProvider={branch.reply.assistantMessage?.modelProvider}
+                                      modelName={branch.reply.assistantMessage?.modelName}
                                       showPromptInput={false}
                                     />
                                   </div>
