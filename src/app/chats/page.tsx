@@ -7,6 +7,7 @@ import { textStyle } from "@/styles/typography"
 import { redirect } from "next/navigation"
 import { AccountMenu } from "@/components/chats/account-menu"
 import { ChatActionError, sendChatMessage } from "@/lib/chat-service"
+import { Prisma } from "@prisma/client"
 
 async function getChats(userId: string) {
   const chats = await prisma.chat.findMany({
@@ -25,25 +26,22 @@ async function getChats(userId: string) {
     },
   })
 
-  const rootIds = chats.map((chat) => chat.rootMessageId).filter(Boolean) as string[]
+  const chatIds = chats.map((chat) => chat.id)
 
-  const branchCounts = rootIds.length
-    ? await prisma.message.groupBy({
-        by: ["chatId", "parentMessageId"],
-        where: {
-          parentMessageId: { in: rootIds },
-        },
-        _count: {
-          id: true,
-        },
-      })
+  const branchCounts = chatIds.length
+    ? await prisma.$queryRaw<{ chatId: string; count: number }[]>(
+        Prisma.sql`SELECT chat_id AS "chatId", COUNT(*)::int AS count
+                   FROM branches
+                   WHERE chat_id IN (${Prisma.join(chatIds)})
+                   GROUP BY chat_id`
+      )
     : []
 
-  const countByRootId = new Map(branchCounts.map((item) => [item.parentMessageId, item._count.id]))
+  const countByChatId = new Map(branchCounts.map((item) => [item.chatId, item.count]))
 
   return chats.map((chat) => ({
     ...chat,
-    branchCount: chat.rootMessageId ? countByRootId.get(chat.rootMessageId) ?? 0 : 0,
+    branchCount: 1 + (countByChatId.get(chat.id) ?? 0),
   }))
 }
 

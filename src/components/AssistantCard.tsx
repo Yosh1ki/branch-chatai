@@ -15,7 +15,7 @@ type AssistantCardProps = {
   hiddenBranchSides?: BranchSelection[];
   promptInput?: ReactNode;
   onBranchSelect?: (value: BranchSelection) => void;
-  activeBranchSide?: BranchSelection | null;
+  activeBranchSides?: BranchSelection[] | null;
 };
 
 type BranchSelection = "left" | "right";
@@ -48,14 +48,15 @@ export function AssistantCard({
   hiddenBranchSides,
   promptInput,
   onBranchSelect,
-  activeBranchSide = null,
+  activeBranchSides = null,
 }: AssistantCardProps) {
   const hiddenBranchSideSet = useMemo(
     () => new Set(hiddenBranchSides ?? []),
     [hiddenBranchSides]
   );
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [selectedBranch, setSelectedBranch] = useState<BranchSelection | null>(null);
+  const [selectedBranches, setSelectedBranches] = useState<BranchSelection[]>([]);
+  const [activeBranch, setActiveBranch] = useState<BranchSelection | null>(null);
   const [hiddenBranchSide, setHiddenBranchSide] = useState<BranchSelection | null>(null);
   const { isCopied, handleCopy } = useCopyFeedback(content);
   const shouldShowBranchPills = showPromptInput;
@@ -74,14 +75,14 @@ export function AssistantCard({
       if (activeElement instanceof HTMLInputElement) return;
       if (activeElement instanceof HTMLElement && activeElement.isContentEditable) return;
 
-      if (!selectedBranch) {
+      if (!activeBranch) {
         const nextSelection = event.key === "ArrowRight" ? "right" : "left";
         event.preventDefault();
-        setSelectedBranch(nextSelection);
+        setActiveBranch(nextSelection);
         return;
       }
 
-      const currentIndex = BRANCH_ORDER.indexOf(selectedBranch);
+      const currentIndex = BRANCH_ORDER.indexOf(activeBranch);
       if (currentIndex === -1) return;
 
       const nextIndex =
@@ -91,10 +92,10 @@ export function AssistantCard({
 
       if (nextIndex !== currentIndex) {
         event.preventDefault();
-        setSelectedBranch(BRANCH_ORDER[nextIndex]);
+        setActiveBranch(BRANCH_ORDER[nextIndex]);
       }
     },
-    [selectedBranch]
+    [activeBranch]
   );
 
   useEffect(() => {
@@ -108,36 +109,40 @@ export function AssistantCard({
 
   const handleBranchSelect = useCallback(
     (value: BranchSelection) => {
-      if (selectedBranch === value) {
+      if (selectedBranches.includes(value)) {
         onBranchSelect?.(value);
-        setSelectedBranch(null);
+        setSelectedBranches((prev) => prev.filter((side) => side !== value));
         setHiddenBranchSide(null);
+        if (activeBranch === value) {
+          setActiveBranch(null);
+        }
         return;
       }
-      setSelectedBranch(value);
+      setSelectedBranches((prev) => (prev.includes(value) ? prev : [...prev, value]));
+      setActiveBranch(value);
       setHiddenBranchSide(value);
       onBranchSelect?.(value);
     },
-    [onBranchSelect, selectedBranch]
+    [activeBranch, onBranchSelect, selectedBranches]
   );
 
   useEffect(() => {
-    if (!activeBranchSide) return;
-    setSelectedBranch(activeBranchSide);
-    setHiddenBranchSide(activeBranchSide);
-  }, [activeBranchSide]);
-
-  useEffect(() => {
-    if (!activeBranchSide) {
+    if (!activeBranchSides || activeBranchSides.length === 0) {
+      setSelectedBranches([]);
+      setActiveBranch(null);
       setHiddenBranchSide(null);
+      return;
     }
-  }, [activeBranchSide]);
+    setSelectedBranches(activeBranchSides);
+    setActiveBranch(activeBranchSides[activeBranchSides.length - 1]);
+    setHiddenBranchSide(activeBranchSides[activeBranchSides.length - 1]);
+  }, [activeBranchSides]);
 
   return (
     <>
       <div
         ref={cardRef}
-        className="relative w-full max-w-3xl rounded-[28px] border border-[#efe5dc] bg-white p-8 text-main"
+        className="relative w-full max-w-3xl rounded-xl border border-[#efe5dc] bg-white p-8 text-main"
       >
         <div className="space-y-6 text-sm leading-relaxed" data-allow-selection="true">
           {isLoading ? (
@@ -212,9 +217,9 @@ export function AssistantCard({
                   key={option.value}
                   type="button"
                   onClick={() => handleBranchSelect(option.value)}
-                  aria-pressed={selectedBranch === option.value}
+                  aria-pressed={selectedBranches.includes(option.value)}
                   className={`branch-pill ${option.className} ${
-                    selectedBranch === option.value ? "branch-pill-selected" : ""
+                    selectedBranches.includes(option.value) ? "branch-pill-selected" : ""
                   }`}
                 >
                   {option.label}
@@ -224,7 +229,7 @@ export function AssistantCard({
           </div>
           <span className="branch-connector branch-connector-bottom" aria-hidden="true" />
           {promptInput ? (
-            <div className="mt-4 flex w-full justify-center">{promptInput}</div>
+            <div className="mt-0 flex w-full justify-center">{promptInput}</div>
           ) : null}
         </div>
       ) : null}

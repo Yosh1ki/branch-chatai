@@ -355,7 +355,7 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
       const fromY = fromTop + fromHeight;
       const toY = toTop;
       const baseMidY = (fromY + toY) / 2;
-      const midYOffset = connector.kind === "branch" ? -32 : 0;
+      const midYOffset = connector.kind === "branch" ? -64 : 0;
       const midY = Math.max(fromY + 8, baseMidY + midYOffset);
 
       return [`M ${fromX} ${fromY} L ${fromX} ${midY} L ${toX} ${midY} L ${toX} ${toY}`];
@@ -527,31 +527,57 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
     }
   };
 
+  const latestAssistantId = useMemo(() => {
+    const lastPair = displayPairs[displayPairs.length - 1];
+    return lastPair?.assistant?.id ?? null;
+  }, [displayPairs]);
+
+  const closeOpenBranchesForAssistant = useCallback((assistantId: string | null) => {
+    if (!assistantId) return;
+    setBranches((prev) => {
+      let hasChanges = false;
+      const next = Object.fromEntries(
+        Object.entries(prev).filter(([_, branch]) => {
+          const shouldKeep = !(
+            branch.parentMessageId === assistantId && !branch.hasSubmitted
+          );
+          if (!shouldKeep) {
+            hasChanges = true;
+          }
+          return shouldKeep;
+        })
+      ) as Record<string, BranchDraft>;
+      return hasChanges ? next : prev;
+    });
+  }, []);
+
   const promptInput = (
     <form
       onSubmit={(event) => {
         event.preventDefault();
         handleSend();
       }}
-      className="flex w-full max-w-3xl items-end gap-3"
+      className="flex w-full max-w-3xl items-start gap-3"
     >
       <textarea
         ref={promptTextareaRef}
         value={promptText}
         onChange={(event) => {
+          closeOpenBranchesForAssistant(latestAssistantId);
           const nextValue = event.currentTarget.value;
           setPromptText(nextValue);
           resizeTextarea(event.currentTarget);
         }}
+        onFocus={() => closeOpenBranchesForAssistant(latestAssistantId)}
         placeholder="なんでも聞いてみましょう"
         rows={1}
-        className="w-full resize-none rounded-2xl border border-[#efe5dc] bg-white px-4 py-3 text-base leading-6 text-main shadow-[0_8px_18px_rgba(239,229,220,0.6)] transition-[height] duration-150 ease-out focus:border-[#d9c9bb] focus:outline-none"
+        className="w-full resize-none rounded-xl border border-[#efe5dc] bg-white px-4 py-3 text-base leading-6 text-main shadow-[0_8px_18px_rgba(239,229,220,0.6)] transition-[height] duration-150 ease-out focus:border-[#d9c9bb] focus:outline-none"
       />
       <button
         type="submit"
         aria-label="Send prompt"
         disabled={!promptText.trim() || isSending}
-        className="flex h-11 w-11 items-center justify-center rounded-lg bg-theme-main text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82] disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex h-11 w-11 self-end items-center justify-center rounded-lg bg-theme-main text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82] disabled:cursor-not-allowed disabled:opacity-60"
       >
         <ArrowRight className="h-5 w-5" />
       </button>
@@ -620,6 +646,12 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
                 const hiddenBranchSides = branchesForAssistant
                   .filter((branch) => branch.hasSubmitted)
                   .map((branch) => branch.side);
+                const activeBranchSides = (() => {
+                  const openBranches = branchesForAssistant.filter(
+                    (branch) => !branch.hasSubmitted
+                  );
+                  return openBranches.map((branch) => branch.side);
+                })();
                 const parentLeftBranch = parentAssistantId
                   ? branches[createBranchKey(parentAssistantId, "left")]
                   : null;
@@ -708,12 +740,12 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
                         showAllBranchPills={isLast && promptInputEnabled}
                         hiddenBranchSides={isLast ? hiddenBranchSides : undefined}
                         promptInput={isLast && promptInputEnabled ? promptInput : null}
+                        activeBranchSides={isLast ? activeBranchSides : null}
                         cardRef={setNodeRef(`assistant-${assistantNodeId}`)}
                         onBranchSelect={(side) => {
                           if (!assistantId) return;
                           handleBranchOpen(assistantId, side);
                         }}
-                        activeBranchSide={null}
                       />
                     </div>
                     {branchesForAssistant.length ? (
@@ -773,7 +805,7 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
                                       }}
                                       placeholder="なんでも聞いてみましょう"
                                       rows={1}
-                                      className="w-full resize-none rounded-2xl border border-[#efe5dc] bg-white px-4 py-2 text-sm leading-5 text-main shadow-[0_8px_18px_rgba(239,229,220,0.6)] transition-[height] duration-150 ease-out focus:border-[#d9c9bb] focus:outline-none"
+                                      className="w-full resize-none rounded-xl border border-[#efe5dc] bg-white px-4 py-2 text-sm leading-5 text-main shadow-[0_8px_18px_rgba(239,229,220,0.6)] transition-[height] duration-150 ease-out focus:border-[#d9c9bb] focus:outline-none"
                                     />
                                     <button
                                       type="submit"
