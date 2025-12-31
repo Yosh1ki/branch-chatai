@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { clampOffsets, clampScale, getPanLimits, normalizeScaleRange } from "@/lib/canvas-state";
+import type { MutableRefObject, Ref } from "react";
+import { clampScale, normalizeScaleRange } from "@/lib/canvas-state";
 import { getPointerDragBehavior, getWheelBehavior } from "@/lib/canvas-input";
 
 type CanvasState = {
@@ -15,7 +16,10 @@ type CanvasViewportProps = {
   onStateChange: (next: CanvasState) => void;
   minScale?: number;
   maxScale?: number;
-  basePanRatio?: number;
+  containerRef?: Ref<HTMLDivElement>;
+  contentRef?: Ref<HTMLDivElement>;
+  overlay?: React.ReactNode;
+  onPanStateChange?: (isPanning: boolean) => void;
   className?: string;
   children: React.ReactNode;
 };
@@ -35,11 +39,15 @@ export function CanvasViewport({
   onStateChange,
   minScale = 0.6,
   maxScale = 1.6,
-  basePanRatio = 0.25,
+  containerRef: externalRef,
+  contentRef: externalContentRef,
+  overlay,
+  onPanStateChange,
   className,
   children,
 }: CanvasViewportProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const pointerMap = useRef(new Map<number, PointerPosition>());
   const pinchState = useRef<PinchState | null>(null);
   const stateRef = useRef(state);
@@ -54,17 +62,8 @@ export function CanvasViewport({
     onStateChange(next);
   };
 
-  const getLimits = (scale: number) => {
-    const rect = containerRef.current?.getBoundingClientRect();
-    const width = rect?.width ?? 0;
-    const height = rect?.height ?? 0;
-    return getPanLimits({ width, height }, scale, basePanRatio);
-  };
-
   const updateOffsets = (offsetX: number, offsetY: number, scale: number) => {
-    const limits = getLimits(scale);
-    const clamped = clampOffsets({ offsetX, offsetY }, limits);
-    applyState({ scale, offsetX: clamped.offsetX, offsetY: clamped.offsetY });
+    applyState({ scale, offsetX, offsetY });
   };
 
   const isSelectableTarget = (target: EventTarget | null) => {
@@ -90,6 +89,7 @@ export function CanvasViewport({
     event.currentTarget.setPointerCapture(event.pointerId);
     pointerMap.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
     setIsDragging(true);
+    onPanStateChange?.(true);
 
     if (pointerMap.current.size === 2) {
       const points = Array.from(pointerMap.current.values());
@@ -138,6 +138,7 @@ export function CanvasViewport({
     if (pointerMap.current.size === 0) {
       setIsDragging(false);
       setAllowSelection(false);
+      onPanStateChange?.(false);
     }
   };
 
@@ -171,10 +172,31 @@ export function CanvasViewport({
     );
   };
 
+  const setContainerRef = (node: HTMLDivElement | null) => {
+    containerRef.current = node;
+    if (!externalRef) return;
+    if (typeof externalRef === "function") {
+      externalRef(node);
+      return;
+    }
+    (externalRef as MutableRefObject<HTMLDivElement | null>).current = node;
+  };
+
+  const setContentRef = (node: HTMLDivElement | null) => {
+    contentRef.current = node;
+    if (!externalContentRef) return;
+    if (typeof externalContentRef === "function") {
+      externalContentRef(node);
+      return;
+    }
+    (externalContentRef as MutableRefObject<HTMLDivElement | null>).current = node;
+  };
+
   return (
     <div
-      ref={containerRef}
-      className={`relative min-h-screen w-full overflow-hidden ${className ?? ""}`}
+      ref={setContainerRef}
+      data-tree-viewport="true"
+      className={`TreeViewport relative min-h-screen w-full overflow-hidden ${className ?? ""}`}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -187,12 +209,15 @@ export function CanvasViewport({
       }}
     >
       <div
-        className="min-h-screen w-full"
+        ref={setContentRef}
+        data-tree-content="true"
+        className="TreeContent relative min-h-screen w-full"
         style={{
           transform: `translate(${state.offsetX}px, ${state.offsetY}px) scale(${state.scale})`,
           transformOrigin: "center",
         }}
       >
+        {overlay}
         {children}
       </div>
     </div>

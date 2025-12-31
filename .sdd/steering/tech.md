@@ -10,13 +10,17 @@ Next.js App Router上でReactクライアントコンポーネントを用い、
 - React 19.2.0
 
 ### 依存関係
-- Auth.js / NextAuth: Google OAuth認証
+- Auth.js / NextAuth (v5): Google OAuth認証
+- @auth/prisma-adapter: Auth.js向けPrismaアダプタ
 - Prisma: ORM
 - PostgreSQL (pg): データベース
 - ai / openai: LLM連携
 - zustand: 状態管理
 - Radix UI: UIコンポーネント
 - Tailwind CSS: スタイリング
+- react-markdown / remark-gfm: Markdown表示
+- lucide-react: アイコン
+- class-variance-authority / tailwind-merge: クラス構築ユーティリティ
 
 ## 開発環境
 ### 必要なツール
@@ -28,6 +32,7 @@ Next.js App Router上でReactクライアントコンポーネントを用い、
 ### よく使うコマンド
 - 起動: `npm run dev` / `pnpm dev`
 - ビルド: `npm run build`
+- 起動(本番): `npm run start`
 - テスト: `npm run test`
 - リント: `npm run lint`
 - Prismaマイグレーション: `npx prisma migrate dev`
@@ -40,3 +45,5 @@ Next.js App Router上でReactクライアントコンポーネントを用い、
 - `AUTH_GOOGLE_SECRET`: Google OAuthクライアントシークレット
 - `OPENAI_API_KEY`: OpenAI APIキー
 - `DEFAULT_MODEL_NAME`: デフォルトモデル名
+- `USE_DEV_ASSISTANT_RESPONSE`: 固定デモ回答の返却フラグ
+- `DISABLE_DAILY_LIMIT`: 1日上限チェックの無効化フラグ

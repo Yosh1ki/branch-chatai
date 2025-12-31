@@ -16,7 +16,9 @@
 
 ## コード構成パターン
 - `src/app/`: Next.js App Routerのルーティング
+- `src/app/api/`: APIルート
 - `src/components/`: UIコンポーネント
+- `src/hooks/`: Reactフック
 - `src/lib/`: 共有ユーティリティ
 - `src/store/`: 状態管理
 - `src/styles/`: スタイル
