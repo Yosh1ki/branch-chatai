@@ -20,6 +20,7 @@ export async function POST(req: Request) {
       modelProvider,
       modelName,
       parentMessageId,
+      branchId,
     } = body;
 
     if (!chatId || !role || !content) {
@@ -65,6 +66,7 @@ export async function POST(req: Request) {
         modelProvider,
         modelName,
         parentMessageId,
+        branchId,
       },
     });
 

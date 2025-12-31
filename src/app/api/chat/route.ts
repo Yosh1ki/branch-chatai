@@ -9,7 +9,15 @@ export async function POST(req: Request) {
   }
 
   const json = await req.json()
-  const { content, chatId, parentMessageId, modelProvider, modelName } = json
+  const {
+    content,
+    chatId,
+    parentMessageId,
+    branchId,
+    branchSide,
+    modelProvider,
+    modelName,
+  } = json
 
   try {
     const result = await sendChatMessage({
@@ -17,6 +25,8 @@ export async function POST(req: Request) {
       content,
       chatId,
       parentMessageId,
+      branchId,
+      branchSide,
       modelProvider,
       modelName,
     })

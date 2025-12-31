@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useReducer } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { AssistantCard } from "@/components/AssistantCard";
 import { CanvasControls } from "@/components/CanvasControls";
@@ -12,10 +12,7 @@ import { createCanvasState, resetCanvasState } from "@/lib/canvas-state";
 import { fetchChatMessages } from "@/lib/chat-messages";
 import { groupConversationPairs } from "@/lib/chat-conversation";
 import { insertAfterMessage } from "@/lib/chat-message-insert";
-import {
-  branchDraftReducer,
-  createBranchDraftState,
-} from "@/lib/chat-branch-state";
+type BranchSide = "left" | "right";
 
 type ChatCanvasShellProps = {
   chatId: string;
@@ -25,6 +22,33 @@ type ChatMessage = {
   id?: string;
   role: string;
   content: string;
+  parentMessageId?: string | null;
+  branchId?: string | null;
+};
+
+type ChatBranch = {
+  id: string;
+  parentMessageId: string;
+  side: BranchSide;
+  createdAt?: string;
+};
+
+type BranchReply = {
+  isLoading: boolean;
+  error: string;
+  assistantMessage: ChatMessage | null;
+};
+
+type BranchDraft = {
+  key: string;
+  parentMessageId: string;
+  side: BranchSide;
+  branchId: string | null;
+  text: string;
+  lastUserContent: string;
+  reply: BranchReply;
+  hasSubmitted: boolean;
+  createdAt: number;
 };
 
 export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
@@ -36,19 +60,83 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
-  const [branchState, dispatchBranch] = useReducer(
-    branchDraftReducer,
-    undefined,
-    createBranchDraftState
-  );
+  const [branches, setBranches] = useState<Record<string, BranchDraft>>({});
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const canvasContentRef = useRef<HTMLDivElement | null>(null);
   const nodeRefs = useRef(new Map<string, HTMLDivElement>());
   const isPanningRef = useRef(false);
   const [connectorPaths, setConnectorPaths] = useState<string[]>([]);
   const lastPathsRef = useRef<string[]>([]);
-  const branchTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const branchTextareaRefs = useRef(new Map<string, HTMLTextAreaElement>());
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const createBranchKey = useCallback(
+    (parentMessageId: string, side: BranchSide) => `${parentMessageId}:${side}`,
+    []
+  );
+
+  const resizeTextarea = useCallback((textarea: HTMLTextAreaElement) => {
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, []);
+
+  const setBranchTextareaRef = useCallback(
+    (key: string) => (node: HTMLTextAreaElement | null) => {
+      if (!node) {
+        branchTextareaRefs.current.delete(key);
+        return;
+      }
+      branchTextareaRefs.current.set(key, node);
+      resizeTextarea(node);
+    },
+    [resizeTextarea]
+  );
+
+  const buildBranchState = useCallback(
+    (loadedMessages: ChatMessage[], loadedBranches: ChatBranch[] = []) => {
+      const messagesByBranch = new Map<string, ChatMessage[]>();
+      loadedMessages.forEach((message) => {
+        if (!message.branchId) return;
+        const list = messagesByBranch.get(message.branchId) ?? [];
+        list.push(message);
+        messagesByBranch.set(message.branchId, list);
+      });
+
+      return loadedBranches.reduce<Record<string, BranchDraft>>((acc, branch) => {
+        const key = createBranchKey(branch.parentMessageId, branch.side);
+        const branchMessages = messagesByBranch.get(branch.id) ?? [];
+        let lastUserContent = "";
+        let lastAssistant: ChatMessage | null = null;
+
+        branchMessages.forEach((message) => {
+          if (message.role === "user") {
+            lastUserContent = message.content;
+          }
+          if (message.role === "assistant") {
+            lastAssistant = message;
+          }
+        });
+
+        acc[key] = {
+          key,
+          parentMessageId: branch.parentMessageId,
+          side: branch.side,
+          branchId: branch.id,
+          text: "",
+          lastUserContent,
+          reply: {
+            assistantMessage: lastAssistant,
+            isLoading: false,
+            error: "",
+          },
+          hasSubmitted: Boolean(lastUserContent),
+          createdAt: branch.createdAt ? new Date(branch.createdAt).getTime() : Date.now(),
+        };
+        return acc;
+      }, {});
+    },
+    [createBranchKey]
+  );
 
   const handleReset = () => {
     setState(resetCanvasState());
@@ -62,7 +150,10 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
     fetchChatMessages(chatId)
       .then((data) => {
         if (!isActive) return;
-        setMessages((data.messages ?? []) as ChatMessage[]);
+        const loadedMessages = (data.messages ?? []) as ChatMessage[];
+        const loadedBranches = (data.branches ?? []) as ChatBranch[];
+        setMessages(loadedMessages);
+        setBranches(buildBranchState(loadedMessages, loadedBranches));
         setIsLoading(false);
       })
       .catch((error) => {
@@ -74,14 +165,7 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
     return () => {
       isActive = false;
     };
-  }, [chatId]);
-
-  useEffect(() => {
-    if (!branchState.active || !branchTextareaRef.current) return;
-    const textarea = branchTextareaRef.current;
-    textarea.style.height = "auto";
-    textarea.style.height = `${textarea.scrollHeight}px`;
-  }, [branchState.active, branchState.text]);
+  }, [chatId, buildBranchState]);
 
   useEffect(() => {
     if (!promptTextareaRef.current) return;
@@ -90,20 +174,33 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
     textarea.style.height = `${textarea.scrollHeight}px`;
   }, [promptText]);
 
-  const handleBranchOpen = (parentMessageId: string, side: "left" | "right") => {
-    if (
-      branchState.active?.parentMessageId === parentMessageId &&
-      branchState.active?.side === side
-    ) {
-      dispatchBranch({ type: "close-branch" });
-      return;
-    }
-    dispatchBranch({ type: "open-branch", parentMessageId, side });
+  const handleBranchOpen = (parentMessageId: string, side: BranchSide) => {
+    const key = createBranchKey(parentMessageId, side);
+    setBranches((prev) => {
+      const existing = prev[key];
+      if (existing) {
+        if (existing.hasSubmitted) {
+          return prev;
+        }
+        const { [key]: _removed, ...rest } = prev;
+        return rest;
+      }
+      return {
+        ...prev,
+        [key]: {
+          key,
+          parentMessageId,
+          side,
+          branchId: null,
+          text: "",
+          lastUserContent: "",
+          reply: { isLoading: false, error: "", assistantMessage: null },
+          hasSubmitted: false,
+          createdAt: Date.now(),
+        },
+      };
+    });
     setSendError("");
-  };
-
-  const handleBranchClose = () => {
-    dispatchBranch({ type: "close-branch" });
   };
 
   const handleSend = async () => {
@@ -114,7 +211,7 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
     setSendError("");
     setPromptText("");
     const tempId = `temp-${Date.now()}`;
-    const tempMessage = { id: tempId, role: "user", content: trimmed };
+    const tempMessage = { id: tempId, role: "user", content: trimmed, parentMessageId: null };
     setPendingUserId(tempId);
     setMessages((prev) => [...prev, tempMessage]);
 
@@ -145,7 +242,12 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
           nextMessages.push(tempMessage);
         }
         if (payload?.assistantMessage) {
-          nextMessages.push(payload.assistantMessage);
+          const assistantMessage = payload.assistantMessage;
+          if (!payload?.userMessage && assistantMessage?.parentMessageId == null) {
+            nextMessages.push({ ...assistantMessage, parentMessageId: tempId });
+          } else {
+            nextMessages.push(assistantMessage);
+          }
         }
         return nextMessages;
       });
@@ -157,10 +259,33 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
     }
   };
 
-  const pairs = useMemo(() => groupConversationPairs(messages), [messages]);
+  const mainThreadMessages = useMemo(() => {
+    const mainUserIds = new Set<string>();
+    messages.forEach((message) => {
+      if (message.role === "user" && !message.parentMessageId && message.id) {
+        mainUserIds.add(message.id);
+      }
+    });
+
+    return messages.filter((message) => {
+      if (message.role === "user") {
+        return !message.parentMessageId;
+      }
+      if (message.role === "assistant") {
+        return (
+          !!message.parentMessageId &&
+          mainUserIds.has(message.parentMessageId) &&
+          !message.branchId
+        );
+      }
+      return false;
+    });
+  }, [messages]);
+
+  const pairs = useMemo(() => groupConversationPairs(mainThreadMessages), [mainThreadMessages]);
   const displayPairs = pairs.length ? pairs : [{ user: null, assistant: null }];
   const promptInputEnabled = true;
-  const branchOffset = "clamp(160px, 20vw, 320px)";
+  const branchOffset = "clamp(380px, 35vw, 560px)";
   const showBranchCenterGuide = false;
 
   const normalizeBranchShift = (value: number | string) =>
@@ -178,7 +303,7 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
   );
 
   const connectors = useMemo(() => {
-    const entries: Array<{ from: string; to: string }> = [];
+    const entries: Array<{ from: string; to: string; kind: "thread" | "branch" }> = [];
 
     displayPairs.forEach((pair, index) => {
       if (!pair.user && !pair.assistant) return;
@@ -188,17 +313,20 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
       const nextPair = displayPairs[index + 1];
       if (pair.assistant?.content && nextPair?.user?.content) {
         const nextUserId = nextPair.user?.id ?? `user-${index + 1}`;
-        entries.push({ from: `assistant-${assistantId}`, to: `user-${nextUserId}` });
+        entries.push({ from: `assistant-${assistantId}`, to: `user-${nextUserId}`, kind: "thread" });
       }
     });
 
-    if (branchState.active?.parentMessageId) {
-      const parentId = branchState.active.parentMessageId;
-      entries.push({ from: `assistant-${parentId}`, to: `branch-${parentId}` });
-    }
+    Object.values(branches).forEach((branch) => {
+      entries.push({
+        from: `assistant-${branch.parentMessageId}`,
+        to: `branch-${branch.key}`,
+        kind: "branch",
+      });
+    });
 
     return entries;
-  }, [displayPairs, branchState.active]);
+  }, [displayPairs, branches]);
 
   const updateConnectorPaths = useCallback(() => {
     if (isPanningRef.current) return;
@@ -226,7 +354,9 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
       const toX = toLeft + toWidth / 2;
       const fromY = fromTop + fromHeight;
       const toY = toTop;
-      const midY = (fromY + toY) / 2;
+      const baseMidY = (fromY + toY) / 2;
+      const midYOffset = connector.kind === "branch" ? -32 : 0;
+      const midY = Math.max(fromY + 8, baseMidY + midYOffset);
 
       return [`M ${fromX} ${fromY} L ${fromX} ${midY} L ${toX} ${midY} L ${toX} ${toY}`];
     });
@@ -258,7 +388,7 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
       resizeObserver.disconnect();
       window.removeEventListener("resize", updateConnectorPaths);
     };
-  }, [displayPairs, branchState.active, updateConnectorPaths]);
+  }, [displayPairs, branches, updateConnectorPaths]);
 
   const handlePanStateChange = useCallback(
     (isPanning: boolean) => {
@@ -270,23 +400,51 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
     [updateConnectorPaths]
   );
 
-  const handleBranchSend = async (parentMessageId: string) => {
-    const trimmed = branchState.text.trim();
-    if (!trimmed || isSending) return;
+  const handleBranchSend = async (branchKey: string) => {
+    const branch = branches[branchKey];
+    if (!branch) return;
+    const trimmed = branch.text.trim();
+    if (!trimmed || branch.reply.isLoading) return;
 
-    setIsSending(true);
-    setSendError("");
-    dispatchBranch({ type: "set-text", value: "" });
+    setBranches((prev) => {
+      const current = prev[branchKey];
+      if (!current) return prev;
+      return {
+        ...prev,
+        [branchKey]: {
+          ...current,
+          text: "",
+          lastUserContent: trimmed,
+          reply: {
+            ...current.reply,
+            isLoading: true,
+            error: "",
+          },
+          hasSubmitted: true,
+        },
+      };
+    });
     const tempId = `temp-${Date.now()}`;
-    const tempMessage = { id: tempId, role: "user", content: trimmed };
-    setPendingUserId(tempId);
-    setMessages((prev) => insertAfterMessage(prev, parentMessageId, [tempMessage]));
+    const tempMessage = {
+      id: tempId,
+      role: "user",
+      content: trimmed,
+      parentMessageId: branch.parentMessageId,
+      branchId: branch.branchId,
+    };
+    setMessages((prev) => insertAfterMessage(prev, branch.parentMessageId, [tempMessage]));
 
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: trimmed, chatId, parentMessageId }),
+        body: JSON.stringify({
+          content: trimmed,
+          chatId,
+          parentMessageId: branch.parentMessageId,
+          branchId: branch.branchId,
+          branchSide: branch.side,
+        }),
       });
 
       const payload = await response.json().catch(() => ({}));
@@ -295,8 +453,21 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
           typeof payload?.error === "string"
             ? payload.error
             : "送信に失敗しました。";
-        setSendError(errorMessage);
-        setIsSending(false);
+        setBranches((prev) => {
+          const current = prev[branchKey];
+          if (!current) return prev;
+          return {
+            ...prev,
+            [branchKey]: {
+              ...current,
+              reply: {
+                ...current.reply,
+                isLoading: false,
+                error: errorMessage,
+              },
+            },
+          };
+        });
         return;
       }
 
@@ -309,24 +480,83 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
           additions.push(tempMessage);
         }
         if (payload?.assistantMessage) {
-          additions.push(payload.assistantMessage);
+          const assistantMessage = payload.assistantMessage;
+          if (!payload?.userMessage && assistantMessage?.parentMessageId == null) {
+            additions.push({ ...assistantMessage, parentMessageId: tempId });
+          } else {
+            additions.push(assistantMessage);
+          }
         }
-        return insertAfterMessage(filtered, parentMessageId, additions);
+        return insertAfterMessage(filtered, branch.parentMessageId, additions);
       });
-      setPendingUserId(null);
-      setIsSending(false);
-      handleBranchClose();
+      setBranches((prev) => {
+        const current = prev[branchKey];
+        if (!current) return prev;
+        return {
+          ...prev,
+          [branchKey]: {
+            ...current,
+            branchId:
+              payload?.userMessage?.branchId ??
+              payload?.assistantMessage?.branchId ??
+              current.branchId,
+            reply: {
+              assistantMessage: payload?.assistantMessage ?? null,
+              isLoading: false,
+              error: "",
+            },
+          },
+        };
+      });
     } catch {
-      setSendError("送信に失敗しました。");
-      setIsSending(false);
+      setBranches((prev) => {
+        const current = prev[branchKey];
+        if (!current) return prev;
+        return {
+          ...prev,
+          [branchKey]: {
+            ...current,
+            reply: {
+              ...current.reply,
+              isLoading: false,
+              error: "送信に失敗しました。",
+            },
+          },
+        };
+      });
     }
   };
 
-  const handleCanvasClick = () => {
-    if (branchState.active) {
-      handleBranchClose();
-    }
-  };
+  const promptInput = (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        handleSend();
+      }}
+      className="flex w-full max-w-3xl items-end gap-3"
+    >
+      <textarea
+        ref={promptTextareaRef}
+        value={promptText}
+        onChange={(event) => {
+          const nextValue = event.currentTarget.value;
+          setPromptText(nextValue);
+          resizeTextarea(event.currentTarget);
+        }}
+        placeholder="なんでも聞いてみましょう"
+        rows={1}
+        className="w-full resize-none rounded-2xl border border-[#efe5dc] bg-white px-4 py-3 text-base leading-6 text-main shadow-[0_8px_18px_rgba(239,229,220,0.6)] transition-[height] duration-150 ease-out focus:border-[#d9c9bb] focus:outline-none"
+      />
+      <button
+        type="submit"
+        aria-label="Send prompt"
+        disabled={!promptText.trim() || isSending}
+        className="flex h-11 w-11 items-center justify-center rounded-lg bg-theme-main text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82] disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <ArrowRight className="h-5 w-5" />
+      </button>
+    </form>
+  );
 
   const connectorsOverlay = (
     <svg
@@ -359,7 +589,7 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
           overlay={connectorsOverlay}
           onPanStateChange={handlePanStateChange}
         >
-          <div className="min-h-screen px-6 pb-24 pt-28" onClick={handleCanvasClick}>
+          <div className="min-h-screen px-6 pb-24 pt-28">
             <main className="mx-auto flex w-full max-w-[760px] flex-col items-center gap-10">
               {displayPairs.map((pair, index) => {
                 const isLast = index === displayPairs.length - 1;
@@ -379,20 +609,23 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
                   isLast && isLoading && !userContent && !pendingUserId;
                 const parentAssistantId =
                   index > 0 ? displayPairs[index - 1]?.assistant?.id : null;
-                const isActiveBranchHere =
-                  assistantId && branchState.active?.parentMessageId === assistantId;
-                const branchSide = branchState.active?.side ?? "left";
                 const branchShift = normalizeBranchShift(branchOffset);
-                // Unify anchor + single translateX to avoid asymmetry from mixed anchors,
-                // double-translate math, and parent padding/layout offsets.
-                const branchTransform =
-                  branchSide === "left"
-                    ? `translateX(calc(-100% - ${branchShift}))`
-                    : `translateX(${branchShift})`;
                 const userNodeId = pair.user?.id ?? `user-${index}`;
                 const assistantNodeId = pair.assistant?.id ?? `assistant-${index}`;
-                const activeBranchId =
-                  isActiveBranchHere && assistantId ? assistantId : null;
+                const branchesForAssistant = assistantId
+                  ? Object.values(branches)
+                      .filter((branch) => branch.parentMessageId === assistantId)
+                      .sort((a, b) => a.createdAt - b.createdAt)
+                  : [];
+                const hiddenBranchSides = branchesForAssistant
+                  .filter((branch) => branch.hasSubmitted)
+                  .map((branch) => branch.side);
+                const parentLeftBranch = parentAssistantId
+                  ? branches[createBranchKey(parentAssistantId, "left")]
+                  : null;
+                const parentRightBranch = parentAssistantId
+                  ? branches[createBranchKey(parentAssistantId, "right")]
+                  : null;
 
                 return (
                   <div
@@ -401,51 +634,57 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
                   >
                     {index > 0 ? (
                       <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          disabled={!parentAssistantId}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            if (parentAssistantId) {
-                              handleBranchOpen(parentAssistantId, "left");
-                            }
-                          }}
-                          aria-pressed={
-                            branchState.active?.parentMessageId === parentAssistantId &&
-                            branchState.active?.side === "left"
-                          }
-                          className={`branch-pill ${
-                            branchState.active?.parentMessageId === parentAssistantId &&
-                            branchState.active?.side === "left"
-                              ? "branch-pill-selected"
-                              : ""
-                          }`}
-                        >
-                          新しいブランチ
-                        </button>
+                        {!parentLeftBranch?.hasSubmitted ? (
+                          <button
+                            type="button"
+                            disabled={!parentAssistantId}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (parentAssistantId) {
+                                handleBranchOpen(parentAssistantId, "left");
+                              }
+                            }}
+                            aria-pressed={!!parentLeftBranch}
+                            className={`branch-pill ${
+                              parentLeftBranch ? "branch-pill-selected" : ""
+                            }`}
+                          >
+                            新しいブランチ
+                          </button>
+                        ) : (
+                          <span
+                            aria-hidden="true"
+                            className="branch-pill invisible pointer-events-none"
+                          >
+                            新しいブランチ
+                          </span>
+                        )}
                         <div className="h-10 w-px bg-[#e2d8cf]" />
-                        <button
-                          type="button"
-                          disabled={!parentAssistantId}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            if (parentAssistantId) {
-                              handleBranchOpen(parentAssistantId, "right");
-                            }
-                          }}
-                          aria-pressed={
-                            branchState.active?.parentMessageId === parentAssistantId &&
-                            branchState.active?.side === "right"
-                          }
-                          className={`branch-pill ${
-                            branchState.active?.parentMessageId === parentAssistantId &&
-                            branchState.active?.side === "right"
-                              ? "branch-pill-selected"
-                              : ""
-                          }`}
-                        >
-                          新しいブランチ
-                        </button>
+                        {!parentRightBranch?.hasSubmitted ? (
+                          <button
+                            type="button"
+                            disabled={!parentAssistantId}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (parentAssistantId) {
+                                handleBranchOpen(parentAssistantId, "right");
+                              }
+                            }}
+                            aria-pressed={!!parentRightBranch}
+                            className={`branch-pill ${
+                              parentRightBranch ? "branch-pill-selected" : ""
+                            }`}
+                          >
+                            新しいブランチ
+                          </button>
+                        ) : (
+                          <span
+                            aria-hidden="true"
+                            className="branch-pill invisible pointer-events-none"
+                          >
+                            新しいブランチ
+                          </span>
+                        )}
                       </div>
                     ) : null}
                     <div ref={setNodeRef(`user-${userNodeId}`)}>
@@ -460,72 +699,114 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
                         <span className="message-connector-line" />
                       </div>
                     ) : null}
-                    <div ref={setNodeRef(`assistant-${assistantNodeId}`)} className="w-full">
+                    <div className="w-full">
                       <AssistantCard
                         content={assistantContent}
                         isLoading={assistantLoading}
                         errorMessage={assistantError}
                         showPromptInput={isLast && promptInputEnabled}
+                        showAllBranchPills={isLast && promptInputEnabled}
+                        hiddenBranchSides={isLast ? hiddenBranchSides : undefined}
+                        promptInput={isLast && promptInputEnabled ? promptInput : null}
+                        cardRef={setNodeRef(`assistant-${assistantNodeId}`)}
                         onBranchSelect={(side) => {
                           if (!assistantId) return;
                           handleBranchOpen(assistantId, side);
                         }}
-                        activeBranchSide={isActiveBranchHere ? branchState.active?.side : null}
+                        activeBranchSide={null}
                       />
                     </div>
-                    {activeBranchId ? (
-                      <div
-                        className="relative mt-6 flex h-[140px] w-full items-start"
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <div
-                          className="absolute left-1/2 top-0 h-full w-0"
-                        >
+                    {branchesForAssistant.length ? (
+                      <div className="relative h-0 w-full">
+                        <div className="absolute left-1/2 top-6 w-0">
                           {showBranchCenterGuide ? (
                             <div
                               className="pointer-events-none absolute left-0 top-0 h-full w-px bg-[#b7da82]/70"
                               aria-hidden="true"
                             />
                           ) : null}
-                          <div
-                            ref={setNodeRef(`branch-${activeBranchId}`)}
-                            className="absolute left-0 top-0"
-                            style={{
-                              transform: branchTransform,
-                              width: "clamp(280px, 50vw, 560px)",
-                            }}
-                          >
-                            <form
-                              onSubmit={(event) => {
-                                event.preventDefault();
-                                handleBranchSend(activeBranchId);
-                              }}
-                              onClick={(event) => event.stopPropagation()}
-                              className="flex items-end gap-3"
-                            >
-                              <textarea
-                                ref={branchTextareaRef}
-                                value={branchState.text}
-                                onChange={(event) =>
-                                  dispatchBranch({
-                                    type: "set-text",
-                                    value: event.currentTarget.value,
-                                  })
-                                }
-                              placeholder="なんでも聞いてみましょう"
-                              rows={1}
-                              className="w-full resize-none rounded-2xl border border-[#efe5dc] bg-white px-4 py-2 text-sm leading-5 text-main shadow-[0_8px_18px_rgba(239,229,220,0.6)] transition-[height] duration-150 ease-out focus:border-[#d9c9bb] focus:outline-none"
-                            />
-                              <button
-                                type="submit"
-                                aria-label="Send branch prompt"
-                                disabled={!branchState.text.trim() || isSending}
-                                className="flex h-10 w-10 items-center justify-center rounded-lg bg-theme-main text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82] disabled:cursor-not-allowed disabled:opacity-60"
+                          {branchesForAssistant.map((branch) => {
+                            const branchTransform =
+                              branch.side === "left"
+                                ? `translateX(calc(-100% - ${branchShift}))`
+                                : `translateX(${branchShift})`;
+                            const showBranchReply =
+                              !!branch.reply.assistantMessage ||
+                              !!branch.reply.error ||
+                              branch.reply.isLoading;
+
+                            return (
+                              <div
+                                key={branch.key}
+                                ref={setNodeRef(`branch-${branch.key}`)}
+                                className="absolute left-0 top-0"
+                                style={{
+                                  transform: branchTransform,
+                                  width: "clamp(280px, 50vw, 560px)",
+                                }}
                               >
-                                <ArrowRight className="h-4 w-4" />
-                              </button>
-                            </form>
-                          </div>
+                                {!branch.hasSubmitted ? (
+                                  <form
+                                    onSubmit={(event) => {
+                                      event.preventDefault();
+                                      handleBranchSend(branch.key);
+                                    }}
+                                    className="flex items-end gap-3"
+                                  >
+                                    <textarea
+                                      ref={setBranchTextareaRef(branch.key)}
+                                      value={branch.text}
+                                      onChange={(event) => {
+                                        const nextValue = event.currentTarget.value;
+                                        setBranches((prev) => {
+                                          const current = prev[branch.key];
+                                          if (!current) return prev;
+                                          return {
+                                            ...prev,
+                                            [branch.key]: {
+                                              ...current,
+                                              text: nextValue,
+                                            },
+                                          };
+                                        });
+                                        resizeTextarea(event.currentTarget);
+                                      }}
+                                      placeholder="なんでも聞いてみましょう"
+                                      rows={1}
+                                      className="w-full resize-none rounded-2xl border border-[#efe5dc] bg-white px-4 py-2 text-sm leading-5 text-main shadow-[0_8px_18px_rgba(239,229,220,0.6)] transition-[height] duration-150 ease-out focus:border-[#d9c9bb] focus:outline-none"
+                                    />
+                                    <button
+                                      type="submit"
+                                      aria-label="Send branch prompt"
+                                      disabled={!branch.text.trim() || branch.reply.isLoading}
+                                      className="flex h-10 w-10 items-center justify-center rounded-lg bg-theme-main text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82] disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      <ArrowRight className="h-4 w-4" />
+                                    </button>
+                                  </form>
+                                ) : null}
+                                {branch.hasSubmitted && branch.lastUserContent ? (
+                                  <div className="mt-4 flex w-full justify-center">
+                                    <UserBubble
+                                      content={branch.lastUserContent}
+                                      isLoading={false}
+                                      errorMessage=""
+                                    />
+                                  </div>
+                                ) : null}
+                                {showBranchReply ? (
+                                  <div className="mt-4 w-full">
+                                    <AssistantCard
+                                      content={branch.reply.assistantMessage?.content ?? ""}
+                                      isLoading={branch.reply.isLoading}
+                                      errorMessage={branch.reply.error}
+                                      showPromptInput={false}
+                                    />
+                                  </div>
+                                ) : null}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     ) : null}

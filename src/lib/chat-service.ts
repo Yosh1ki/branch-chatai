@@ -30,6 +30,8 @@ type SendChatMessageArgs = {
   content: string
   chatId?: string
   parentMessageId?: string | null
+  branchId?: string | null
+  branchSide?: "left" | "right" | null
   modelProvider?: string | null
   modelName?: string | null
 }
@@ -45,6 +47,8 @@ export async function sendChatMessage({
   content,
   chatId,
   parentMessageId,
+  branchId,
+  branchSide,
   modelProvider,
   modelName,
 }: SendChatMessageArgs): Promise<SendChatMessageResult> {
@@ -96,12 +100,37 @@ export async function sendChatMessage({
     })
   }
 
+  let resolvedBranchId = branchId ?? null
+  if (resolvedBranchId) {
+    const branch = await prisma.branch.findUnique({
+      where: { id: resolvedBranchId },
+      select: { id: true, chatId: true, parentMessageId: true },
+    })
+    if (!branch || branch.chatId !== chatRecord.id) {
+      throw new ChatActionError("Branch not found", 404)
+    }
+    if (parentMessageId && branch.parentMessageId !== parentMessageId) {
+      throw new ChatActionError("Branch parent mismatch", 400)
+    }
+  }
+  if (parentMessageId && !resolvedBranchId && branchSide) {
+    const branch = await prisma.branch.create({
+      data: {
+        chatId: chatRecord.id,
+        parentMessageId,
+        side: branchSide,
+      },
+    })
+    resolvedBranchId = branch.id
+  }
+
   const userMessage = await prisma.message.create({
     data: {
       chatId: chatRecord.id,
       role: "user",
       content: trimmedContent,
       parentMessageId,
+      branchId: resolvedBranchId,
       modelProvider,
       modelName,
     },
@@ -170,6 +199,7 @@ export async function sendChatMessage({
       role: "assistant",
       content: assistantContent,
       parentMessageId: userMessage.id,
+      branchId: resolvedBranchId,
       modelProvider: "openai",
       modelName: "gpt-4o-mini",
     },

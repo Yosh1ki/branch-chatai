@@ -25,6 +25,11 @@ export async function GET(
             createdAt: "asc",
           },
         },
+        branches: {
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
       },
     });
 

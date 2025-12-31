@@ -1,10 +1,21 @@
 export type ChatMessage = {
+  id?: string;
   role: string;
   content: string;
+  parentMessageId?: string | null;
+  branchId?: string | null;
+};
+
+export type ChatBranch = {
+  id: string;
+  parentMessageId: string;
+  side: "left" | "right";
+  createdAt?: string;
 };
 
 export type ChatResponse = {
   messages?: ChatMessage[];
+  branches?: ChatBranch[];
 };
 
 type ChatResponseErrorPayload = {

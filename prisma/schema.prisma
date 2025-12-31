@@ -82,6 +82,7 @@ model Chat {
 
   user     User      @relation(fields: [userId], references: [id])
   messages Message[]
+  branches Branch[]
 
   @@map("chats")
 }
@@ -90,6 +91,7 @@ model Message {
   id               String    @id @default(uuid())
   chatId           String    @map("chat_id")
   parentMessageId  String?   @map("parent_message_id")
+  branchId         String?   @map("branch_id")
   role             String
   content          String
   modelProvider    String?   @map("model_provider")
@@ -100,10 +102,27 @@ model Message {
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
   chat          Chat       @relation(fields: [chatId], references: [id])
-  parent       Message?     @relation("MessageToMessage", fields: [parentMessageId], references: [id])
-  children     Message[]    @relation("MessageToMessage")
+  branch        Branch?    @relation("BranchMessages", fields: [branchId], references: [id])
+  parent        Message?    @relation("MessageToMessage", fields: [parentMessageId], references: [id])
+  children      Message[]   @relation("MessageToMessage")
+  childBranches Branch[]    @relation("BranchParent")
 
   @@map("messages")
+}
+
+model Branch {
+  id               String   @id @default(uuid())
+  chatId           String   @map("chat_id")
+  parentMessageId  String   @map("parent_message_id")
+  side             String
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  chat         Chat     @relation(fields: [chatId], references: [id])
+  parent      Message  @relation("BranchParent", fields: [parentMessageId], references: [id])
+  messages     Message[] @relation("BranchMessages")
+
+  @@map("branches")
 }
 
 model UsageStat {

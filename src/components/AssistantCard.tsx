@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Check, Copy, MoreHorizontal } from "lucide-react";
 import { toggleMenu } from "@/lib/chat-screen-state";
 import { useCopyFeedback } from "@/hooks/use-copy-feedback";
@@ -10,6 +10,10 @@ type AssistantCardProps = {
   isLoading: boolean;
   errorMessage: string;
   showPromptInput: boolean;
+  cardRef?: (node: HTMLDivElement | null) => void;
+  showAllBranchPills?: boolean;
+  hiddenBranchSides?: BranchSelection[];
+  promptInput?: ReactNode;
   onBranchSelect?: (value: BranchSelection) => void;
   activeBranchSide?: BranchSelection | null;
 };
@@ -39,11 +43,19 @@ export function AssistantCard({
   isLoading,
   errorMessage,
   showPromptInput,
+  cardRef,
+  showAllBranchPills = false,
+  hiddenBranchSides,
+  promptInput,
   onBranchSelect,
   activeBranchSide = null,
 }: AssistantCardProps) {
+  const hiddenBranchSideSet = useMemo(
+    () => new Set(hiddenBranchSides ?? []),
+    [hiddenBranchSides]
+  );
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [selectedBranch, setSelectedBranch] = useState<BranchSelection>("left");
+  const [selectedBranch, setSelectedBranch] = useState<BranchSelection | null>(null);
   const [hiddenBranchSide, setHiddenBranchSide] = useState<BranchSelection | null>(null);
   const { isCopied, handleCopy } = useCopyFeedback(content);
   const shouldShowBranchPills = showPromptInput;
@@ -61,6 +73,13 @@ export function AssistantCard({
       if (activeElement instanceof HTMLTextAreaElement) return;
       if (activeElement instanceof HTMLInputElement) return;
       if (activeElement instanceof HTMLElement && activeElement.isContentEditable) return;
+
+      if (!selectedBranch) {
+        const nextSelection = event.key === "ArrowRight" ? "right" : "left";
+        event.preventDefault();
+        setSelectedBranch(nextSelection);
+        return;
+      }
 
       const currentIndex = BRANCH_ORDER.indexOf(selectedBranch);
       if (currentIndex === -1) return;
@@ -89,11 +108,17 @@ export function AssistantCard({
 
   const handleBranchSelect = useCallback(
     (value: BranchSelection) => {
+      if (selectedBranch === value) {
+        onBranchSelect?.(value);
+        setSelectedBranch(null);
+        setHiddenBranchSide(null);
+        return;
+      }
       setSelectedBranch(value);
       setHiddenBranchSide(value);
       onBranchSelect?.(value);
     },
-    [onBranchSelect]
+    [onBranchSelect, selectedBranch]
   );
 
   useEffect(() => {
@@ -110,7 +135,10 @@ export function AssistantCard({
 
   return (
     <>
-      <div className="relative w-full max-w-3xl rounded-[28px] border border-[#efe5dc] bg-white p-8 text-main">
+      <div
+        ref={cardRef}
+        className="relative w-full max-w-3xl rounded-[28px] border border-[#efe5dc] bg-white p-8 text-main"
+      >
         <div className="space-y-6 text-sm leading-relaxed" data-allow-selection="true">
           {isLoading ? (
             <p className="text-base text-main-soft">回答を取得中です...</p>
@@ -166,23 +194,38 @@ export function AssistantCard({
           <div className="branch-grid">
             <span className="branch-connector-rail" aria-hidden="true" />
             {BRANCH_OPTIONS.map((option) => {
-              if (hiddenBranchSide === option.value) return null;
+              const isHidden = hiddenBranchSideSet.has(option.value);
+              const isSuppressed = !showAllBranchPills && hiddenBranchSide === option.value;
+              if (isHidden || isSuppressed) {
+                return (
+                  <span
+                    key={option.value}
+                    aria-hidden="true"
+                    className={`branch-pill ${option.className} invisible pointer-events-none`}
+                  >
+                    {option.label}
+                  </span>
+                );
+              }
               return (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => handleBranchSelect(option.value)}
-                aria-pressed={selectedBranch === option.value}
-                className={`branch-pill ${option.className} ${
-                  selectedBranch === option.value ? "branch-pill-selected" : ""
-                }`}
-              >
-                {option.label}
-              </button>
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => handleBranchSelect(option.value)}
+                  aria-pressed={selectedBranch === option.value}
+                  className={`branch-pill ${option.className} ${
+                    selectedBranch === option.value ? "branch-pill-selected" : ""
+                  }`}
+                >
+                  {option.label}
+                </button>
               );
             })}
           </div>
           <span className="branch-connector branch-connector-bottom" aria-hidden="true" />
+          {promptInput ? (
+            <div className="mt-4 flex w-full justify-center">{promptInput}</div>
+          ) : null}
         </div>
       ) : null}
     </>
