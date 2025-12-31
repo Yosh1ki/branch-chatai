@@ -4,6 +4,8 @@ import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Components, ExtraProps } from "react-markdown";
+import { parseMessageContent } from "@/lib/rich-text";
+import { RichTextRenderer } from "@/components/RichTextRenderer";
 
 interface Message {
     id: string;
@@ -60,6 +62,7 @@ const markdownComponents = {
 
 export function ChatMessage({ message }: { message: Message }) {
     const isUser = message.role === "user";
+    const parsedContent = isUser ? null : parseMessageContent(message.content);
 
     return (
         <div
@@ -104,13 +107,15 @@ export function ChatMessage({ message }: { message: Message }) {
                 >
                     {isUser ? (
                         message.content
+                    ) : parsedContent?.format === "richjson" && parsedContent.doc ? (
+                        <RichTextRenderer value={parsedContent.doc} />
                     ) : (
                         <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:mt-4 prose-headings:mb-2 prose-p:mt-2 prose-p:mb-2">
                             <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
                                 components={markdownComponents}
                             >
-                                {message.content}
+                                {parsedContent?.text ?? message.content}
                             </ReactMarkdown>
                         </div>
                     )}

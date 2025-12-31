@@ -1,10 +1,17 @@
 "use client";
 
+import type { ComponentPropsWithoutRef } from "react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import type { Components, ExtraProps } from "react-markdown";
 import { Check, Copy, MoreHorizontal } from "lucide-react";
 import { toggleMenu } from "@/lib/chat-screen-state";
 import { useCopyFeedback } from "@/hooks/use-copy-feedback";
 import { getModelLabel, isModelProvider } from "@/lib/model-catalog";
+import { parseMessageContent } from "@/lib/rich-text";
+import { RichTextRenderer } from "@/components/RichTextRenderer";
+import { cn } from "@/lib/utils";
 
 type AssistantCardProps = {
   content: string;
@@ -22,6 +29,11 @@ type AssistantCardProps = {
 };
 
 type BranchSelection = "left" | "right";
+
+type CodeProps = ComponentPropsWithoutRef<"code"> &
+  ExtraProps & {
+    inline?: boolean;
+  };
 
 const BRANCH_ORDER: BranchSelection[] = ["left", "right"];
 const BRANCH_OPTIONS: Array<{
@@ -41,6 +53,41 @@ const BRANCH_OPTIONS: Array<{
   },
 ];
 
+const markdownComponents = {
+  a: ({ ...props }) => (
+    <a {...props} target="_blank" rel="noreferrer" className="underline" />
+  ),
+  pre: ({ ...props }) => (
+    <pre
+      {...props}
+      className={cn(
+        "overflow-x-auto rounded-md bg-[#f8f3ee] p-3 text-xs text-main",
+        props.className
+      )}
+    />
+  ),
+  code: ({ inline, className, children, ...rest }: CodeProps) => {
+    if (inline) {
+      return (
+        <code
+          {...rest}
+          className={cn(
+            "rounded bg-[#f8f3ee] px-1 py-0.5 text-xs font-semibold text-main",
+            className
+          )}
+        >
+          {children}
+        </code>
+      );
+    }
+    return (
+      <code {...rest} className={cn("text-xs text-main", className)}>
+        {children}
+      </code>
+    );
+  },
+} satisfies Components;
+
 export function AssistantCard({
   content,
   isLoading,
@@ -59,15 +106,24 @@ export function AssistantCard({
     () => new Set(hiddenBranchSides ?? []),
     [hiddenBranchSides]
   );
+  const parsedContent = useMemo(() => parseMessageContent(content), [content]);
   const modelLabel = useMemo(() => {
-    const provider = isModelProvider(modelProvider ?? undefined) ? modelProvider : undefined;
+    const providerValue = modelProvider ?? undefined;
+    const provider = isModelProvider(providerValue) ? providerValue : undefined;
     return getModelLabel(provider, modelName);
   }, [modelProvider, modelName]);
+  const selectedBranches = useMemo(
+    () => activeBranchSides ?? [],
+    [activeBranchSides]
+  );
+  const hiddenBranchSide =
+    selectedBranches.length > 0
+      ? selectedBranches[selectedBranches.length - 1]
+      : null;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [selectedBranches, setSelectedBranches] = useState<BranchSelection[]>([]);
   const [activeBranch, setActiveBranch] = useState<BranchSelection | null>(null);
-  const [hiddenBranchSide, setHiddenBranchSide] = useState<BranchSelection | null>(null);
-  const { isCopied, handleCopy } = useCopyFeedback(content);
+  const copyContent = parsedContent.text || content;
+  const { isCopied, handleCopy } = useCopyFeedback(copyContent);
   const shouldShowBranchPills = showPromptInput;
 
   const handleMenuToggle = useCallback(() => {
@@ -120,32 +176,16 @@ export function AssistantCard({
     (value: BranchSelection) => {
       if (selectedBranches.includes(value)) {
         onBranchSelect?.(value);
-        setSelectedBranches((prev) => prev.filter((side) => side !== value));
-        setHiddenBranchSide(null);
         if (activeBranch === value) {
           setActiveBranch(null);
         }
         return;
       }
-      setSelectedBranches((prev) => (prev.includes(value) ? prev : [...prev, value]));
       setActiveBranch(value);
-      setHiddenBranchSide(value);
       onBranchSelect?.(value);
     },
     [activeBranch, onBranchSelect, selectedBranches]
   );
-
-  useEffect(() => {
-    if (!activeBranchSides || activeBranchSides.length === 0) {
-      setSelectedBranches([]);
-      setActiveBranch(null);
-      setHiddenBranchSide(null);
-      return;
-    }
-    setSelectedBranches(activeBranchSides);
-    setActiveBranch(activeBranchSides[activeBranchSides.length - 1]);
-    setHiddenBranchSide(activeBranchSides[activeBranchSides.length - 1]);
-  }, [activeBranchSides]);
 
   return (
     <>
@@ -159,7 +199,15 @@ export function AssistantCard({
           ) : errorMessage ? (
             <p className="text-base text-red-500">エラー: {errorMessage}</p>
           ) : content ? (
-            <p className="whitespace-pre-wrap text-base text-main-soft">{content}</p>
+            parsedContent.format === "richjson" && parsedContent.doc ? (
+              <RichTextRenderer value={parsedContent.doc} className="text-main-soft" />
+            ) : (
+              <div className="prose prose-sm max-w-none text-main-soft">
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                  {parsedContent.text}
+                </ReactMarkdown>
+              </div>
+            )
           ) : (
             <p className="text-base text-main-soft">まだ回答がありません。</p>
           )}

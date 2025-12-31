@@ -34,6 +34,15 @@ type PinchState = {
   scale: number;
 };
 
+const assignRef = <T,>(ref: Ref<T> | undefined, value: T | null) => {
+  if (!ref) return;
+  if (typeof ref === "function") {
+    ref(value);
+    return;
+  }
+  (ref as MutableRefObject<T | null>).current = value;
+};
+
 export function CanvasViewport({
   state,
   onStateChange,
@@ -174,22 +183,12 @@ export function CanvasViewport({
 
   const setContainerRef = (node: HTMLDivElement | null) => {
     containerRef.current = node;
-    if (!externalRef) return;
-    if (typeof externalRef === "function") {
-      externalRef(node);
-      return;
-    }
-    (externalRef as MutableRefObject<HTMLDivElement | null>).current = node;
+    assignRef(externalRef, node);
   };
 
   const setContentRef = (node: HTMLDivElement | null) => {
     contentRef.current = node;
-    if (!externalContentRef) return;
-    if (typeof externalContentRef === "function") {
-      externalContentRef(node);
-      return;
-    }
-    (externalContentRef as MutableRefObject<HTMLDivElement | null>).current = node;
+    assignRef(externalContentRef, node);
   };
 
   return (

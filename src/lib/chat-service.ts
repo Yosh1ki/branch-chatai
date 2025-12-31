@@ -7,11 +7,70 @@ import {
   MODEL_OPTIONS,
   type ModelProvider,
 } from "@/lib/model-catalog"
+import {
+  parseMessageContent,
+  richTextDocToPlainText,
+  serializeMarkdownContent,
+  serializeRichTextContent,
+} from "@/lib/rich-text"
+import type { RichTextDoc } from "@/lib/rich-text"
 
 const FREE_PLAN_DAILY_LIMIT = 10
 const SYSTEM_PROMPT = "You are a helpful AI assistant."
-const DEV_ASSISTANT_RESPONSE =
-  "白ワインのおすすめは以下の通りです。好みによって選ぶと良いでしょう。 1. **ソーヴィニヨン・ブラン**： - **代表的な産地**：ニュージーランド、フランス（ロワール渓谷） - **特徴**：フレッシュで爽やかな酸味、柑橘系の香りやトロピカルフルーツの風味。魚料理やサラダとも相性抜群です。 2. **シャルドネ**： - **代表的な産地**：フランス（ブルゴーニュ）、アメリカ（カリフォルニア） - **特徴**：豊かでクリーミーな味わい、樽熟成によるバターやバニラのニュアンス。チキンやクリームソースの料理に合います。 3. **リースリング**： - **代表的な産地**：ドイツ、オーストラリア - **特徴**：甘口から辛口まで幅広いスタイルがあり、蜜や桃の香りが特徴的。辛口のリースリングはアジア料理とよく合います。 4. **ピノ・グリージョ**： - **代表的な産地**：イタリア、アメリカ - **特徴**：軽やかで飲みやすい、洋梨やリンゴの香り。前菜や軽い料理と相性が良いです。 5. **グルナッシュ・ブラン**： - **代表的な産地**：フランス（ローヌ地方） - **特徴**：果実味とハーブのニュアンス。魚料理や野菜料理によく合います。 これらの白ワインは、料理やシチュエーションに応じて楽しむことができるので、ぜひ試してみてください。好みに合わせて選ぶと良いでしょう。"
+const DEV_ASSISTANT_DOC: RichTextDoc = {
+  version: "1.0",
+  blocks: [
+    { type: "heading", level: 2, text: "白ワインのおすすめ" },
+    {
+      type: "paragraph",
+      text: "好みによって選ぶと良いでしょう。代表的な白ワインを5つ挙げます。",
+    },
+    {
+      type: "numbered",
+      items: [
+        {
+          title: "ソーヴィニヨン・ブラン",
+          lines: [
+            "代表的な産地: ニュージーランド、フランス（ロワール渓谷）",
+            "特徴: フレッシュで爽やかな酸味、柑橘系の香りやトロピカルフルーツの風味。",
+          ],
+        },
+        {
+          title: "シャルドネ",
+          lines: [
+            "代表的な産地: フランス（ブルゴーニュ）、アメリカ（カリフォルニア）",
+            "特徴: 豊かでクリーミーな味わい、樽熟成によるバターやバニラのニュアンス。",
+          ],
+        },
+        {
+          title: "リースリング",
+          lines: [
+            "代表的な産地: ドイツ、オーストラリア",
+            "特徴: 甘口から辛口まで幅広いスタイルがあり、蜜や桃の香りが特徴的。",
+          ],
+        },
+        {
+          title: "ピノ・グリージョ",
+          lines: [
+            "代表的な産地: イタリア、アメリカ",
+            "特徴: 軽やかで飲みやすい、洋梨やリンゴの香り。",
+          ],
+        },
+        {
+          title: "グルナッシュ・ブラン",
+          lines: [
+            "代表的な産地: フランス（ローヌ地方）",
+            "特徴: 果実味とハーブのニュアンス。",
+          ],
+        },
+      ],
+    },
+    {
+      type: "paragraph",
+      text: "料理やシチュエーションに応じて楽しめます。好みに合わせて選んでみてください。",
+    },
+  ],
+}
 
 const getOpenAIClient = () => {
   const apiKey = process.env.OPENAI_API_KEY
@@ -236,17 +295,18 @@ export async function sendChatMessage({
   const messagesForLLM = [
     ...path.map((m) => ({
       role: m.role as "user" | "assistant",
-      content: m.content,
+      content: parseMessageContent(m.content).text,
     })),
   ]
 
   const useDevResponse = process.env.USE_DEV_ASSISTANT_RESPONSE === "true"
-  const assistantContent =
-    (
-      useDevResponse
-        ? DEV_ASSISTANT_RESPONSE
-        : await generateAssistantResponse(resolvedModel, messagesForLLM)
-    ) || ""
+  const assistantText =
+    (useDevResponse
+      ? richTextDocToPlainText(DEV_ASSISTANT_DOC)
+      : await generateAssistantResponse(resolvedModel, messagesForLLM)) || ""
+  const assistantContent = useDevResponse
+    ? serializeRichTextContent(DEV_ASSISTANT_DOC)
+    : serializeMarkdownContent(assistantText)
 
   const assistantMessage = await prisma.message.create({
     data: {
