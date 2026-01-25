@@ -13,6 +13,7 @@ import { fetchChatMessages } from "@/lib/chat-messages";
 import { groupConversationPairs } from "@/lib/chat-conversation";
 import { insertAfterMessage } from "@/lib/chat-message-insert";
 import { isModelProvider, type ModelProvider } from "@/lib/model-catalog";
+import { serializeMarkdownContent } from "@/lib/rich-text";
 type BranchSide = "left" | "right";
 
 type ChatCanvasShellProps = {
@@ -74,10 +75,52 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
   const canvasContentRef = useRef<HTMLDivElement | null>(null);
   const nodeRefs = useRef(new Map<string, HTMLDivElement>());
   const isPanningRef = useRef(false);
+  const tempIdRef = useRef(0);
   const [connectorPaths, setConnectorPaths] = useState<string[]>([]);
   const lastPathsRef = useRef<string[]>([]);
   const branchTextareaRefs = useRef(new Map<string, HTMLTextAreaElement>());
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const readChatStream = useCallback(
+    async (
+      response: Response,
+      onDelta: (text: string) => void
+    ): Promise<{ payload?: { userMessage?: ChatMessage; assistantMessage?: ChatMessage } }> => {
+      if (!response.body) {
+        return {};
+      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        while (buffer.includes("\n\n")) {
+          const splitIndex = buffer.indexOf("\n\n");
+          const chunk = buffer.slice(0, splitIndex).trim();
+          buffer = buffer.slice(splitIndex + 2);
+          if (!chunk.startsWith("data:")) continue;
+          const data = chunk.replace(/^data:\s*/, "");
+          const parsed = JSON.parse(data);
+          if (parsed?.type === "delta" && typeof parsed.text === "string") {
+            onDelta(parsed.text);
+          }
+          if (parsed?.type === "final") {
+            return { payload: parsed.payload };
+          }
+        }
+      }
+      return {};
+    },
+    []
+  );
+
+  const getNextTempId = useCallback((prefix: string) => {
+    tempIdRef.current += 1;
+    return `${prefix}-${tempIdRef.current}`;
+  }, []);
 
   const createBranchKey = useCallback(
     (parentMessageId: string, side: BranchSide) => `${parentMessageId}:${side}`,
@@ -153,12 +196,13 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
 
   useEffect(() => {
     let isActive = true;
-    setIsLoading(true);
-    setLoadError("");
-    setSelectedModel(null);
+    const loadMessages = async () => {
+      setIsLoading(true);
+      setLoadError("");
+      setSelectedModel(null);
 
-    fetchChatMessages(chatId)
-      .then((data) => {
+      try {
+        const data = await fetchChatMessages(chatId);
         if (!isActive) return;
         const loadedMessages = (data.messages ?? []) as ChatMessage[];
         const loadedBranches = (data.branches ?? []) as ChatBranch[];
@@ -178,12 +222,14 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
           });
         }
         setIsLoading(false);
-      })
-      .catch((error) => {
+      } catch (error) {
         if (!isActive) return;
         setLoadError(error instanceof Error ? error.message : "読み込みに失敗しました。");
         setIsLoading(false);
-      });
+      }
+    };
+
+    loadMessages();
 
     return () => {
       isActive = false;
@@ -205,8 +251,9 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
         if (existing.hasSubmitted) {
           return prev;
         }
-        const { [key]: _removed, ...rest } = prev;
-        return rest;
+        const next = { ...prev };
+        delete next[key];
+        return next;
       }
       return {
         ...prev,
@@ -233,10 +280,17 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
     setIsSending(true);
     setSendError("");
     setPromptText("");
-    const tempId = `temp-${Date.now()}`;
+    const tempId = getNextTempId("temp");
     const tempMessage = { id: tempId, role: "user", content: trimmed, parentMessageId: null };
+    const tempAssistantId = getNextTempId("temp-assistant");
+    const tempAssistant = {
+      id: tempAssistantId,
+      role: "assistant",
+      content: serializeMarkdownContent(""),
+      parentMessageId: tempId,
+    };
     setPendingUserId(tempId);
-    setMessages((prev) => [...prev, tempMessage]);
+    setMessages((prev) => [...prev, tempMessage, tempAssistant]);
 
     try {
       const response = await fetch("/api/chat", {
@@ -247,11 +301,12 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
           chatId,
           modelProvider: selectedModel?.provider,
           modelName: selectedModel?.name,
+          stream: true,
         }),
       });
 
-      const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
         const errorMessage =
           typeof payload?.error === "string"
             ? payload.error
@@ -261,8 +316,25 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
         return;
       }
 
+      let streamedText = "";
+      const result = response.headers.get("content-type")?.includes("text/event-stream")
+        ? await readChatStream(response, (delta) => {
+            streamedText += delta;
+            setMessages((prev) =>
+              prev.map((message) =>
+                message.id === tempAssistantId
+                  ? { ...message, content: serializeMarkdownContent(streamedText) }
+                  : message
+              )
+            );
+          })
+        : { payload: await response.json().catch(() => ({})) };
+      const payload = result.payload ?? {};
+
       setMessages((prev) => {
-        const filtered = prev.filter((message) => message.id !== tempId);
+        const filtered = prev.filter(
+          (message) => message.id !== tempId && message.id !== tempAssistantId
+        );
         const nextMessages: ChatMessage[] = [...filtered];
         if (payload?.userMessage) {
           nextMessages.push(payload.userMessage);
@@ -359,7 +431,6 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
 
     displayPairs.forEach((pair, index) => {
       if (!pair.user && !pair.assistant) return;
-      const userId = pair.user?.id ?? `user-${index}`;
       const assistantId = pair.assistant?.id ?? `assistant-${index}`;
 
       const nextPair = displayPairs[index + 1];
@@ -401,7 +472,6 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
       const fromTop = (fromRect.top - contentRect.top) / scale;
       const toTop = (toRect.top - contentRect.top) / scale;
       const fromHeight = fromRect.height / scale;
-      const toHeight = toRect.height / scale;
       const fromX = fromLeft + fromWidth / 2;
       const toX = toLeft + toWidth / 2;
       const fromY = fromTop + fromHeight;
@@ -476,7 +546,8 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
         },
       };
     });
-    const tempId = `temp-${Date.now()}`;
+    const tempId = getNextTempId("temp");
+    const tempAssistantId = getNextTempId("temp-assistant");
     const tempMessage = {
       id: tempId,
       role: "user",
@@ -484,7 +555,16 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
       parentMessageId: branch.parentMessageId,
       branchId: branch.branchId,
     };
-    setMessages((prev) => insertAfterMessage(prev, branch.parentMessageId, [tempMessage]));
+    const tempAssistant = {
+      id: tempAssistantId,
+      role: "assistant",
+      content: serializeMarkdownContent(""),
+      parentMessageId: tempId,
+      branchId: branch.branchId,
+    };
+    setMessages((prev) =>
+      insertAfterMessage(prev, branch.parentMessageId, [tempMessage, tempAssistant])
+    );
 
     try {
       const response = await fetch("/api/chat", {
@@ -498,11 +578,12 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
           branchSide: branch.side,
           modelProvider: selectedModel?.provider,
           modelName: selectedModel?.name,
+          stream: true,
         }),
       });
 
-      const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
         const errorMessage =
           typeof payload?.error === "string"
             ? payload.error
@@ -525,8 +606,25 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
         return;
       }
 
+      let streamedText = "";
+      const result = response.headers.get("content-type")?.includes("text/event-stream")
+        ? await readChatStream(response, (delta) => {
+            streamedText += delta;
+            setMessages((prev) =>
+              prev.map((message) =>
+                message.id === tempAssistantId
+                  ? { ...message, content: serializeMarkdownContent(streamedText) }
+                  : message
+              )
+            );
+          })
+        : { payload: await response.json().catch(() => ({})) };
+      const payload = result.payload ?? {};
+
       setMessages((prev) => {
-        const filtered = prev.filter((message) => message.id !== tempId);
+        const filtered = prev.filter(
+          (message) => message.id !== tempId && message.id !== tempAssistantId
+        );
         const additions: ChatMessage[] = [];
         if (payload?.userMessage) {
           additions.push(payload.userMessage);
@@ -600,7 +698,7 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
     setBranches((prev) => {
       let hasChanges = false;
       const next = Object.fromEntries(
-        Object.entries(prev).filter(([_, branch]) => {
+        Object.entries(prev).filter(([, branch]) => {
           const shouldKeep = !(
             branch.parentMessageId === assistantId && !branch.hasSubmitted
           );

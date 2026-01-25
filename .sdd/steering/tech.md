@@ -12,15 +12,18 @@ Next.js App Router上でReactクライアントコンポーネントを用い、
 ### 依存関係
 - Auth.js / NextAuth (v5): Google OAuth認証
 - @auth/prisma-adapter: Auth.js向けPrismaアダプタ
+- @google/genai: Gemini連携
+- @prisma/adapter-pg: Prisma向けPostgreSQLアダプタ
 - Prisma: ORM
 - PostgreSQL (pg): データベース
 - ai / openai: LLM連携
 - zustand: 状態管理
 - Radix UI: UIコンポーネント
 - Tailwind CSS: スタイリング
-- react-markdown / remark-gfm: Markdown表示
+- clsx / class-variance-authority / tailwind-merge: クラス構築ユーティリティ
+- react-markdown / remark-gfm / remark-breaks: Markdown表示
 - lucide-react: アイコン
-- class-variance-authority / tailwind-merge: クラス構築ユーティリティ
+- zod: バリデーション
 
 ## 開発環境
 ### 必要なツール

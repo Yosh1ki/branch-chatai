@@ -98,6 +98,7 @@ model Message {
   modelName        String?   @map("model_name")
   autoTitle        String?   @map("auto_title")
   isCollapsed      Boolean   @default(false) @map("is_collapsed")
+  requestId        String?   @unique @map("request_id")
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
