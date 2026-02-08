@@ -23,6 +23,10 @@ type BranchSide = "left" | "right";
 
 type ChatCanvasShellProps = {
   chatId: string;
+  initialPrompt?: string;
+  initialModelProvider?: string;
+  initialModelName?: string;
+  initialModelReasoningEffort?: string;
 };
 
 type ChatMessage = {
@@ -67,7 +71,13 @@ type SelectedModel = {
   reasoningEffort?: ReasoningEffort | null;
 };
 
-export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
+export function ChatCanvasShell({
+  chatId,
+  initialPrompt,
+  initialModelProvider,
+  initialModelName,
+  initialModelReasoningEffort,
+}: ChatCanvasShellProps) {
   const [state, setState] = useState(createCanvasState());
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [selectedModel, setSelectedModel] = useState<SelectedModel | null>(null);
@@ -87,6 +97,7 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
   const lastPathsRef = useRef<string[]>([]);
   const branchTextareaRefs = useRef(new Map<string, HTMLTextAreaElement>());
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const hasAutoSentInitialPromptRef = useRef(false);
 
   const readChatStream = useCallback(
     async (
@@ -100,19 +111,78 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
       const decoder = new TextDecoder();
       let buffer = "";
 
+      const parseSseEvent = (rawEvent: string) => {
+        const lines = rawEvent.split("\n");
+        const dataLines: string[] = [];
+
+        for (const line of lines) {
+          if (line.startsWith("data:")) {
+            dataLines.push(line.slice(5).trimStart());
+          }
+        }
+
+        return dataLines.join("\n");
+      };
+
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-        buffer += decoder.decode(value, { stream: true });
+        buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
         while (buffer.includes("\n\n")) {
           const splitIndex = buffer.indexOf("\n\n");
           const chunk = buffer.slice(0, splitIndex).trim();
           buffer = buffer.slice(splitIndex + 2);
-          if (!chunk.startsWith("data:")) continue;
-          const data = chunk.replace(/^data:\s*/, "");
-          const parsed = JSON.parse(data);
+          const data = parseSseEvent(chunk);
+          if (!data) continue;
+          if (data === "[DONE]") continue;
+          let parsed: Record<string, unknown> | null = null;
+          try {
+            parsed = JSON.parse(data) as Record<string, unknown>;
+          } catch {
+            continue;
+          }
+          if (!parsed) continue;
           if (parsed?.type === "delta" && typeof parsed.text === "string") {
             onDelta(parsed.text);
+          }
+          if (parsed?.type === "error") {
+            const message =
+              typeof parsed.error === "string" && parsed.error.length > 0
+                ? parsed.error
+                : "送信に失敗しました。";
+            throw new Error(message);
+          }
+          if (parsed?.type === "final") {
+            return { payload: parsed.payload };
+          }
+        }
+      }
+
+      const trailing = buffer.trim();
+      if (trailing) {
+        const data = parseSseEvent(trailing);
+        if (data) {
+          if (data === "[DONE]") {
+            return {};
+          }
+          let parsed: Record<string, unknown> | null = null;
+          try {
+            parsed = JSON.parse(data) as Record<string, unknown>;
+          } catch {
+            return {};
+          }
+          if (!parsed) {
+            return {};
+          }
+          if (parsed?.type === "delta" && typeof parsed.text === "string") {
+            onDelta(parsed.text);
+          }
+          if (parsed?.type === "error") {
+            const message =
+              typeof parsed.error === "string" && parsed.error.length > 0
+                ? parsed.error
+                : "送信に失敗しました。";
+            throw new Error(message);
           }
           if (parsed?.type === "final") {
             return { payload: parsed.payload };
@@ -137,6 +207,39 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
   const resizeTextarea = useCallback((textarea: HTMLTextAreaElement) => {
     textarea.style.height = "auto";
     textarea.style.height = `${textarea.scrollHeight}px`;
+  }, []);
+
+  const createStreamRenderer = useCallback((assistantId: string) => {
+    let streamedText = "";
+    let rafId: number | null = null;
+
+    const render = () => {
+      rafId = null;
+      const nextContent = serializeMarkdownContent(streamedText);
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === assistantId ? { ...message, content: nextContent } : message
+        )
+      );
+    };
+
+    return {
+      push: (delta: string) => {
+        streamedText += delta;
+        if (rafId != null) {
+          return;
+        }
+        rafId = window.requestAnimationFrame(render);
+      },
+      flush: () => {
+        if (rafId != null) {
+          window.cancelAnimationFrame(rafId);
+          rafId = null;
+        }
+        render();
+      },
+      text: () => streamedText,
+    };
   }, []);
 
   const setBranchTextareaRef = useCallback(
@@ -256,6 +359,23 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
     textarea.style.height = `${textarea.scrollHeight}px`;
   }, [promptText]);
 
+  const initialModelSelection = useMemo(() => {
+    if (
+      !initialModelName ||
+      !isModelProvider(initialModelProvider ?? undefined)
+    ) {
+      return null;
+    }
+    const reasoningEffort = isReasoningEffort(initialModelReasoningEffort ?? undefined)
+      ? (initialModelReasoningEffort as ReasoningEffort)
+      : null;
+    return {
+      provider: initialModelProvider as ModelProvider,
+      name: initialModelName,
+      reasoningEffort,
+    } satisfies SelectedModel;
+  }, [initialModelName, initialModelProvider, initialModelReasoningEffort]);
+
   const handleBranchOpen = (parentMessageId: string, side: BranchSide) => {
     const key = createBranchKey(parentMessageId, side);
     setBranches((prev) => {
@@ -286,107 +406,144 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
     setSendError("");
   };
 
-  const handleSend = async () => {
-    const trimmed = promptText.trim();
-    if (!trimmed || isSending) return;
+  const handleSend = useCallback(
+    async (overridePrompt?: string, overrideModel?: SelectedModel | null) => {
+      const trimmed = (overridePrompt ?? promptText).trim();
+      if (!trimmed || isSending) return;
 
-    setIsSending(true);
-    setSendError("");
-    setPromptText("");
-    const tempId = getNextTempId("temp");
-    const tempMessage = { id: tempId, role: "user", content: trimmed, parentMessageId: null };
-    const tempAssistantId = getNextTempId("temp-assistant");
-    const tempAssistant = {
-      id: tempAssistantId,
-      role: "assistant",
-      content: serializeMarkdownContent(""),
-      parentMessageId: tempId,
-    };
-    setPendingUserId(tempId);
-    setMessages((prev) => [...prev, tempMessage, tempAssistant]);
-
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: trimmed,
-          chatId,
-          modelProvider: selectedModel?.provider,
-          modelName: selectedModel?.name,
-          modelReasoningEffort: selectedModel?.reasoningEffort ?? null,
-          stream: true,
-        }),
-      });
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        const errorMessage =
-          typeof payload?.error === "string"
-            ? payload.error
-            : "送信に失敗しました。";
-        setSendError(errorMessage);
-        setIsSending(false);
-        return;
+      setIsSending(true);
+      setSendError("");
+      if (!overridePrompt) {
+        setPromptText("");
       }
+      const tempId = getNextTempId("temp");
+      const tempMessage = { id: tempId, role: "user", content: trimmed, parentMessageId: null };
+      const tempAssistantId = getNextTempId("temp-assistant");
+      const tempAssistant = {
+        id: tempAssistantId,
+        role: "assistant",
+        content: serializeMarkdownContent(""),
+        parentMessageId: tempId,
+      };
+      setPendingUserId(tempId);
+      setMessages((prev) => [...prev, tempMessage, tempAssistant]);
 
-      let streamedText = "";
-      const result = response.headers.get("content-type")?.includes("text/event-stream")
-        ? await readChatStream(response, (delta) => {
-            streamedText += delta;
-            setMessages((prev) =>
-              prev.map((message) =>
-                message.id === tempAssistantId
-                  ? { ...message, content: serializeMarkdownContent(streamedText) }
-                  : message
-              )
-            );
-          })
-        : { payload: await response.json().catch(() => ({})) };
-      const payload = result.payload ?? {};
+      const requestModel = overrideModel ?? selectedModel;
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: trimmed,
+            chatId,
+            modelProvider: requestModel?.provider,
+            modelName: requestModel?.name,
+            modelReasoningEffort: requestModel?.reasoningEffort ?? null,
+            stream: true,
+          }),
+        });
 
-      setMessages((prev) => {
-        const filtered = prev.filter(
-          (message) => message.id !== tempId && message.id !== tempAssistantId
-        );
-        const nextMessages: ChatMessage[] = [...filtered];
-        if (payload?.userMessage) {
-          nextMessages.push(payload.userMessage);
-        } else {
-          nextMessages.push(tempMessage);
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          const errorMessage =
+            typeof payload?.error === "string"
+              ? payload.error
+              : "送信に失敗しました。";
+          setMessages((prev) =>
+            prev.filter((message) => message.id !== tempId && message.id !== tempAssistantId)
+          );
+          setPendingUserId(null);
+          setSendError(errorMessage);
+          setIsSending(false);
+          return;
         }
-        if (payload?.assistantMessage) {
-          const assistantMessage = payload.assistantMessage;
-          if (
-            assistantMessage?.modelName &&
-            isModelProvider(assistantMessage.modelProvider ?? undefined)
-          ) {
-            const assistantReasoningEffort: ReasoningEffort | null = isReasoningEffort(
-              assistantMessage.modelReasoningEffort ?? undefined
-            )
-              ? (assistantMessage.modelReasoningEffort as ReasoningEffort)
-              : null;
-            setSelectedModel({
-              provider: assistantMessage.modelProvider as ModelProvider,
-              name: assistantMessage.modelName as string,
-              reasoningEffort: assistantReasoningEffort,
+
+        const streamRenderer = createStreamRenderer(tempAssistantId);
+        const responseClone = response.clone();
+        let result = await readChatStream(response, (delta) => {
+          streamRenderer.push(delta);
+        });
+        streamRenderer.flush();
+        const streamedText = streamRenderer.text();
+        if (!result.payload) {
+          result = { payload: await responseClone.json().catch(() => ({})) };
+        }
+        const payload = result.payload ?? {};
+
+        setMessages((prev) => {
+          const filtered = prev.filter(
+            (message) => message.id !== tempId && message.id !== tempAssistantId
+          );
+          const nextMessages: ChatMessage[] = [...filtered];
+          if (payload?.userMessage) {
+            nextMessages.push(payload.userMessage);
+          } else {
+            nextMessages.push(tempMessage);
+          }
+          if (payload?.assistantMessage) {
+            const assistantMessage = payload.assistantMessage;
+            if (
+              assistantMessage?.modelName &&
+              isModelProvider(assistantMessage.modelProvider ?? undefined)
+            ) {
+              const assistantReasoningEffort: ReasoningEffort | null = isReasoningEffort(
+                assistantMessage.modelReasoningEffort ?? undefined
+              )
+                ? (assistantMessage.modelReasoningEffort as ReasoningEffort)
+                : null;
+              setSelectedModel({
+                provider: assistantMessage.modelProvider as ModelProvider,
+                name: assistantMessage.modelName as string,
+                reasoningEffort: assistantReasoningEffort,
+              });
+            }
+            if (!payload?.userMessage && assistantMessage?.parentMessageId == null) {
+              nextMessages.push({ ...assistantMessage, parentMessageId: tempId });
+            } else {
+              nextMessages.push(assistantMessage);
+            }
+          } else if (streamedText) {
+            nextMessages.push({
+              ...tempAssistant,
+              content: serializeMarkdownContent(streamedText),
             });
           }
-          if (!payload?.userMessage && assistantMessage?.parentMessageId == null) {
-            nextMessages.push({ ...assistantMessage, parentMessageId: tempId });
-          } else {
-            nextMessages.push(assistantMessage);
-          }
-        }
-        return nextMessages;
-      });
-      setPendingUserId(null);
-      setIsSending(false);
-    } catch {
-      setSendError("送信に失敗しました。");
-      setIsSending(false);
+          return nextMessages;
+        });
+        setPendingUserId(null);
+        setIsSending(false);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error && error.message ? error.message : "送信に失敗しました。";
+        setMessages((prev) =>
+          prev.filter((message) => message.id !== tempId && message.id !== tempAssistantId)
+        );
+        setPendingUserId(null);
+        setSendError(errorMessage);
+        setIsSending(false);
+      }
+    },
+    [
+      chatId,
+      createStreamRenderer,
+      getNextTempId,
+      isSending,
+      promptText,
+      readChatStream,
+      selectedModel,
+    ]
+  );
+
+  useEffect(() => {
+    if (isLoading || !initialPrompt || hasAutoSentInitialPromptRef.current) {
+      return;
     }
-  };
+    hasAutoSentInitialPromptRef.current = true;
+    const timer = window.setTimeout(() => {
+      void handleSend(initialPrompt, initialModelSelection);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [handleSend, initialModelSelection, initialPrompt, isLoading]);
 
   const mainThreadMessages = useMemo(() => {
     const mainUserIds = new Set<string>();
@@ -548,24 +705,6 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
     const trimmed = branch.text.trim();
     if (!trimmed || branch.reply.isLoading) return;
 
-    setBranches((prev) => {
-      const current = prev[branchKey];
-      if (!current) return prev;
-      return {
-        ...prev,
-        [branchKey]: {
-          ...current,
-          text: "",
-          lastUserContent: trimmed,
-          reply: {
-            ...current.reply,
-            isLoading: true,
-            error: "",
-          },
-          hasSubmitted: true,
-        },
-      };
-    });
     const tempId = getNextTempId("temp");
     const tempAssistantId = getNextTempId("temp-assistant");
     const tempMessage = {
@@ -582,6 +721,26 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
       parentMessageId: tempId,
       branchId: branch.branchId,
     };
+
+    setBranches((prev) => {
+      const current = prev[branchKey];
+      if (!current) return prev;
+      return {
+        ...prev,
+        [branchKey]: {
+          ...current,
+          text: "",
+          lastUserContent: trimmed,
+          reply: {
+            ...current.reply,
+            assistantMessage: tempAssistant,
+            isLoading: true,
+            error: "",
+          },
+          hasSubmitted: true,
+        },
+      };
+    });
     setMessages((prev) =>
       insertAfterMessage(prev, branch.parentMessageId, [tempMessage, tempAssistant])
     );
@@ -609,6 +768,9 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
           typeof payload?.error === "string"
             ? payload.error
             : "送信に失敗しました。";
+        setMessages((prev) =>
+          prev.filter((message) => message.id !== tempId && message.id !== tempAssistantId)
+        );
         setBranches((prev) => {
           const current = prev[branchKey];
           if (!current) return prev;
@@ -618,6 +780,7 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
               ...current,
               reply: {
                 ...current.reply,
+                assistantMessage: null,
                 isLoading: false,
                 error: errorMessage,
               },
@@ -628,18 +791,53 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
       }
 
       let streamedText = "";
-      const result = response.headers.get("content-type")?.includes("text/event-stream")
-        ? await readChatStream(response, (delta) => {
-            streamedText += delta;
-            setMessages((prev) =>
-              prev.map((message) =>
-                message.id === tempAssistantId
-                  ? { ...message, content: serializeMarkdownContent(streamedText) }
-                  : message
-              )
-            );
-          })
-        : { payload: await response.json().catch(() => ({})) };
+      let branchRafId: number | null = null;
+      const renderBranchStream = () => {
+        branchRafId = null;
+        const nextContent = serializeMarkdownContent(streamedText);
+        setBranches((prev) => {
+          const current = prev[branchKey];
+          if (!current || !current.reply.assistantMessage) return prev;
+          return {
+            ...prev,
+            [branchKey]: {
+              ...current,
+              reply: {
+                ...current.reply,
+                assistantMessage: {
+                  ...current.reply.assistantMessage,
+                  content: nextContent,
+                },
+              },
+            },
+          };
+        });
+      };
+      const queueBranchStreamRender = () => {
+        if (branchRafId != null) return;
+        branchRafId = window.requestAnimationFrame(renderBranchStream);
+      };
+      const flushBranchStreamRender = () => {
+        if (branchRafId != null) {
+          window.cancelAnimationFrame(branchRafId);
+          branchRafId = null;
+        }
+        renderBranchStream();
+      };
+
+      const streamRenderer = createStreamRenderer(tempAssistantId);
+      const responseClone = response.clone();
+      let result = await readChatStream(response, (delta) => {
+        streamedText += delta;
+        queueBranchStreamRender();
+        streamRenderer.push(delta);
+      });
+      streamRenderer.flush();
+      flushBranchStreamRender();
+      streamedText = streamRenderer.text();
+      if (!result.payload) {
+        result = { payload: await responseClone.json().catch(() => ({})) };
+      }
       const payload = result.payload ?? {};
 
       setMessages((prev) => {
@@ -674,6 +872,11 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
           } else {
             additions.push(assistantMessage);
           }
+        } else if (streamedText) {
+          additions.push({
+            ...tempAssistant,
+            content: serializeMarkdownContent(streamedText),
+          });
         }
         return insertAfterMessage(filtered, branch.parentMessageId, additions);
       });
@@ -689,14 +892,26 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
               payload?.assistantMessage?.branchId ??
               current.branchId,
             reply: {
-              assistantMessage: payload?.assistantMessage ?? null,
+              assistantMessage:
+                payload?.assistantMessage ??
+                (streamedText
+                  ? {
+                      ...tempAssistant,
+                      content: serializeMarkdownContent(streamedText),
+                    }
+                  : current.reply.assistantMessage),
               isLoading: false,
               error: "",
             },
           },
         };
       });
-    } catch {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error && error.message ? error.message : "送信に失敗しました。";
+      setMessages((prev) =>
+        prev.filter((message) => message.id !== tempId && message.id !== tempAssistantId)
+      );
       setBranches((prev) => {
         const current = prev[branchKey];
         if (!current) return prev;
@@ -706,8 +921,9 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
             ...current,
             reply: {
               ...current.reply,
+              assistantMessage: null,
               isLoading: false,
-              error: "送信に失敗しました。",
+              error: errorMessage,
             },
           },
         };
@@ -757,6 +973,17 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
           resizeTextarea(event.currentTarget);
         }}
         onFocus={() => closeOpenBranchesForAssistant(latestAssistantId)}
+        onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing) return;
+          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+            if (!promptText.trim() || isSending) {
+              event.preventDefault();
+              return;
+            }
+            event.preventDefault();
+            handleSend();
+          }
+        }}
         placeholder="なんでも聞いてみましょう"
         rows={1}
         className="w-full resize-none rounded-xl border border-[#efe5dc] bg-white px-4 py-3 text-base leading-6 text-main shadow-[0_8px_18px_rgba(239,229,220,0.6)] transition-[height] duration-150 ease-out focus:border-[#d9c9bb] focus:outline-none"
@@ -995,6 +1222,20 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
                                           };
                                         });
                                         resizeTextarea(event.currentTarget);
+                                      }}
+                                      onKeyDown={(event) => {
+                                        if (event.nativeEvent.isComposing) return;
+                                        if (
+                                          event.key === "Enter" &&
+                                          (event.metaKey || event.ctrlKey)
+                                        ) {
+                                          if (!branch.text.trim() || branch.reply.isLoading) {
+                                            event.preventDefault();
+                                            return;
+                                          }
+                                          event.preventDefault();
+                                          handleBranchSend(branch.key);
+                                        }
                                       }}
                                       placeholder="なんでも聞いてみましょう"
                                       rows={1}

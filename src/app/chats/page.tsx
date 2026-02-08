@@ -6,9 +6,10 @@ import prisma from "@/lib/prisma"
 import { textStyle } from "@/styles/typography"
 import { redirect } from "next/navigation"
 import { AccountMenu } from "@/components/chats/account-menu"
-import { ChatActionError, sendChatMessage } from "@/lib/chat-service"
 import { isModelProvider, isReasoningEffort } from "@/lib/model-catalog"
 import { Prisma } from "@prisma/client"
+import { assertWithinDailyLimit } from "@/lib/usage-limiter"
+import { ChatActionError } from "@/lib/chat-errors"
 
 async function getChats(userId: string) {
   const chats = await prisma.chat.findMany({
@@ -69,28 +70,45 @@ async function createChatAction(
     throw new Error("Prompt is required")
   }
 
-  try {
-    const { chat } = await sendChatMessage({
-      userId: session.user.id,
-      content: prompt,
-      modelProvider:
-        typeof modelProvider === "string" && isModelProvider(modelProvider)
-          ? modelProvider
-          : undefined,
-      modelName: typeof modelName === "string" ? modelName : undefined,
-      modelReasoningEffort:
-        typeof modelReasoningEffort === "string" && isReasoningEffort(modelReasoningEffort)
-          ? modelReasoningEffort
-          : undefined,
-    })
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { planType: true },
+  })
 
-    redirect(`/chats/${chat.id}`)
+  try {
+    await assertWithinDailyLimit(session.user.id, user?.planType)
   } catch (error) {
     if (error instanceof ChatActionError && error.status === 429) {
-      return { error: "上限に達しました" }
+      return {
+        error: "本日の無料プラン上限（10件）に達しました。明日以降に再度お試しください。",
+      }
     }
     throw error
   }
+
+  const chat = await prisma.chat.create({
+    data: {
+      userId: session.user.id,
+      title: prompt.trim().slice(0, 50),
+      languageCode: "en",
+    },
+    select: { id: true },
+  })
+
+  const params = new URLSearchParams({
+    prompt: prompt.trim(),
+  })
+  if (typeof modelProvider === "string" && isModelProvider(modelProvider)) {
+    params.set("modelProvider", modelProvider)
+  }
+  if (typeof modelName === "string" && modelName) {
+    params.set("modelName", modelName)
+  }
+  if (typeof modelReasoningEffort === "string" && isReasoningEffort(modelReasoningEffort)) {
+    params.set("modelReasoningEffort", modelReasoningEffort)
+  }
+
+  redirect(`/chats/${chat.id}?${params.toString()}`)
 }
 
 async function logoutAction() {

@@ -22,6 +22,7 @@ export type ChatGraphState = {
   modelProvider?: ModelProvider | null
   modelName?: string | null
   modelReasoningEffort?: ReasoningEffort | null
+  onToken?: (token: string) => void | Promise<void>
   history: Array<{ role: "user" | "assistant"; content: string }>
   memorySummary?: MemorySummary | null
   assistantText?: string

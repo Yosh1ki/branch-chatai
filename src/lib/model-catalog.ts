@@ -42,16 +42,16 @@ export const MODEL_OPTIONS: ModelOption[] = [
     label: "Claude Sonnet 4.5",
   },
   {
-    id: "gemini-3-pro-preview",
+    id: "gemini-2.5-pro",
     provider: "gemini",
-    model: "gemini-3-pro-preview",
-    label: "Gemini 3 Pro",
+    model: "gemini-2.5-pro",
+    label: "Gemini 2.5 Pro",
   },
   {
-    id: "gemini-3-flash-preview",
+    id: "gemini-2.5-flash",
     provider: "gemini",
-    model: "gemini-3-flash-preview",
-    label: "Gemini 3 Flash",
+    model: "gemini-2.5-flash",
+    label: "Gemini 2.5 Flash",
   },
 ]
 

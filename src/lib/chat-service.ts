@@ -14,6 +14,7 @@ type SendChatMessageArgs = {
   modelName?: string | null
   modelReasoningEffort?: ReasoningEffort | null
   requestId?: string | null
+  onToken?: (token: string) => void | Promise<void>
 }
 
 type SendChatMessageResult = {
@@ -33,6 +34,7 @@ export async function sendChatMessage({
   modelName,
   modelReasoningEffort,
   requestId,
+  onToken,
 }: SendChatMessageArgs): Promise<SendChatMessageResult> {
   const result = await runChatGraph({
     userId,
@@ -45,6 +47,7 @@ export async function sendChatMessage({
     modelName,
     modelReasoningEffort,
     requestId: requestId ?? "",
+    onToken,
     history: [],
   })
 

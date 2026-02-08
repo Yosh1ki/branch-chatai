@@ -73,6 +73,18 @@ export function PromptCard({ action }: PromptCardProps) {
   }
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.nativeEvent.isComposing) {
+      return
+    }
+    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+      if (!prompt.trim()) {
+        event.preventDefault()
+        return
+      }
+      event.preventDefault()
+      event.currentTarget.form?.requestSubmit()
+      return
+    }
     if (event.key === "Enter" && !prompt.trim()) {
       event.preventDefault()
     }

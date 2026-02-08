@@ -45,6 +45,7 @@ const ChatGraphAnnotation = Annotation.Root({
   modelProvider: Annotation<ModelProvider | null | undefined>(),
   modelName: Annotation<string | null | undefined>(),
   modelReasoningEffort: Annotation<ReasoningEffort | null | undefined>(),
+  onToken: Annotation<((token: string) => void | Promise<void>) | undefined>(),
   history: Annotation<Array<{ role: "user" | "assistant"; content: string }>>({
     reducer: (prev, next) => next ?? prev ?? [],
   }),
@@ -230,6 +231,24 @@ const safetyNode = async (state: GraphState) => {
   return state
 }
 
+const tokenCallbackStore = () => {
+  const storeKey = "__branchTokenCallbacks"
+  const globalStore = globalThis as typeof globalThis & {
+    [storeKey]?: Map<string, (token: string) => void | Promise<void>>
+  }
+  if (!globalStore[storeKey]) {
+    globalStore[storeKey] = new Map()
+  }
+  return globalStore[storeKey]
+}
+
+const getTokenCallback = (requestId: string | null | undefined) => {
+  if (!requestId) {
+    return undefined
+  }
+  return tokenCallbackStore().get(requestId)
+}
+
 const modelNode = async (state: GraphState) => {
   const memorySummaryJson = state.memorySummary ? JSON.stringify(state.memorySummary) : undefined
   const messagesForLLM = trimHistoryToTokenLimit(
@@ -239,6 +258,7 @@ const modelNode = async (state: GraphState) => {
   ).concat({ role: "user", content: state.content })
   const useDevResponse = process.env.USE_DEV_ASSISTANT_RESPONSE === "true"
   const devResponse = useDevResponse ? buildDevAssistantResponse() : null
+  const streamCallback = state.onToken ?? getTokenCallback(state.requestId)
   const assistantText = devResponse
     ? devResponse.text
     : await invokeWithFallback(
@@ -248,7 +268,8 @@ const modelNode = async (state: GraphState) => {
           reasoningEffort: state.modelReasoningEffort ?? null,
         },
         messagesForLLM,
-        memorySummaryJson
+        memorySummaryJson,
+        streamCallback
       )
   const assistantContent = devResponse
     ? devResponse.content

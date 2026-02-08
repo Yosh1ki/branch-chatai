@@ -198,20 +198,29 @@ export function AssistantCard({
         className="relative w-full max-w-3xl rounded-xl border border-[#efe5dc] bg-white p-8 text-main"
       >
         <div className="space-y-6 text-sm leading-relaxed" data-allow-selection="true">
-          {isLoading ? (
-            <p className="text-base text-main-soft">回答を取得中です...</p>
-          ) : errorMessage ? (
+          {errorMessage ? (
             <p className="text-base text-red-500">エラー: {errorMessage}</p>
           ) : content ? (
-            parsedContent.format === "richjson" && parsedContent.doc ? (
-              <RichTextRenderer value={parsedContent.doc} className="text-main-soft" />
-            ) : (
-              <div className="prose prose-sm max-w-none text-main-soft">
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                  {parsedContent.text}
-                </ReactMarkdown>
-              </div>
-            )
+            <>
+              {parsedContent.format === "richjson" && parsedContent.doc ? (
+                <RichTextRenderer value={parsedContent.doc} className="text-main-soft" />
+              ) : (
+                <div className="prose prose-sm max-w-none text-main-soft">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                    {parsedContent.text}
+                  </ReactMarkdown>
+                </div>
+              )}
+              {isLoading ? (
+                <p className="text-xs text-main-muted" aria-live="polite">
+                  生成中...
+                </p>
+              ) : null}
+            </>
+          ) : isLoading ? (
+            <p className="text-base text-main-soft" aria-live="polite">
+              回答を取得中です...
+            </p>
           ) : (
             <p className="text-base text-main-soft">まだ回答がありません。</p>
           )}
