@@ -7,53 +7,32 @@
 
 ## 🎯 対象モデル一覧（MVP 版）
 
-| モデル名       | プロバイダ | モデル ID        | ストリーミング | 最大入力長  | 想定プラン |
-| -------------- | ---------- | ---------------- | -------------- | ----------- | ---------- |
-| GPT-4o-mini    | OpenAI     | `gpt-4o-mini`    | ✔︎             | 2048 tokens | Free / Pro |
-| Claude 3 Opus  | Anthropic  | `claude-3-opus`  | ✗              | 4096 tokens | Pro のみ   |
-| Gemini 1.5 Pro | Google     | `gemini-1.5-pro` | ✔︎             | 8192 tokens | Free / Pro |
+| モデル名            | プロバイダ | モデル ID            | ストリーミング | 想定プラン |
+| ------------------- | ---------- | -------------------- | -------------- | ---------- |
+| GPT-5.2 Latest      | OpenAI     | `gpt-5.2-chat-latest`| ✔︎             | Free / Pro |
+| GPT-5.2 Thinking    | OpenAI     | `gpt-5.2`            | ✔︎             | Free / Pro |
+| Claude Sonnet 4.5   | Anthropic  | `claude-sonnet-4-5`  | ✔︎             | Free / Pro |
+| Claude Opus 4.5     | Anthropic  | `claude-opus-4-5`    | ✔︎             | Free / Pro |
+| Gemini 3 Pro        | Google     | `gemini-3-pro-preview` | ✔︎           | Free / Pro |
+| Gemini 3 Flash      | Google     | `gemini-3-flash-preview` | ✔︎         | Free / Pro |
 
 ---
 
-## ⚙️ モデルごとの詳細設定
+## ⚙️ モデル呼び出しの共通ルール
 
-### GPT-4o-mini（OpenAI）
-
--   **モデル名**：`gpt-4o-mini`
--   **用途**：軽量かつ応答性が高く、初期のデフォルトモデルとして利用
--   **ストリーミング対応**：✔︎
--   **標準パラメータ**：
-    ```
-    temperature: 0.5
-    max_tokens: 1024
-    top_p: 1
-    ```
+-   **チャット単位でモデル固定**（ブランチ単位の切替は将来対応）
+-   **フォールバックは 1 段のみ**
+-   **タイムアウト/レート制限時は 1 回のみ再試行**
+-   **入力上限**：8k トークン
+-   **出力上限**：800〜1200 トークン（固定レンジ）
 
 ---
 
-### Claude 3 Opus（Anthropic）
+## 🔁 フォールバック順
 
--   **モデル名**：`claude-3-opus`
--   **用途**：深い議論や高精度な推論が必要な場面で使用
--   **ストリーミング対応**：✗（JSON レスポンス）
--   **標準パラメータ**：
-    ```
-    temperature: 0.2
-    max_tokens: 2000
-    ```
-
----
-
-### Gemini 1.5 Pro（Google）
-
--   **モデル名**：`gemini-1.5-pro`
--   **用途**：マルチモーダルや教育・説明用途に強く、広い入力に対応
--   **ストリーミング対応**：✔︎
--   **標準パラメータ**：
-    ```
-    temperature: 0.6
-    max_tokens: 1500
-    ```
+1. OpenAI（`gpt-5.2-chat-latest` または `gpt-5.2`）
+2. Anthropic（`claude-sonnet-4-5` / `claude-opus-4-5`）
+3. Gemini（`gemini-3-pro-preview` / `gemini-3-flash-preview`）
 
 ---
 
@@ -65,7 +44,7 @@
     const model = chatModel(model_name, { temperature, max_tokens });
     ```
 -   Pro ユーザーかどうかを `users.plan_type` で判定し、制限をかける
--   コスト試算に必要な場合、将来的に「消費トークン量」をログへ記録予定
+-   コスト試算に必要な場合、消費トークン量をログへ記録する
 
 ---
 

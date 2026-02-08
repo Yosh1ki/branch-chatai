@@ -8,6 +8,18 @@ type HistoryMessage = {
   parentMessageId: string | null
 }
 
+const toHistoryMessage = (message: {
+  id: string
+  role: string
+  content: string
+  parentMessageId: string | null
+}): HistoryMessage => ({
+  id: message.id,
+  role: message.role as "user" | "assistant",
+  content: parseMessageContent(message.content).text,
+  parentMessageId: message.parentMessageId,
+})
+
 export const buildParentChain = (
   messages: Array<{
     id: string
@@ -23,19 +35,14 @@ export const buildParentChain = (
 
   const messageById = new Map(messages.map((message) => [message.id, message]))
   const chain: HistoryMessage[] = []
-  let currentId = parentMessageId
+  let currentId: string | null = parentMessageId
 
   while (currentId) {
     const current = messageById.get(currentId)
     if (!current) {
       break
     }
-    chain.unshift({
-      id: current.id,
-      role: current.role as "user" | "assistant",
-      content: parseMessageContent(current.content).text,
-      parentMessageId: current.parentMessageId,
-    })
+    chain.unshift(toHistoryMessage(current))
     currentId = current.parentMessageId ?? null
   }
 
@@ -47,7 +54,17 @@ export const buildConversationHistory = async (
   parentMessageId?: string | null
 ): Promise<HistoryMessage[]> => {
   if (!parentMessageId) {
-    return []
+    const mainMessages = await prisma.message.findMany({
+      where: { chatId, branchId: null },
+      select: {
+        id: true,
+        role: true,
+        content: true,
+        parentMessageId: true,
+      },
+      orderBy: { createdAt: "asc" },
+    })
+    return mainMessages.map((message) => toHistoryMessage(message))
   }
 
   const allMessages = await prisma.message.findMany({

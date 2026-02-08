@@ -1,7 +1,7 @@
 import type { Chat, Message } from "@prisma/client"
 import { runChatGraph } from "@/lib/chat-request-graph"
 import { ChatActionError } from "@/lib/chat-errors"
-import type { ModelProvider } from "@/lib/model-catalog"
+import type { ModelProvider, ReasoningEffort } from "@/lib/model-catalog"
 
 type SendChatMessageArgs = {
   userId: string
@@ -12,6 +12,7 @@ type SendChatMessageArgs = {
   branchSide?: "left" | "right" | null
   modelProvider?: ModelProvider | null
   modelName?: string | null
+  modelReasoningEffort?: ReasoningEffort | null
   requestId?: string | null
 }
 
@@ -30,6 +31,7 @@ export async function sendChatMessage({
   branchSide,
   modelProvider,
   modelName,
+  modelReasoningEffort,
   requestId,
 }: SendChatMessageArgs): Promise<SendChatMessageResult> {
   const result = await runChatGraph({
@@ -41,6 +43,7 @@ export async function sendChatMessage({
     branchSide,
     modelProvider,
     modelName,
+    modelReasoningEffort,
     requestId: requestId ?? "",
     history: [],
   })

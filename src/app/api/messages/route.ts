@@ -18,6 +18,7 @@ export async function POST(req: Request) {
       content,
       modelProvider,
       modelName,
+      modelReasoningEffort,
       parentMessageId,
       branchId,
     } = body;
@@ -65,6 +66,7 @@ export async function POST(req: Request) {
         content,
         modelProvider,
         modelName,
+        modelReasoningEffort,
         parentMessageId,
         branchId,
       },

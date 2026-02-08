@@ -96,6 +96,7 @@ model Message {
   content          String
   modelProvider    String?   @map("model_provider")
   modelName        String?   @map("model_name")
+  modelReasoningEffort String? @map("model_reasoning_effort")
   autoTitle        String?   @map("auto_title")
   isCollapsed      Boolean   @default(false) @map("is_collapsed")
   requestId        String?   @unique @map("request_id")

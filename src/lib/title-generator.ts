@@ -12,7 +12,7 @@ export const generateChatTitle = async (content: string) => {
       },
       { role: "user", content },
     ],
-    max_tokens: 40,
+    max_completion_tokens: 40,
   })
 
   return response.choices[0]?.message?.content?.trim() || content.slice(0, 50)

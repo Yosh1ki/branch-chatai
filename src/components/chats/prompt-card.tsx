@@ -111,6 +111,11 @@ export function PromptCard({ action }: PromptCardProps) {
           <div className="relative" ref={pickerRef}>
             <input type="hidden" name="modelProvider" value={model.provider} />
             <input type="hidden" name="modelName" value={model.model} />
+            <input
+              type="hidden"
+              name="modelReasoningEffort"
+              value={model.reasoningEffort ?? ""}
+            />
             <button
               type="button"
               onClick={() => setPickerOpen((prev) => !prev)}
@@ -123,7 +128,7 @@ export function PromptCard({ action }: PromptCardProps) {
               <div className="absolute left-0 top-[calc(100%+6px)] z-10 w-56 rounded-2xl border border-[#f1d0c7] bg-white p-2 shadow-lg">
                 {MODEL_OPTIONS.map((option) => (
                   <button
-                    key={option.model}
+                    key={option.id}
                     type="button"
                     onClick={() => {
                       setModel(option)
@@ -132,7 +137,7 @@ export function PromptCard({ action }: PromptCardProps) {
                     className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs text-main transition hover:bg-[#fbf7f3]"
                   >
                     {option.label}
-                    {model.model === option.model && <Check className="h-3.5 w-3.5 text-main" />}
+                    {model.id === option.id && <Check className="h-3.5 w-3.5 text-main" />}
                   </button>
                 ))}
               </div>

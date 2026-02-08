@@ -1,4 +1,4 @@
-import type { ModelProvider } from "@/lib/model-catalog"
+import type { ModelProvider, ReasoningEffort } from "@/lib/model-catalog"
 
 export type MemorySummary = {
   summary: string
@@ -21,6 +21,7 @@ export type ChatGraphState = {
   requestId: string
   modelProvider?: ModelProvider | null
   modelName?: string | null
+  modelReasoningEffort?: ReasoningEffort | null
   history: Array<{ role: "user" | "assistant"; content: string }>
   memorySummary?: MemorySummary | null
   assistantText?: string

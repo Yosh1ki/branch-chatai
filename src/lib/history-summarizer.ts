@@ -22,7 +22,7 @@ export const summarizeHistory = async (
       },
       { role: "user", content: prompt },
     ],
-    max_tokens: 600,
+    max_completion_tokens: 600,
   })
 
   const raw = response.choices[0]?.message?.content ?? ""

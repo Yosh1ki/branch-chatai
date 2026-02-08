@@ -6,6 +6,7 @@ export type ChatMessage = {
   branchId?: string | null;
   modelProvider?: string | null;
   modelName?: string | null;
+  modelReasoningEffort?: string | null;
 };
 
 export type ChatBranch = {

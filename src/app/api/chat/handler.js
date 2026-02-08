@@ -89,6 +89,7 @@ export const createChatHandler = ({ auth, sendChatMessage, ChatActionError }) =>
       branchSide,
       modelProvider,
       modelName,
+      modelReasoningEffort,
       requestId,
       stream,
     } = json;
@@ -103,6 +104,7 @@ export const createChatHandler = ({ auth, sendChatMessage, ChatActionError }) =>
         branchSide,
         modelProvider,
         modelName,
+        modelReasoningEffort,
         requestId,
       });
 

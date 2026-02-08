@@ -1,25 +1,15 @@
 import OpenAI from "openai"
 import { ChatActionError } from "@/lib/chat-errors"
 import { getOpenAIClient } from "@/lib/openai-client"
-import type { ModelProvider } from "@/lib/model-catalog"
+import type { ModelProvider, ReasoningEffort } from "@/lib/model-catalog"
 
 const SYSTEM_PROMPT = "You are a helpful AI assistant."
-const MAX_OUTPUT_TOKENS = 1000
+const MAX_OUTPUT_TOKENS = 2000
 
 type ResolvedModel = {
   provider: ModelProvider
   name: string
-}
-
-const FALLBACK_ORDER: ResolvedModel[] = [
-  { provider: "openai", name: "gpt-4.1-latest" },
-  { provider: "anthropic", name: "claude-sonnet-4-5" },
-  { provider: "gemini", name: "gemini-2.5-pro" },
-]
-
-const LONG_CONTEXT_MODEL: ResolvedModel = {
-  provider: "gemini",
-  name: "gemini-2.5-pro",
+  reasoningEffort?: ReasoningEffort | null
 }
 
 const isRetryableError = (error: unknown) => {
@@ -30,17 +20,6 @@ const isRetryableError = (error: unknown) => {
     code === "ETIMEDOUT" ||
     message.toLowerCase().includes("timeout") ||
     message.toLowerCase().includes("rate limit")
-  )
-}
-
-const isContextLengthError = (error: unknown) => {
-  const message = (error as Error)?.message?.toLowerCase?.() ?? ""
-  const code = (error as { code?: string })?.code
-  return (
-    code === "context_length_exceeded" ||
-    message.includes("context length") ||
-    message.includes("maximum context") ||
-    message.includes("token limit")
   )
 }
 
@@ -74,14 +53,23 @@ const getGeminiApiKey = () => {
 const generateOpenAIResponse = async (
   model: string,
   messagesForLLM: Array<{ role: "user" | "assistant"; content: string }>,
-  systemPrompt: string
+  systemPrompt: string,
+  reasoningEffort?: ReasoningEffort | null
 ) => {
-  const stream = await getOpenAIClient().chat.completions.create({
+  const params: OpenAI.Chat.ChatCompletionCreateParamsStreaming & {
+    reasoning_effort?: ReasoningEffort
+    max_completion_tokens?: number
+  } = {
     model,
     messages: [{ role: "system", content: systemPrompt }, ...messagesForLLM],
-    max_tokens: MAX_OUTPUT_TOKENS,
+    max_completion_tokens: MAX_OUTPUT_TOKENS,
     stream: true,
-  })
+  }
+  if (reasoningEffort) {
+    params.reasoning_effort = reasoningEffort
+  }
+
+  const stream = await getOpenAIClient().chat.completions.create(params)
 
   let text = ""
   for await (const part of stream) {
@@ -164,7 +152,12 @@ const generateResponseByModel = async (
 ) => {
   switch (resolvedModel.provider) {
     case "openai":
-      return generateOpenAIResponse(resolvedModel.name, messagesForLLM, systemPrompt)
+      return generateOpenAIResponse(
+        resolvedModel.name,
+        messagesForLLM,
+        systemPrompt,
+        resolvedModel.reasoningEffort ?? null
+      )
     case "anthropic":
       return generateAnthropicResponse(resolvedModel.name, messagesForLLM, systemPrompt)
     case "gemini":
@@ -182,40 +175,15 @@ export const invokeWithFallback = async (
   const systemPrompt = memorySummaryJson
     ? `${SYSTEM_PROMPT}\n\nMemory summary JSON:\n${memorySummaryJson}`
     : SYSTEM_PROMPT
-  const candidates = [
-    primaryModel,
-    ...FALLBACK_ORDER.filter(
-      (candidate) =>
-        candidate.provider !== primaryModel.provider || candidate.name !== primaryModel.name
-    ),
-  ]
-
-  let triedLongContext = false
-  let lastError: unknown
-
-  for (const candidate of candidates) {
-    try {
-      return await withSingleRetry(() =>
-        generateResponseByModel(candidate, messagesForLLM, systemPrompt)
-      )
-    } catch (error) {
-      lastError = error
-      if (!triedLongContext && isContextLengthError(error)) {
-        triedLongContext = true
-        try {
-          return await withSingleRetry(() =>
-            generateResponseByModel(LONG_CONTEXT_MODEL, messagesForLLM, systemPrompt)
-          )
-        } catch (innerError) {
-          lastError = innerError
-        }
-      }
-    }
+  try {
+    return await withSingleRetry(() =>
+      generateResponseByModel(primaryModel, messagesForLLM, systemPrompt)
+    )
+  } catch (error) {
+    const message =
+      (error instanceof OpenAI.APIError ? error.message : undefined) ??
+      (error as Error)?.message ??
+      "Model invocation failed"
+    throw new ChatActionError(message, 502)
   }
-
-  const message =
-    (lastError as OpenAI.APIError)?.message ??
-    (lastError as Error)?.message ??
-    "Model invocation failed"
-  throw new ChatActionError(message, 502)
 }

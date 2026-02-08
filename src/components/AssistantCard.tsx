@@ -8,7 +8,7 @@ import type { Components, ExtraProps } from "react-markdown";
 import { Check, Copy, MoreHorizontal } from "lucide-react";
 import { toggleMenu } from "@/lib/chat-screen-state";
 import { useCopyFeedback } from "@/hooks/use-copy-feedback";
-import { getModelLabel, isModelProvider } from "@/lib/model-catalog";
+import { getModelLabel, isModelProvider, isReasoningEffort } from "@/lib/model-catalog";
 import { parseMessageContent } from "@/lib/rich-text";
 import { RichTextRenderer } from "@/components/RichTextRenderer";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,7 @@ type AssistantCardProps = {
   showPromptInput: boolean;
   modelProvider?: string | null;
   modelName?: string | null;
+  modelReasoningEffort?: string | null;
   cardRef?: (node: HTMLDivElement | null) => void;
   showAllBranchPills?: boolean;
   hiddenBranchSides?: BranchSelection[];
@@ -95,6 +96,7 @@ export function AssistantCard({
   showPromptInput,
   modelProvider,
   modelName,
+  modelReasoningEffort,
   cardRef,
   showAllBranchPills = false,
   hiddenBranchSides,
@@ -110,8 +112,10 @@ export function AssistantCard({
   const modelLabel = useMemo(() => {
     const providerValue = modelProvider ?? undefined;
     const provider = isModelProvider(providerValue) ? providerValue : undefined;
-    return getModelLabel(provider, modelName);
-  }, [modelProvider, modelName]);
+    const effortValue = modelReasoningEffort ?? undefined;
+    const reasoningEffort = isReasoningEffort(effortValue) ? effortValue : undefined;
+    return getModelLabel(provider, modelName, reasoningEffort);
+  }, [modelProvider, modelName, modelReasoningEffort]);
   const selectedBranches = useMemo(
     () => activeBranchSides ?? [],
     [activeBranchSides]

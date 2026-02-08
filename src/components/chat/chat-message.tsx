@@ -1,5 +1,6 @@
 import { memo, useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { getModelLabel, isModelProvider, isReasoningEffort } from "@/lib/model-catalog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { parseMessageContent } from "@/lib/rich-text";
 import { RichTextRenderer } from "@/components/RichTextRenderer";
@@ -9,7 +10,9 @@ interface Message {
     role: string;
     content: string;
     createdAt: Date;
+    modelProvider?: string | null;
     modelName?: string | null;
+    modelReasoningEffort?: string | null;
 }
 
 const ChatMessageComponent = ({ message }: { message: Message }) => {
@@ -18,6 +21,14 @@ const ChatMessageComponent = ({ message }: { message: Message }) => {
         () => (isUser ? null : parseMessageContent(message.content)),
         [isUser, message.content]
     );
+
+    const modelLabel = useMemo(() => {
+        const providerValue = message.modelProvider ?? undefined;
+        const provider = isModelProvider(providerValue) ? providerValue : undefined;
+        const effortValue = message.modelReasoningEffort ?? undefined;
+        const reasoningEffort = isReasoningEffort(effortValue) ? effortValue : undefined;
+        return getModelLabel(provider, message.modelName, reasoningEffort);
+    }, [message.modelProvider, message.modelName, message.modelReasoningEffort]);
 
     return (
         <div
@@ -45,7 +56,7 @@ const ChatMessageComponent = ({ message }: { message: Message }) => {
             >
                 <div className="flex items-center gap-2">
                     <span className="text-xs font-medium text-muted-foreground">
-                        {isUser ? "You" : message.modelName || "Assistant"}
+                        {isUser ? "You" : modelLabel}
                     </span>
                     <span className="text-xs text-muted-foreground">
                         {new Date(message.createdAt).toLocaleTimeString()}

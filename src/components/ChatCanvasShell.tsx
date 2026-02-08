@@ -12,7 +12,12 @@ import { createCanvasState, resetCanvasState } from "@/lib/canvas-state";
 import { fetchChatMessages } from "@/lib/chat-messages";
 import { groupConversationPairs } from "@/lib/chat-conversation";
 import { insertAfterMessage } from "@/lib/chat-message-insert";
-import { isModelProvider, type ModelProvider } from "@/lib/model-catalog";
+import {
+  isModelProvider,
+  isReasoningEffort,
+  type ModelProvider,
+  type ReasoningEffort,
+} from "@/lib/model-catalog";
 import { serializeMarkdownContent } from "@/lib/rich-text";
 type BranchSide = "left" | "right";
 
@@ -28,6 +33,7 @@ type ChatMessage = {
   branchId?: string | null;
   modelProvider?: string | null;
   modelName?: string | null;
+  modelReasoningEffort?: string | null;
 };
 
 type ChatBranch = {
@@ -58,6 +64,7 @@ type BranchDraft = {
 type SelectedModel = {
   provider: ModelProvider;
   name: string;
+  reasoningEffort?: ReasoningEffort | null;
 };
 
 export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
@@ -216,9 +223,15 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
               isModelProvider(message.modelProvider ?? undefined)
           );
         if (latestModel && isModelProvider(latestModel.modelProvider ?? undefined)) {
+          const latestReasoningEffort: ReasoningEffort | null = isReasoningEffort(
+            latestModel.modelReasoningEffort ?? undefined
+          )
+            ? (latestModel.modelReasoningEffort as ReasoningEffort)
+            : null;
           setSelectedModel({
             provider: latestModel.modelProvider as ModelProvider,
             name: latestModel.modelName as string,
+            reasoningEffort: latestReasoningEffort,
           });
         }
         setIsLoading(false);
@@ -301,6 +314,7 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
           chatId,
           modelProvider: selectedModel?.provider,
           modelName: selectedModel?.name,
+          modelReasoningEffort: selectedModel?.reasoningEffort ?? null,
           stream: true,
         }),
       });
@@ -347,9 +361,15 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
             assistantMessage?.modelName &&
             isModelProvider(assistantMessage.modelProvider ?? undefined)
           ) {
+            const assistantReasoningEffort: ReasoningEffort | null = isReasoningEffort(
+              assistantMessage.modelReasoningEffort ?? undefined
+            )
+              ? (assistantMessage.modelReasoningEffort as ReasoningEffort)
+              : null;
             setSelectedModel({
               provider: assistantMessage.modelProvider as ModelProvider,
               name: assistantMessage.modelName as string,
+              reasoningEffort: assistantReasoningEffort,
             });
           }
           if (!payload?.userMessage && assistantMessage?.parentMessageId == null) {
@@ -578,6 +598,7 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
           branchSide: branch.side,
           modelProvider: selectedModel?.provider,
           modelName: selectedModel?.name,
+          modelReasoningEffort: selectedModel?.reasoningEffort ?? null,
           stream: true,
         }),
       });
@@ -637,9 +658,15 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
             assistantMessage?.modelName &&
             isModelProvider(assistantMessage.modelProvider ?? undefined)
           ) {
+            const assistantReasoningEffort: ReasoningEffort | null = isReasoningEffort(
+              assistantMessage.modelReasoningEffort ?? undefined
+            )
+              ? (assistantMessage.modelReasoningEffort as ReasoningEffort)
+              : null;
             setSelectedModel({
               provider: assistantMessage.modelProvider as ModelProvider,
               name: assistantMessage.modelName as string,
+              reasoningEffort: assistantReasoningEffort,
             });
           }
           if (!payload?.userMessage && assistantMessage?.parentMessageId == null) {
@@ -784,6 +811,8 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
                 const assistantContent = pair.assistant?.content ?? "";
                 const assistantModelProvider = pair.assistant?.modelProvider ?? null;
                 const assistantModelName = pair.assistant?.modelName ?? null;
+                const assistantModelReasoningEffort =
+                  pair.assistant?.modelReasoningEffort ?? null;
                 const assistantId = pair.assistant?.id ?? null;
                 const assistantLoading =
                   (pendingUserId && pendingUserId === pair.user?.id) ||
@@ -899,6 +928,7 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
                         errorMessage={assistantError}
                         modelProvider={assistantModelProvider}
                         modelName={assistantModelName}
+                        modelReasoningEffort={assistantModelReasoningEffort}
                         showPromptInput={isLast && promptInputEnabled}
                         showAllBranchPills={isLast && promptInputEnabled}
                         hiddenBranchSides={isLast ? hiddenBranchSides : undefined}
@@ -997,6 +1027,9 @@ export function ChatCanvasShell({ chatId }: ChatCanvasShellProps) {
                                       errorMessage={branch.reply.error}
                                       modelProvider={branch.reply.assistantMessage?.modelProvider}
                                       modelName={branch.reply.assistantMessage?.modelName}
+                                      modelReasoningEffort={
+                                        branch.reply.assistantMessage?.modelReasoningEffort
+                                      }
                                       showPromptInput={false}
                                     />
                                   </div>

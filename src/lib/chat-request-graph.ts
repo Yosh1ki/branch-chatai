@@ -1,9 +1,13 @@
 import { Annotation, END, StateGraph } from "@langchain/langgraph"
 import { randomUUID } from "crypto"
-import type { Chat, Message, User } from "@prisma/client"
 import prisma from "@/lib/prisma"
 import { ChatActionError } from "@/lib/chat-errors"
-import { isModelProvider, type ModelProvider } from "@/lib/model-catalog"
+import {
+  isModelProvider,
+  isReasoningEffort,
+  type ModelProvider,
+  type ReasoningEffort,
+} from "@/lib/model-catalog"
 import { buildConversationHistory } from "@/lib/conversation-history"
 import { summarizeHistory } from "@/lib/history-summarizer"
 import { evaluateFastGate } from "@/lib/safety-filter"
@@ -16,12 +20,16 @@ import { serializeMarkdownContent } from "@/lib/rich-text"
 import { buildDevAssistantResponse } from "@/lib/dev-assistant-response"
 import { getStartOfToday } from "@/lib/usage-limits"
 
+type ChatRecord = Awaited<ReturnType<typeof prisma.chat.create>>
+type MessageRecord = Awaited<ReturnType<typeof prisma.message.create>>
+type UserPlanType = NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique>>>["planType"]
+
 type GraphState = ChatGraphState & {
-  chatRecord?: Chat
+  chatRecord?: ChatRecord
   branchIdResolved?: string | null
-  planType?: User["planType"]
-  userMessage?: Message
-  assistantMessage?: Message
+  planType?: UserPlanType
+  userMessage?: MessageRecord
+  assistantMessage?: MessageRecord
   createdChat?: boolean
   idempotentHit?: boolean
 }
@@ -36,6 +44,7 @@ const ChatGraphAnnotation = Annotation.Root({
   requestId: Annotation<string>(),
   modelProvider: Annotation<ModelProvider | null | undefined>(),
   modelName: Annotation<string | null | undefined>(),
+  modelReasoningEffort: Annotation<ReasoningEffort | null | undefined>(),
   history: Annotation<Array<{ role: "user" | "assistant"; content: string }>>({
     reducer: (prev, next) => next ?? prev ?? [],
   }),
@@ -44,11 +53,11 @@ const ChatGraphAnnotation = Annotation.Root({
   }),
   assistantText: Annotation<string | undefined>(),
   assistantContent: Annotation<string | undefined>(),
-  chatRecord: Annotation<Chat | undefined>(),
+  chatRecord: Annotation<ChatRecord | undefined>(),
   branchIdResolved: Annotation<string | null | undefined>(),
-  planType: Annotation<User["planType"] | undefined>(),
-  userMessage: Annotation<Message | undefined>(),
-  assistantMessage: Annotation<Message | undefined>(),
+  planType: Annotation<UserPlanType | undefined>(),
+  userMessage: Annotation<MessageRecord | undefined>(),
+  assistantMessage: Annotation<MessageRecord | undefined>(),
   createdChat: Annotation<boolean | undefined>(),
   idempotentHit: Annotation<boolean | undefined>(),
   errors: Annotation<Array<{ step: string; message: string }> | undefined>({
@@ -59,23 +68,36 @@ const ChatGraphAnnotation = Annotation.Root({
 const resolveModelSelection = async (
   chatId: string,
   modelProvider?: string | null,
-  modelName?: string | null
+  modelName?: string | null,
+  modelReasoningEffort?: string | null
 ) => {
   if (isModelProvider(modelProvider) && modelName) {
-    return { provider: modelProvider, name: modelName }
+    return {
+      provider: modelProvider,
+      name: modelName,
+      reasoningEffort: isReasoningEffort(modelReasoningEffort)
+        ? modelReasoningEffort
+        : null,
+    }
   }
 
   const latestMessage = await prisma.message.findFirst({
     where: { chatId },
     orderBy: { createdAt: "desc" },
-    select: { modelProvider: true, modelName: true },
+    select: { modelProvider: true, modelName: true, modelReasoningEffort: true },
   })
 
   if (isModelProvider(latestMessage?.modelProvider) && latestMessage?.modelName) {
-    return { provider: latestMessage.modelProvider, name: latestMessage.modelName }
+    return {
+      provider: latestMessage.modelProvider,
+      name: latestMessage.modelName,
+      reasoningEffort: isReasoningEffort(latestMessage.modelReasoningEffort)
+        ? latestMessage.modelReasoningEffort
+        : null,
+    }
   }
 
-  return { provider: "openai" as ModelProvider, name: "gpt-4.1-latest" }
+  return { provider: "openai" as ModelProvider, name: "gpt-5.2", reasoningEffort: null }
 }
 
 const validateNode = async (state: GraphState) => {
@@ -89,7 +111,7 @@ const validateNode = async (state: GraphState) => {
     select: { planType: true },
   })
 
-  let chatRecord: Chat
+  let chatRecord: ChatRecord
   let createdChat = false
   if (state.chatId) {
     const existing = await prisma.chat.findUnique({
@@ -138,7 +160,8 @@ const validateNode = async (state: GraphState) => {
   const resolvedModel = await resolveModelSelection(
     chatRecord.id,
     state.modelProvider ?? null,
-    state.modelName ?? null
+    state.modelName ?? null,
+    state.modelReasoningEffort ?? null
   )
 
   return {
@@ -151,6 +174,7 @@ const validateNode = async (state: GraphState) => {
     planType: user?.planType ?? "free",
     modelProvider: resolvedModel.provider,
     modelName: resolvedModel.name,
+    modelReasoningEffort: resolvedModel.reasoningEffort,
     createdChat,
   }
 }
@@ -218,7 +242,11 @@ const modelNode = async (state: GraphState) => {
   const assistantText = devResponse
     ? devResponse.text
     : await invokeWithFallback(
-        { provider: state.modelProvider ?? "openai", name: state.modelName ?? "gpt-4.1-latest" },
+        {
+          provider: state.modelProvider ?? "openai",
+          name: state.modelName ?? "gpt-5.2",
+          reasoningEffort: state.modelReasoningEffort ?? null,
+        },
         messagesForLLM,
         memorySummaryJson
       )
@@ -307,6 +335,7 @@ const persistNode = async (state: GraphState) => {
       branchId: state.branchIdResolved ?? null,
       modelProvider: state.modelProvider ?? null,
       modelName: state.modelName ?? null,
+      modelReasoningEffort: state.modelReasoningEffort ?? null,
       requestId: state.requestId,
     },
   })
@@ -327,6 +356,7 @@ const persistNode = async (state: GraphState) => {
       branchId: state.branchIdResolved ?? null,
       modelProvider: state.modelProvider ?? null,
       modelName: state.modelName ?? null,
+      modelReasoningEffort: state.modelReasoningEffort ?? null,
     },
   })
 
@@ -370,23 +400,23 @@ const titleNode = async (state: GraphState) => {
 }
 
 const graphBuilder = new StateGraph(ChatGraphAnnotation)
-graphBuilder.addNode("validate", validateNode)
-graphBuilder.addNode("usage", usageNode)
-graphBuilder.addNode("load_history", historyNode)
-graphBuilder.addNode("safety", safetyNode)
-graphBuilder.addNode("model", modelNode)
-graphBuilder.addNode("moderate_output", outputModerationNode)
-graphBuilder.addNode("persist", persistNode)
-graphBuilder.addNode("title", titleNode)
+  .addNode("validate", validateNode)
+  .addNode("usage", usageNode)
+  .addNode("load_history", historyNode)
+  .addNode("safety", safetyNode)
+  .addNode("model", modelNode)
+  .addNode("moderate_output", outputModerationNode)
+  .addNode("persist", persistNode)
+  .addNode("title", titleNode)
+  .addEdge("validate", "usage")
+  .addEdge("usage", "load_history")
+  .addEdge("load_history", "safety")
+  .addEdge("safety", "model")
+  .addEdge("model", "moderate_output")
+  .addEdge("moderate_output", "persist")
+  .addEdge("persist", "title")
+  .addEdge("title", END)
 graphBuilder.setEntryPoint("validate")
-graphBuilder.addEdge("validate", "usage")
-graphBuilder.addEdge("usage", "load_history")
-graphBuilder.addEdge("load_history", "safety")
-graphBuilder.addEdge("safety", "model")
-graphBuilder.addEdge("model", "moderate_output")
-graphBuilder.addEdge("moderate_output", "persist")
-graphBuilder.addEdge("persist", "title")
-graphBuilder.addEdge("title", END)
 
 const chatGraph = graphBuilder.compile()
 

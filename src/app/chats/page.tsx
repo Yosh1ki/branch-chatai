@@ -7,6 +7,7 @@ import { textStyle } from "@/styles/typography"
 import { redirect } from "next/navigation"
 import { AccountMenu } from "@/components/chats/account-menu"
 import { ChatActionError, sendChatMessage } from "@/lib/chat-service"
+import { isModelProvider, isReasoningEffort } from "@/lib/model-catalog"
 import { Prisma } from "@prisma/client"
 
 async function getChats(userId: string) {
@@ -62,6 +63,7 @@ async function createChatAction(
   const prompt = formData.get("prompt")
   const modelProvider = formData.get("modelProvider")
   const modelName = formData.get("modelName")
+  const modelReasoningEffort = formData.get("modelReasoningEffort")
 
   if (typeof prompt !== "string" || !prompt.trim()) {
     throw new Error("Prompt is required")
@@ -71,8 +73,15 @@ async function createChatAction(
     const { chat } = await sendChatMessage({
       userId: session.user.id,
       content: prompt,
-      modelProvider: typeof modelProvider === "string" ? modelProvider : undefined,
+      modelProvider:
+        typeof modelProvider === "string" && isModelProvider(modelProvider)
+          ? modelProvider
+          : undefined,
       modelName: typeof modelName === "string" ? modelName : undefined,
+      modelReasoningEffort:
+        typeof modelReasoningEffort === "string" && isReasoningEffort(modelReasoningEffort)
+          ? modelReasoningEffort
+          : undefined,
     })
 
     redirect(`/chats/${chat.id}`)
