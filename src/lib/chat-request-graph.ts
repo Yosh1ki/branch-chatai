@@ -67,7 +67,7 @@ const ChatGraphAnnotation = Annotation.Root({
 })
 
 const resolveModelSelection = async (
-  chatId: string,
+  chatId: string | null | undefined,
   modelProvider?: string | null,
   modelName?: string | null,
   modelReasoningEffort?: string | null
@@ -82,19 +82,21 @@ const resolveModelSelection = async (
     }
   }
 
-  const latestMessage = await prisma.message.findFirst({
-    where: { chatId },
-    orderBy: { createdAt: "desc" },
-    select: { modelProvider: true, modelName: true, modelReasoningEffort: true },
-  })
+  if (chatId) {
+    const latestMessage = await prisma.message.findFirst({
+      where: { chatId },
+      orderBy: { createdAt: "desc" },
+      select: { modelProvider: true, modelName: true, modelReasoningEffort: true },
+    })
 
-  if (isModelProvider(latestMessage?.modelProvider) && latestMessage?.modelName) {
-    return {
-      provider: latestMessage.modelProvider,
-      name: latestMessage.modelName,
-      reasoningEffort: isReasoningEffort(latestMessage.modelReasoningEffort)
-        ? latestMessage.modelReasoningEffort
-        : null,
+    if (isModelProvider(latestMessage?.modelProvider) && latestMessage?.modelName) {
+      return {
+        provider: latestMessage.modelProvider,
+        name: latestMessage.modelName,
+        reasoningEffort: isReasoningEffort(latestMessage.modelReasoningEffort)
+          ? latestMessage.modelReasoningEffort
+          : null,
+      }
     }
   }
 
@@ -112,8 +114,9 @@ const validateNode = async (state: GraphState) => {
     select: { planType: true },
   })
 
-  let chatRecord: ChatRecord
+  let chatRecord: ChatRecord | undefined
   let createdChat = false
+  let resolvedChatId = state.chatId
   if (state.chatId) {
     const existing = await prisma.chat.findUnique({
       where: { id: state.chatId, userId: state.userId },
@@ -122,44 +125,30 @@ const validateNode = async (state: GraphState) => {
       throw new ChatActionError("Chat not found", 404)
     }
     chatRecord = existing
+    resolvedChatId = existing.id
   } else {
     createdChat = true
-    chatRecord = await prisma.chat.create({
-      data: {
-        userId: state.userId,
-        title: trimmedContent.slice(0, 50),
-        languageCode: "en",
-      },
-    })
   }
 
-  let resolvedBranchId = state.branchId ?? null
+  const resolvedBranchId = state.branchId ?? null
   if (resolvedBranchId) {
+    if (!resolvedChatId) {
+      throw new ChatActionError("Chat not found", 404)
+    }
     const branch = await prisma.branch.findUnique({
       where: { id: resolvedBranchId },
       select: { id: true, chatId: true, parentMessageId: true },
     })
-    if (!branch || branch.chatId !== chatRecord.id) {
+    if (!branch || branch.chatId !== resolvedChatId) {
       throw new ChatActionError("Branch not found", 404)
     }
     if (state.parentMessageId && branch.parentMessageId !== state.parentMessageId) {
       throw new ChatActionError("Branch parent mismatch", 400)
     }
   }
-  if (state.parentMessageId && !resolvedBranchId && state.branchSide) {
-    const branch = await prisma.branch.create({
-      data: {
-        chatId: chatRecord.id,
-        parentMessageId: state.parentMessageId,
-        side: state.branchSide,
-      },
-    })
-    resolvedBranchId = branch.id
-  }
-
   const requestId = state.requestId || randomUUID()
   const resolvedModel = await resolveModelSelection(
-    chatRecord.id,
+    resolvedChatId,
     state.modelProvider ?? null,
     state.modelName ?? null,
     state.modelReasoningEffort ?? null
@@ -169,7 +158,7 @@ const validateNode = async (state: GraphState) => {
     ...state,
     content: trimmedContent,
     requestId,
-    chatId: chatRecord.id,
+    chatId: resolvedChatId,
     chatRecord,
     branchIdResolved: resolvedBranchId,
     planType: user?.planType ?? "free",
@@ -187,7 +176,11 @@ const usageNode = async (state: GraphState) => {
 
 const historyNode = async (state: GraphState) => {
   if (!state.chatId) {
-    throw new ChatActionError("Chat not found", 404)
+    return {
+      ...state,
+      history: [],
+      memorySummary: null,
+    }
   }
 
   const history = await buildConversationHistory(state.chatId, state.parentMessageId ?? null)
@@ -322,9 +315,6 @@ const outputModerationNode = async (state: GraphState) => {
 }
 
 const persistNode = async (state: GraphState) => {
-  if (!state.chatRecord || !state.chatId) {
-    throw new ChatActionError("Chat not found", 404)
-  }
   if (!state.assistantText || !state.assistantContent) {
     throw new ChatActionError("Assistant response missing", 500)
   }
@@ -339,21 +329,53 @@ const persistNode = async (state: GraphState) => {
     if (!assistantMessage) {
       throw new ChatActionError("Idempotent response missing", 409)
     }
+    const chatRecord =
+      state.chatRecord ??
+      (await prisma.chat.findUnique({
+        where: { id: existingUserMessage.chatId, userId: state.userId },
+      }))
+    if (!chatRecord) {
+      throw new ChatActionError("Chat not found", 404)
+    }
     return {
       ...state,
+      chatId: chatRecord.id,
+      chatRecord,
       userMessage: existingUserMessage,
       assistantMessage,
       idempotentHit: true,
     }
   }
 
+  const chatRecord =
+    state.chatRecord ??
+    (await prisma.chat.create({
+      data: {
+        userId: state.userId,
+        title: state.content.slice(0, 50),
+        languageCode: "en",
+      },
+    }))
+  const branchIdResolved =
+    state.parentMessageId && !state.branchIdResolved && state.branchSide
+      ? (
+          await prisma.branch.create({
+            data: {
+              chatId: chatRecord.id,
+              parentMessageId: state.parentMessageId,
+              side: state.branchSide,
+            },
+          })
+        ).id
+      : state.branchIdResolved ?? null
+
   const userMessage = await prisma.message.create({
     data: {
-      chatId: state.chatRecord.id,
+      chatId: chatRecord.id,
       role: "user",
       content: state.content,
       parentMessageId: state.parentMessageId ?? null,
-      branchId: state.branchIdResolved ?? null,
+      branchId: branchIdResolved,
       modelProvider: state.modelProvider ?? null,
       modelName: state.modelName ?? null,
       modelReasoningEffort: state.modelReasoningEffort ?? null,
@@ -361,20 +383,20 @@ const persistNode = async (state: GraphState) => {
     },
   })
 
-  if (!state.chatRecord.rootMessageId && !state.parentMessageId) {
+  if (!chatRecord.rootMessageId && !state.parentMessageId) {
     await prisma.chat.update({
-      where: { id: state.chatRecord.id },
+      where: { id: chatRecord.id },
       data: { rootMessageId: userMessage.id },
     })
   }
 
   const assistantMessage = await prisma.message.create({
     data: {
-      chatId: state.chatRecord.id,
+      chatId: chatRecord.id,
       role: "assistant",
       content: state.assistantContent,
       parentMessageId: userMessage.id,
-      branchId: state.branchIdResolved ?? null,
+      branchId: branchIdResolved,
       modelProvider: state.modelProvider ?? null,
       modelName: state.modelName ?? null,
       modelReasoningEffort: state.modelReasoningEffort ?? null,
@@ -403,6 +425,9 @@ const persistNode = async (state: GraphState) => {
 
   return {
     ...state,
+    chatId: chatRecord.id,
+    chatRecord,
+    branchIdResolved,
     userMessage,
     assistantMessage,
   }

@@ -215,10 +215,9 @@ export function ChatCanvasShell({
 
     const render = () => {
       rafId = null;
-      const nextContent = serializeMarkdownContent(streamedText);
       setMessages((prev) =>
         prev.map((message) =>
-          message.id === assistantId ? { ...message, content: nextContent } : message
+          message.id === assistantId ? { ...message, content: streamedText } : message
         )
       );
     };
@@ -794,7 +793,6 @@ export function ChatCanvasShell({
       let branchRafId: number | null = null;
       const renderBranchStream = () => {
         branchRafId = null;
-        const nextContent = serializeMarkdownContent(streamedText);
         setBranches((prev) => {
           const current = prev[branchKey];
           if (!current || !current.reply.assistantMessage) return prev;
@@ -806,7 +804,7 @@ export function ChatCanvasShell({
                 ...current.reply,
                 assistantMessage: {
                   ...current.reply.assistantMessage,
-                  content: nextContent,
+                  content: streamedText,
                 },
               },
             },

@@ -144,7 +144,7 @@ export default function LoginPage() {
                     className="flex items-center justify-center"
                     aria-hidden="true"
                 >
-                    <div className="h-[320px] w-full rounded-[28px] bg-theme-main sm:h-[380px] md:h-[520px]" />
+                    <div className="h-80 w-full rounded-[28px] bg-theme-main sm:h-[380px] md:h-[520px]" />
                 </div>
             </main>
         </div>

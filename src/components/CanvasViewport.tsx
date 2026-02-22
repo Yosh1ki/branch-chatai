@@ -61,7 +61,6 @@ export function CanvasViewport({
   const pinchState = useRef<PinchState | null>(null);
   const stateRef = useRef(state);
   const [isDragging, setIsDragging] = useState(false);
-  const [allowSelection, setAllowSelection] = useState(false);
 
   useEffect(() => {
     stateRef.current = state;
@@ -89,7 +88,6 @@ export function CanvasViewport({
       isSelectableTarget: isSelectableTarget(event.target),
     });
 
-    setAllowSelection(behavior.allowSelection);
     if (!behavior.allowDrag) {
       return;
     }
@@ -146,7 +144,6 @@ export function CanvasViewport({
     }
     if (pointerMap.current.size === 0) {
       setIsDragging(false);
-      setAllowSelection(false);
       onPanStateChange?.(false);
     }
   };
@@ -204,7 +201,7 @@ export function CanvasViewport({
       style={{
         touchAction: "none",
         cursor: isDragging ? "grabbing" : "grab",
-        userSelect: allowSelection ? "text" : "none",
+        userSelect: isDragging ? "none" : "text",
       }}
     >
       <div

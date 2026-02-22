@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components, ExtraProps } from "react-markdown";
-import { Check, Copy, MoreHorizontal } from "lucide-react";
+import { Check, CheckCircle2, ChevronRight, Copy, Globe, MoreHorizontal, Search, X } from "lucide-react";
 import { toggleMenu } from "@/lib/chat-screen-state";
 import { useCopyFeedback } from "@/hooks/use-copy-feedback";
 import { getModelLabel, isModelProvider, isReasoningEffort } from "@/lib/model-catalog";
@@ -35,6 +35,24 @@ type CodeProps = ComponentPropsWithoutRef<"code"> &
   ExtraProps & {
     inline?: boolean;
   };
+
+type ResearchHeading = {
+  level: number;
+  text: string;
+};
+
+type ResearchSource = {
+  url: string;
+  label: string;
+  domain: string;
+};
+
+type ResearchStep = {
+  title: string;
+  queries: string[];
+  sources: ResearchSource[];
+  done: boolean;
+};
 
 const BRANCH_ORDER: BranchSelection[] = ["left", "right"];
 const BRANCH_OPTIONS: Array<{
@@ -89,6 +107,90 @@ const markdownComponents = {
   },
 } satisfies Components;
 
+const HEADING_PATTERN = /^(#{1,4})\s+(.+)$/;
+const LINK_PATTERN = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
+
+const normalizeHeadingText = (text: string) =>
+  text
+    .replace(/\[(.*?)\]\((.*?)\)/g, "$1")
+    .replace(/[`*_~]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const extractResearchHeadings = (markdown: string): ResearchHeading[] => {
+  const lines = markdown.split("\n");
+
+  return lines
+    .map((line) => {
+      const match = line.match(HEADING_PATTERN);
+      if (!match) return null;
+
+      const level = match[1].length;
+      const text = normalizeHeadingText(match[2]);
+      if (!text) return null;
+
+      return { level, text };
+    })
+    .filter((item): item is ResearchHeading => item !== null);
+};
+
+const extractResearchSources = (markdown: string): ResearchSource[] => {
+  const sourceMap = new Map<string, ResearchSource>();
+  for (const match of markdown.matchAll(LINK_PATTERN)) {
+    const label = match[1]?.trim();
+    const url = match[2]?.trim();
+    if (!url || sourceMap.has(url)) continue;
+
+    let domain = "source";
+    try {
+      domain = new URL(url).hostname.replace(/^www\./, "");
+    } catch {
+      domain = "source";
+    }
+
+    sourceMap.set(url, {
+      url,
+      label: label || domain,
+      domain,
+    });
+  }
+  return Array.from(sourceMap.values());
+};
+
+const extractResearchSummary = (markdown: string): string => {
+  const lines = markdown
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const bodyLines = lines.filter((line) => {
+    if (line.startsWith("#")) return false;
+    if (line.startsWith("- ") || line.startsWith("* ")) return false;
+    if (/^\d+\.\s+/.test(line)) return false;
+    if (line.startsWith("```")) return false;
+    return true;
+  });
+
+  const summary = normalizeHeadingText(bodyLines.join(" "));
+  return summary.slice(0, 220).trim();
+};
+
+const isResearchEligibleModel = (
+  modelName?: string | null,
+  modelReasoningEffort?: string | null
+) => {
+  if (modelReasoningEffort) return true;
+  const hint = (modelName ?? "").toLowerCase();
+  return (
+    hint.includes("pro") ||
+    hint.includes("thinking") ||
+    hint.includes("reason") ||
+    hint.includes("o1") ||
+    hint.includes("o3") ||
+    hint.includes("o4")
+  );
+};
+
 export function AssistantCard({
   content,
   isLoading,
@@ -109,6 +211,18 @@ export function AssistantCard({
     [hiddenBranchSides]
   );
   const parsedContent = useMemo(() => parseMessageContent(content), [content]);
+  const researchHeadings = useMemo(() => {
+    if (!parsedContent.text || parsedContent.format === "richjson") return [];
+    return extractResearchHeadings(parsedContent.text);
+  }, [parsedContent]);
+  const researchSources = useMemo(() => {
+    if (!parsedContent.text || parsedContent.format === "richjson") return [];
+    return extractResearchSources(parsedContent.text);
+  }, [parsedContent]);
+  const researchSummary = useMemo(() => {
+    if (!parsedContent.text || parsedContent.format === "richjson") return "";
+    return extractResearchSummary(parsedContent.text);
+  }, [parsedContent]);
   const modelLabel = useMemo(() => {
     const providerValue = modelProvider ?? undefined;
     const provider = isModelProvider(providerValue) ? providerValue : undefined;
@@ -126,9 +240,86 @@ export function AssistantCard({
       : null;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeBranch, setActiveBranch] = useState<BranchSelection | null>(null);
+  const [isResearchModalOpen, setIsResearchModalOpen] = useState(false);
+  const [thinkingStartedAt, setThinkingStartedAt] = useState<number | null>(null);
+  const [thinkingElapsedMs, setThinkingElapsedMs] = useState(0);
+  const [lastThinkingMs, setLastThinkingMs] = useState<number | null>(null);
   const copyContent = parsedContent.text || content;
   const { isCopied, handleCopy } = useCopyFeedback(copyContent);
   const shouldShowBranchPills = showPromptInput;
+  const hasResearchDetails =
+    Boolean(researchSummary) || researchHeadings.length > 0 || researchSources.length > 0;
+  const hasExternalSources = researchSources.length > 0;
+  const canShowResearchUI =
+    isResearchEligibleModel(modelName, modelReasoningEffort) && hasResearchDetails && hasExternalSources;
+  const researchQueries = useMemo(() => {
+    const candidateQueries = [
+      researchSummary,
+      ...researchHeadings.map((heading) => heading.text),
+      (parsedContent.text ?? "").split("\n").find((line) => line.trim().length > 0) ?? "",
+    ]
+      .map((value) => normalizeHeadingText(value))
+      .filter(Boolean)
+      .map((value) => value.slice(0, 56));
+
+    return Array.from(new Set(candidateQueries)).slice(0, 4);
+  }, [parsedContent.text, researchHeadings, researchSummary]);
+  const researchSteps = useMemo((): ResearchStep[] => {
+    return [
+      {
+        title: "Searching the web",
+        queries: researchQueries.slice(0, 3),
+        sources: researchSources.slice(0, 6),
+        done: true,
+      },
+      {
+        title: "情報を整理",
+        queries: researchHeadings.slice(0, 3).map((heading) => heading.text),
+        sources: researchSources.slice(0, 3),
+        done: true,
+      },
+      {
+        title: "回答を作成",
+        queries: [],
+        sources: [],
+        done: true,
+      },
+    ];
+  }, [researchHeadings, researchQueries, researchSources]);
+  const thinkingSeconds = Math.max(1, Math.ceil(thinkingElapsedMs / 1000));
+  const lastThinkingSeconds =
+    lastThinkingMs === null ? null : Math.max(1, Math.ceil(lastThinkingMs / 1000));
+
+  useEffect(() => {
+    let timerId: number | undefined;
+
+    if (!isLoading) {
+      if (thinkingStartedAt !== null) {
+        const finishedMs = Date.now() - thinkingStartedAt;
+        timerId = window.setTimeout(() => {
+          setLastThinkingMs(finishedMs);
+          setThinkingStartedAt(null);
+          setThinkingElapsedMs(finishedMs);
+        }, 0);
+      }
+    } else if (thinkingStartedAt === null) {
+      const now = Date.now();
+      timerId = window.setTimeout(() => {
+        setThinkingStartedAt(now);
+        setThinkingElapsedMs(0);
+      }, 0);
+    } else {
+      timerId = window.setInterval(() => {
+        setThinkingElapsedMs(Date.now() - thinkingStartedAt);
+      }, 1000);
+    }
+
+    return () => {
+      if (timerId !== undefined) {
+        window.clearTimeout(timerId);
+      }
+    };
+  }, [isLoading, thinkingStartedAt]);
 
   const handleMenuToggle = useCallback(() => {
     setIsMenuOpen((value) => toggleMenu(value));
@@ -197,7 +388,98 @@ export function AssistantCard({
         ref={cardRef}
         className="relative w-full max-w-3xl rounded-xl border border-[#efe5dc] bg-white p-8 text-main"
       >
-        <div className="space-y-6 text-sm leading-relaxed" data-allow-selection="true">
+        <div className="space-y-6 cursor-text text-sm leading-relaxed" data-allow-selection="true">
+          {isLoading && canShowResearchUI ? (
+            <div className="inline-flex rounded-full border border-[#eadfd5] bg-[#f9f4ef] px-3 py-1 text-[11px] text-main-soft">
+              考え中... {thinkingSeconds}秒
+            </div>
+          ) : content && canShowResearchUI ? (
+            <div className="relative inline-flex items-center">
+              <button
+                type="button"
+                onClick={() => setIsResearchModalOpen((value) => !value)}
+                className="inline-flex rounded-full border border-[#eadfd5] bg-[#f9f4ef] px-3 py-1 text-[11px] text-main-soft transition hover:border-[#d6c9be] hover:text-main"
+              >
+                調査メモを見る
+              </button>
+              {isResearchModalOpen ? (
+                <div
+                  role="dialog"
+                  aria-modal="false"
+                  className="absolute left-full top-1/2 z-30 ml-2 w-[260px] -translate-y-1/2 rounded-xl border border-[#e9ddd2] bg-white p-3 text-main shadow-lg md:w-[320px]"
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-xs font-semibold">調査メモ</p>
+                    <button
+                      type="button"
+                      onClick={() => setIsResearchModalOpen(false)}
+                      aria-label="Close research details"
+                      className="rounded-md p-1 text-main-muted transition hover:bg-[#f8f3ee] hover:text-main"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="space-y-3 text-[11px] text-main-soft">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-left text-xs font-semibold text-main"
+                    >
+                      思考時間: {lastThinkingSeconds !== null ? `${lastThinkingSeconds}s` : "計測中"}
+                      <ChevronRight className="h-3 w-3" />
+                    </button>
+                    <div className="relative space-y-3 pl-6 before:absolute before:bottom-1 before:left-2 before:top-2 before:w-px before:bg-[#e8ddd3]">
+                      {researchSteps.map((step, index) => (
+                        <div key={step.title} className="relative">
+                          <div className="absolute -left-6 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white">
+                            {step.done ? (
+                              index === researchSteps.length - 1 ? (
+                                <CheckCircle2 className="h-3.5 w-3.5 text-main-soft" />
+                              ) : (
+                                <Globe className="h-3.5 w-3.5 text-main-soft" />
+                              )
+                            ) : (
+                              <Search className="h-3.5 w-3.5 text-main-soft" />
+                            )}
+                          </div>
+                          <p className="text-sm font-medium text-main">{step.title}</p>
+                          {step.queries.length ? (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {step.queries.map((query) => (
+                                <span
+                                  key={`${step.title}-${query}`}
+                                  className="inline-flex items-center gap-1 rounded-full bg-[#f3ece6] px-2 py-1 text-[11px]"
+                                >
+                                  <Search className="h-3 w-3" />
+                                  {query}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+                          {step.sources.length ? (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {step.sources.map((source) => (
+                                <a
+                                  key={`${step.title}-${source.url}`}
+                                  href={source.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 rounded-full bg-[#f3ece6] px-2 py-1 text-[11px] hover:bg-[#ebe1d8]"
+                                >
+                                  <Globe className="h-3 w-3" />
+                                  {source.domain}
+                                </a>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                    {!hasResearchDetails ? <p>表示できる調査情報はありません。</p> : null}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           {errorMessage ? (
             <p className="text-base text-red-500">エラー: {errorMessage}</p>
           ) : content ? (

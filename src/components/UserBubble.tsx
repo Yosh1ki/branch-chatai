@@ -16,7 +16,7 @@ export function UserBubble({ content, errorMessage, isLoading }: UserBubbleProps
     <div className="relative inline-block pb-4 pr-4">
       <div
         data-allow-selection="true"
-        className="rounded-xl bg-white px-5 py-2 text-base text-main ring-1 ring-[#efe5dc]"
+        className="cursor-text rounded-xl bg-white px-5 py-2 text-base text-main ring-1 ring-[#efe5dc]"
       >
         {isLoading ? (
           "読み込み中..."
