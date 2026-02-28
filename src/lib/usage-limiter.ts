@@ -1,9 +1,10 @@
 import prisma from "@/lib/prisma"
 import { FREE_PLAN_DAILY_LIMIT, getStartOfToday } from "@/lib/usage-limits"
 import { ChatActionError } from "@/lib/chat-errors"
+import { isDailyLimitReached as isDailyLimitReachedCore } from "@/lib/usage-limiter-core"
 
 export const isDailyLimitReached = (messageCount: number, limit = FREE_PLAN_DAILY_LIMIT) =>
-  messageCount >= limit
+  isDailyLimitReachedCore(messageCount, limit)
 
 export const assertWithinDailyLimit = async (userId: string, planType?: string | null) => {
   const disableDailyLimit = process.env.DISABLE_DAILY_LIMIT === "true"

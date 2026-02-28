@@ -26,6 +26,7 @@
 
 ## ファイル命名規則
 - TypeScript/TSXファイル: `.ts` / `.tsx`
+- JavaScriptファイル（互換・一部実装）: `.js`
 - Prismaスキーマ: `prisma/schema.prisma`
 
 ## 主要な設計原則

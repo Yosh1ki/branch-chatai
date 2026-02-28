@@ -1,7 +1,7 @@
 # Technology Stack
 
 ## アーキテクチャ
-Next.js App Router上でReactクライアントコンポーネントを用い、Auth.jsでGoogle OAuth認証、Prisma ORMでPostgreSQLに永続化する構成です。APIルートでLLM連携やチャット操作を行います。
+Next.js App Router上でReactクライアントコンポーネントを用い、Auth.jsでGoogle OAuth認証、Prisma ORMでPostgreSQLに永続化する構成です。`src/app/api/*` のAPIルートでチャット操作とLLM連携を行い、`/api/chat` はSSEストリーミング応答に対応します。
 
 ## 使用技術
 ### 言語とフレームワーク
@@ -13,6 +13,7 @@ Next.js App Router上でReactクライアントコンポーネントを用い、
 - Auth.js / NextAuth (v5): Google OAuth認証
 - @auth/prisma-adapter: Auth.js向けPrismaアダプタ
 - @google/genai: Gemini連携
+- @langchain/langgraph: 会話オーケストレーション
 - @prisma/adapter-pg: Prisma向けPostgreSQLアダプタ
 - Prisma: ORM
 - PostgreSQL (pg): データベース
@@ -47,6 +48,13 @@ Next.js App Router上でReactクライアントコンポーネントを用い、
 - `AUTH_GOOGLE_ID`: Google OAuthクライアントID
 - `AUTH_GOOGLE_SECRET`: Google OAuthクライアントシークレット
 - `OPENAI_API_KEY`: OpenAI APIキー
-- `DEFAULT_MODEL_NAME`: デフォルトモデル名
+- `ANTHROPIC_API_KEY`: Claude連携用APIキー
+- `GEMINI_API_KEY`: Gemini連携用APIキー
 - `USE_DEV_ASSISTANT_RESPONSE`: 固定デモ回答の返却フラグ
 - `DISABLE_DAILY_LIMIT`: 1日上限チェックの無効化フラグ
+- `DISABLE_MODERATION`: モデレーション無効化フラグ
+- `MODERATION_FAST_GATE_RULES_JSON`: モデレーションの高速判定ルール(JSON)
+- `AUTH_DISABLED`: 開発用の認証無効化フラグ
+- `AUTH_DISABLED_USER_ID`: 認証無効化時の固定ユーザーID
+- `AUTH_DISABLED_EMAIL`: 認証無効化時の固定メールアドレス
+- `AUTH_DISABLED_NAME`: 認証無効化時の固定表示名

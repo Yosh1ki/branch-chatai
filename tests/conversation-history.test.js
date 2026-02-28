@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildParentChain } from "../src/lib/conversation-history.js";
+import { buildParentChain } from "../src/lib/conversation-history-core.ts";
 
 test("buildParentChain returns ordered parent chain", () => {
   const messages = [
@@ -30,4 +30,14 @@ test("buildParentChain returns ordered parent chain", () => {
     chain.map((message) => message.id),
     ["1", "2", "3"]
   );
+});
+
+test("buildParentChain returns empty array when parent id is missing", () => {
+  const messages = [
+    { id: "1", role: "user", content: "A", parentMessageId: null },
+  ];
+
+  const chain = buildParentChain(messages, "missing");
+
+  assert.deepEqual(chain, []);
 });

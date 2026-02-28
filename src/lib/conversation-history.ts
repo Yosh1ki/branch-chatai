@@ -1,19 +1,14 @@
 import prisma from "@/lib/prisma"
 import { parseMessageContent } from "@/lib/rich-text"
+import {
+  buildParentChain as buildParentChainCore,
+  type ConversationHistoryMessage,
+  type ConversationHistorySourceMessage,
+} from "@/lib/conversation-history-core"
 
-type HistoryMessage = {
-  id: string
-  role: "user" | "assistant"
-  content: string
-  parentMessageId: string | null
-}
+type HistoryMessage = ConversationHistoryMessage
 
-const toHistoryMessage = (message: {
-  id: string
-  role: string
-  content: string
-  parentMessageId: string | null
-}): HistoryMessage => ({
+const toHistoryMessage = (message: ConversationHistorySourceMessage): HistoryMessage => ({
   id: message.id,
   role: message.role as "user" | "assistant",
   content: parseMessageContent(message.content).text,
@@ -21,33 +16,12 @@ const toHistoryMessage = (message: {
 })
 
 export const buildParentChain = (
-  messages: Array<{
-    id: string
-    role: string
-    content: string
-    parentMessageId: string | null
-  }>,
+  messages: ConversationHistorySourceMessage[],
   parentMessageId?: string | null
-) => {
-  if (!parentMessageId) {
-    return []
-  }
-
-  const messageById = new Map(messages.map((message) => [message.id, message]))
-  const chain: HistoryMessage[] = []
-  let currentId: string | null = parentMessageId
-
-  while (currentId) {
-    const current = messageById.get(currentId)
-    if (!current) {
-      break
-    }
-    chain.unshift(toHistoryMessage(current))
-    currentId = current.parentMessageId ?? null
-  }
-
-  return chain
-}
+) =>
+  buildParentChainCore(messages, parentMessageId, {
+    toHistoryMessage,
+  })
 
 export const buildConversationHistory = async (
   chatId: string,
