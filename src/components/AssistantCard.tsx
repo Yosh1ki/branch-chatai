@@ -1,9 +1,10 @@
 "use client";
 
 import type { ComponentPropsWithoutRef } from "react";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import type { Components, ExtraProps } from "react-markdown";
 import { Check, CheckCircle2, ChevronRight, Copy, Globe, MoreHorizontal, Search, X } from "lucide-react";
 import { toggleMenu } from "@/lib/chat-screen-state";
@@ -73,6 +74,29 @@ const BRANCH_OPTIONS: Array<{
 ];
 
 const markdownComponents = {
+  h1: ({ ...props }) => (
+    <h1 {...props} className={cn("mb-4 mt-8 text-xl font-semibold text-main first:mt-0", props.className)} />
+  ),
+  h2: ({ ...props }) => (
+    <h2 {...props} className={cn("mb-3 mt-7 text-lg font-semibold text-main first:mt-0", props.className)} />
+  ),
+  h3: ({ ...props }) => (
+    <h3 {...props} className={cn("mb-2 mt-6 text-base font-semibold text-main first:mt-0", props.className)} />
+  ),
+  h4: ({ ...props }) => (
+    <h4 {...props} className={cn("mb-2 mt-5 text-sm font-semibold text-main first:mt-0", props.className)} />
+  ),
+  p: ({ ...props }) => (
+    <p {...props} className={cn("mb-3 leading-7 last:mb-0", props.className)} />
+  ),
+  ul: ({ ...props }) => (
+    <ul {...props} className={cn("mb-4 list-disc space-y-2 pl-6 last:mb-0", props.className)} />
+  ),
+  ol: ({ ...props }) => (
+    <ol {...props} className={cn("mb-4 list-decimal space-y-2 pl-6 last:mb-0", props.className)} />
+  ),
+  li: ({ ...props }) => <li {...props} className={cn("leading-7", props.className)} />,
+  strong: ({ ...props }) => <strong {...props} className={cn("font-semibold text-main", props.className)} />,
   a: ({ ...props }) => (
     <a {...props} target="_blank" rel="noreferrer" className="underline" />
   ),
@@ -239,6 +263,7 @@ export function AssistantCard({
       ? selectedBranches[selectedBranches.length - 1]
       : null;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuContainerRef = useRef<HTMLDivElement | null>(null);
   const [activeBranch, setActiveBranch] = useState<BranchSelection | null>(null);
   const [isResearchModalOpen, setIsResearchModalOpen] = useState(false);
   const [thinkingStartedAt, setThinkingStartedAt] = useState<number | null>(null);
@@ -325,6 +350,22 @@ export function AssistantCard({
     setIsMenuOpen((value) => toggleMenu(value));
   }, []);
 
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (menuContainerRef.current?.contains(target)) return;
+      setIsMenuOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [isMenuOpen]);
+
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
@@ -388,7 +429,7 @@ export function AssistantCard({
         ref={cardRef}
         className="relative w-full max-w-3xl rounded-xl border border-[#efe5dc] bg-white p-8 text-main"
       >
-        <div className="space-y-6 cursor-text text-sm leading-relaxed" data-allow-selection="true">
+        <div className="cursor-text space-y-6 text-[15px] leading-7" data-allow-selection="true">
           {isLoading && canShowResearchUI ? (
             <div className="inline-flex rounded-full border border-[#eadfd5] bg-[#f9f4ef] px-3 py-1 text-[11px] text-main-soft">
               考え中... {thinkingSeconds}秒
@@ -487,8 +528,8 @@ export function AssistantCard({
               {parsedContent.format === "richjson" && parsedContent.doc ? (
                 <RichTextRenderer value={parsedContent.doc} className="text-main-soft" />
               ) : (
-                <div className="prose prose-sm max-w-none text-main-soft">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                <div className="max-w-none text-main-soft">
+                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={markdownComponents}>
                     {parsedContent.text}
                   </ReactMarkdown>
                 </div>
@@ -511,14 +552,32 @@ export function AssistantCard({
         <div className="mt-8 flex items-center justify-between text-xs text-main-muted">
           <span>{modelLabel}</span>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleMenuToggle}
-              aria-label="Open menu"
-              className="flex h-6 w-6 items-center justify-center rounded-full border border-[#e6ddd3] bg-white text-main-muted transition hover:text-main"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </button>
+            <div ref={menuContainerRef} className="relative">
+              <button
+                type="button"
+                onClick={handleMenuToggle}
+                aria-label="Open menu"
+                className="flex h-6 w-6 items-center justify-center rounded-full border border-[#e6ddd3] bg-white text-main-muted transition hover:text-main"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+              {isMenuOpen ? (
+                <div className="absolute bottom-full right-0 z-20 mb-2 w-32 rounded-2xl border border-[#efe5dc] bg-white p-2 text-xs text-main shadow-md">
+                  <button type="button" className="w-full rounded-xl px-3 py-2 text-left hover:bg-[#f8f3ee]">
+                    再生成
+                  </button>
+                  <button type="button" className="w-full rounded-xl px-3 py-2 text-left hover:bg-[#f8f3ee]">
+                    共有
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full rounded-xl px-3 py-2 text-left text-red-500 hover:bg-[#f8f3ee]"
+                  >
+                    削除
+                  </button>
+                </div>
+              ) : null}
+            </div>
             <button
               type="button"
               onClick={handleCopy}
@@ -530,20 +589,6 @@ export function AssistantCard({
             </button>
           </div>
         </div>
-
-        {isMenuOpen ? (
-          <div className="absolute right-8 top-6 w-32 rounded-2xl border border-[#efe5dc] bg-white p-2 text-xs text-main">
-            <button type="button" className="w-full rounded-xl px-3 py-2 text-left hover:bg-[#f8f3ee]">
-              再生成
-            </button>
-            <button type="button" className="w-full rounded-xl px-3 py-2 text-left hover:bg-[#f8f3ee]">
-              共有
-            </button>
-            <button type="button" className="w-full rounded-xl px-3 py-2 text-left text-red-500 hover:bg-[#f8f3ee]">
-              削除
-            </button>
-          </div>
-        ) : null}
       </div>
       {showPromptInput ? (
         <div className="branch-stack w-full max-w-3xl">

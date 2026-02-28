@@ -13,7 +13,7 @@ export function UserBubble({ content, errorMessage, isLoading }: UserBubbleProps
   const { isCopied, handleCopy } = useCopyFeedback(content);
 
   return (
-    <div className="relative inline-block pb-4 pr-4">
+    <div className="relative inline-block pr-4">
       <div
         data-allow-selection="true"
         className="cursor-text rounded-xl bg-white px-5 py-2 text-base text-main ring-1 ring-[#efe5dc]"
