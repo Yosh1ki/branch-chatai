@@ -14,10 +14,11 @@ export async function GET(
   }
 
   try {
-    const chat = await prisma.chat.findUnique({
+    const chat = await prisma.chat.findFirst({
       where: {
         id: chatId,
         userId: session.user.id,
+        isArchived: false,
       },
       include: {
         messages: {

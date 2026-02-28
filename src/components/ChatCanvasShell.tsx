@@ -153,7 +153,7 @@ export function ChatCanvasShell({
             throw new Error(message);
           }
           if (parsed?.type === "final") {
-            return { payload: parsed.payload };
+            return { payload: parsed.payload as { userMessage?: ChatMessage; assistantMessage?: ChatMessage } | undefined };
           }
         }
       }
@@ -185,7 +185,7 @@ export function ChatCanvasShell({
             throw new Error(message);
           }
           if (parsed?.type === "final") {
-            return { payload: parsed.payload };
+            return { payload: parsed.payload as { userMessage?: ChatMessage; assistantMessage?: ChatMessage } | undefined };
           }
         }
       }
@@ -1009,10 +1009,10 @@ export function ChatCanvasShell({
   );
 
   return (
-    <div className="min-h-screen bg-[#f7f3ef] text-main">
+    <div className="min-h-screen bg-[#f9f7f7] text-main">
       <DisableCanvasNavigation />
       <CanvasControls scale={state.scale} onReset={handleReset} />
-      <div className="fixed left-0 right-0 top-0 z-40 bg-[#f7f3ef]/80 backdrop-blur">
+      <div className="fixed left-0 right-0 top-0 z-40 bg-[#f9f7f7]/80 backdrop-blur">
         <div className="mx-auto w-full px-0">
           <ChatHeader />
         </div>

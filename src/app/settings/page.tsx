@@ -71,7 +71,7 @@ export default async function SettingsPage() {
         <h1 className="text-3xl font-semibold tracking-tight">設定</h1>
 
         <div className="grid gap-5">
-          <section className="rounded-[24px] border border-[#f1d0c7] bg-white/90 p-6 shadow-[0_10px_40px_rgba(68,41,33,0.08)]">
+          <section className="rounded-3xl border border-[#f1d0c7] bg-white/90 p-6 shadow-[0_10px_40px_rgba(68,41,33,0.08)]">
             <h2 className="text-xl font-semibold text-main">アカウント</h2>
             <p className="mt-1 text-sm text-main-muted">アカウント情報を確認できます。</p>
 
@@ -87,7 +87,7 @@ export default async function SettingsPage() {
             </div>
           </section>
 
-          <section className="rounded-[24px] border border-[#f1d0c7] bg-white/90 p-6 shadow-[0_10px_40px_rgba(68,41,33,0.08)]">
+          <section className="rounded-3xl border border-[#f1d0c7] bg-white/90 p-6 shadow-[0_10px_40px_rgba(68,41,33,0.08)]">
             <h2 className="text-xl font-semibold text-main">プランと利用状況</h2>
             <p className="mt-1 text-sm text-main-muted">
               現在のプランと本日のメッセージ利用数です。

@@ -127,6 +127,9 @@ const validateNode = async (state: GraphState) => {
     }
     chatRecord = existing
     resolvedChatId = existing.id
+    // Chats pre-created from /chats have no root message yet.
+    // Treat the first message as chat creation so auto-title generation runs.
+    createdChat = !existing.rootMessageId
   } else {
     createdChat = true
   }

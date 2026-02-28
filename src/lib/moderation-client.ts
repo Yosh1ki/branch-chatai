@@ -41,9 +41,6 @@ export const runModerationCheck = async (
       } else if (error.message) {
         message = `OpenAI moderation request failed: ${error.message}`
       }
-      console.log("--- Debug OpenAI Request ---");
-      console.log("Key Length:", process.env.OPENAI_API_KEY?.length || 0);
-      console.log("Key Prefix:", process.env.OPENAI_API_KEY?.substring(0, 7));
       throw new ChatActionError(message, status)
     }
     if (error instanceof Error) {

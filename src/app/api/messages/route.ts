@@ -31,6 +31,63 @@ export async function POST(req: Request) {
       );
     }
 
+    const chat = await prisma.chat.findFirst({
+      where: {
+        id: chatId,
+        userId: session.user.id,
+        isArchived: false,
+      },
+      select: {
+        id: true,
+        rootMessageId: true,
+      },
+    });
+
+    if (!chat) {
+      return NextResponse.json({ error: "Chat not found" }, { status: 404 });
+    }
+
+    if (parentMessageId) {
+      const parentMessage = await prisma.message.findFirst({
+        where: {
+          id: parentMessageId,
+          chatId: chat.id,
+        },
+        select: { id: true },
+      });
+
+      if (!parentMessage) {
+        return NextResponse.json(
+          { error: "Parent message not found" },
+          { status: 404 }
+        );
+      }
+    }
+
+    if (branchId) {
+      const branch = await prisma.branch.findFirst({
+        where: {
+          id: branchId,
+          chatId: chat.id,
+        },
+        select: {
+          id: true,
+          parentMessageId: true,
+        },
+      });
+
+      if (!branch) {
+        return NextResponse.json({ error: "Branch not found" }, { status: 404 });
+      }
+
+      if (parentMessageId && branch.parentMessageId !== parentMessageId) {
+        return NextResponse.json(
+          { error: "Branch parent mismatch" },
+          { status: 400 }
+        );
+      }
+    }
+
     // 1. Check Usage Limits for Free Plan
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -59,16 +116,12 @@ export async function POST(req: Request) {
     // But usually the client knows if it's starting a chat thread.
     // Let's just rely on the client or check if it's the first one.
     if (!parentMessageId) {
-       const chat = await prisma.chat.findUnique({
-         where: { id: chatId },
-         select: { rootMessageId: true }
-       });
-       if (!chat?.rootMessageId) {
-         await prisma.chat.update({
-           where: { id: chatId },
-           data: { rootMessageId: message.id }
-         });
-       }
+      if (!chat.rootMessageId) {
+        await prisma.chat.update({
+          where: { id: chatId },
+          data: { rootMessageId: message.id },
+        });
+      }
     }
 
     // 4. Update Usage Stats

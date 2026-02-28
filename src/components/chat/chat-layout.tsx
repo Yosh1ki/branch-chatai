@@ -17,7 +17,11 @@ export function ChatLayout() {
   const [loading, setLoading] = useState(false)
 
   const fetchMessages = async (chatId: string) => {
-    const res = await fetch(`/api/chat?chatId=${chatId}`)
+    const res = await fetch(`/api/chats/${chatId}`)
+    if (!res.ok) {
+      setMessages([])
+      return
+    }
     const data = await res.json()
     setMessages(data.messages || [])
   }
