@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
-import { FREE_PLAN_DAILY_LIMIT, getStartOfToday } from "@/lib/usage-limits";
+import { assertWithinDailyLimit, incrementDailyUsage } from "@/lib/usage-limiter";
+import { ChatActionError } from "@/lib/chat-errors";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -36,27 +37,7 @@ export async function POST(req: Request) {
       select: { planType: true },
     });
 
-    const isFreePlan = user?.planType === "free";
-    const today = isFreePlan ? getStartOfToday() : null;
-
-    if (isFreePlan && today) {
-
-      const usage = await prisma.usageStat.findUnique({
-        where: {
-          userId_date: {
-            userId: session.user.id,
-            date: today,
-          },
-        },
-      });
-
-      if (usage && usage.messageCount >= FREE_PLAN_DAILY_LIMIT) {
-        return NextResponse.json(
-          { error: "Daily message limit reached" },
-          { status: 429 }
-        );
-      }
-    }
+    const usageDay = await assertWithinDailyLimit(session.user.id, user?.planType);
 
     // 2. Create Message
     const message = await prisma.message.create({
@@ -91,28 +72,16 @@ export async function POST(req: Request) {
     }
 
     // 4. Update Usage Stats
-    if (isFreePlan && today) {
-      await prisma.usageStat.upsert({
-        where: {
-          userId_date: {
-            userId: session.user.id,
-            date: today,
-          },
-        },
-        update: {
-          messageCount: { increment: 1 },
-        },
-        create: {
-          userId: session.user.id,
-          date: today,
-          messageCount: 1,
-        },
-      });
-    }
+    await incrementDailyUsage(session.user.id, user?.planType, {
+      usageDay: usageDay ?? undefined,
+    });
 
     return NextResponse.json(message);
   } catch (error) {
     console.error("Error creating message:", error);
+    if (error instanceof ChatActionError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     return NextResponse.json(
       { error: "Failed to create message" },
       { status: 500 }

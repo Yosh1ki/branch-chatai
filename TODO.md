@@ -8,9 +8,9 @@
 
 ## P2
 - [ ] Pro課金（Stripe）の実装を完了する（購読導線/API/Webhook/状態反映）。
-- [ ] 日次上限リセット時刻を仕様で明確化し、実装をタイムゾーン固定にする（現状はサーバーローカル時刻依存）。
+- [✖︎] 日次上限リセット時刻を仕様で明確化し、実装をタイムゾーン固定にする（現状はサーバーローカル時刻依存）。
 
 ## P3
-- [ ] `.js` と `.ts` の重複実装を整理し、TypeScriptへ統一する（例: `conversation-history`, `usage-limiter`）。
+- [✖︎] `.js` と `.ts` の重複実装を整理し、TypeScriptへ統一する（例: `conversation-history`, `usage-limiter`）。
 - [ ] テスト実行時の `MODULE_TYPELESS_PACKAGE_JSON` 警告を解消する。
 - [ ] `baseline-browser-mapping` の警告を解消する（依存更新）。

@@ -5,7 +5,13 @@ import prisma from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
-import { FREE_PLAN_DAILY_LIMIT, getStartOfToday } from "@/lib/usage-limits"
+import {
+  DAILY_LIMIT_RESET_HOUR,
+  DAILY_LIMIT_RESET_MINUTE,
+  DAILY_LIMIT_TIME_ZONE,
+  FREE_PLAN_DAILY_LIMIT,
+} from "@/lib/usage-limits"
+import { resolveDailyLimitUsageDay } from "@/lib/usage-day"
 
 export default async function SettingsPage() {
   const session = await auth()
@@ -23,16 +29,20 @@ export default async function SettingsPage() {
     },
   })
 
-  const today = getStartOfToday()
+  const { usageDay } = await resolveDailyLimitUsageDay()
 
   const usage = await prisma.usageStat.findUnique({
     where: {
-      userId_date: {
-        userId: session.user.id,
-        date: today,
+        userId_date: {
+          userId: session.user.id,
+          date: usageDay,
+        },
       },
-    },
   })
+
+  const resetTimeLabel = `${String(DAILY_LIMIT_RESET_HOUR).padStart(2, "0")}:${String(
+    DAILY_LIMIT_RESET_MINUTE
+  ).padStart(2, "0")}`
 
   return (
     <div className="container mx-auto py-10 px-4 max-w-2xl">
@@ -95,7 +105,7 @@ export default async function SettingsPage() {
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Resets daily at 00:00 JST.
+                Resets daily at {resetTimeLabel} ({DAILY_LIMIT_TIME_ZONE}).
               </p>
             </div>
           </CardContent>

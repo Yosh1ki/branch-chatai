@@ -12,13 +12,12 @@ import { buildConversationHistory } from "@/lib/conversation-history"
 import { summarizeHistory } from "@/lib/history-summarizer"
 import { evaluateFastGate } from "@/lib/safety-filter"
 import { runModerationCheck } from "@/lib/moderation-client"
-import { assertWithinDailyLimit } from "@/lib/usage-limiter"
+import { assertWithinDailyLimit, incrementDailyUsage } from "@/lib/usage-limiter"
 import { invokeWithFallback } from "@/lib/model-invoker"
 import type { ChatGraphState } from "@/lib/chat-graph-state"
 import { generateChatTitle } from "@/lib/title-generator"
 import { serializeMarkdownContent } from "@/lib/rich-text"
 import { buildDevAssistantResponse } from "@/lib/dev-assistant-response"
-import { getStartOfToday } from "@/lib/usage-limits"
 
 type ChatRecord = Awaited<ReturnType<typeof prisma.chat.create>>
 type MessageRecord = Awaited<ReturnType<typeof prisma.message.create>>
@@ -28,6 +27,7 @@ type GraphState = ChatGraphState & {
   chatRecord?: ChatRecord
   branchIdResolved?: string | null
   planType?: UserPlanType
+  usageDay?: Date
   userMessage?: MessageRecord
   assistantMessage?: MessageRecord
   createdChat?: boolean
@@ -57,6 +57,7 @@ const ChatGraphAnnotation = Annotation.Root({
   chatRecord: Annotation<ChatRecord | undefined>(),
   branchIdResolved: Annotation<string | null | undefined>(),
   planType: Annotation<UserPlanType | undefined>(),
+  usageDay: Annotation<Date | undefined>(),
   userMessage: Annotation<MessageRecord | undefined>(),
   assistantMessage: Annotation<MessageRecord | undefined>(),
   createdChat: Annotation<boolean | undefined>(),
@@ -170,8 +171,11 @@ const validateNode = async (state: GraphState) => {
 }
 
 const usageNode = async (state: GraphState) => {
-  await assertWithinDailyLimit(state.userId, state.planType)
-  return state
+  const usageDay = await assertWithinDailyLimit(state.userId, state.planType)
+  return {
+    ...state,
+    usageDay: usageDay ?? undefined,
+  }
 }
 
 const historyNode = async (state: GraphState) => {
@@ -404,23 +408,10 @@ const persistNode = async (state: GraphState) => {
   })
 
   if (state.planType === "free") {
-    const today = getStartOfToday()
-    await prisma.usageStat.upsert({
-      where: {
-        userId_date: {
-          userId: state.userId,
-          date: today,
-        },
-      },
-      update: {
-        messageCount: { increment: 1 },
-      },
-      create: {
-        userId: state.userId,
-        date: today,
-        messageCount: 1,
-      },
-    })
+    if (!state.usageDay) {
+      throw new ChatActionError("Usage day missing", 500)
+    }
+    await incrementDailyUsage(state.userId, state.planType, { usageDay: state.usageDay })
   }
 
   return {

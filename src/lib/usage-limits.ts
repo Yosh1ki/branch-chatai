@@ -1,7 +1,4 @@
 export const FREE_PLAN_DAILY_LIMIT = 10
-
-export const getStartOfToday = () => {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return today
-}
+export const DAILY_LIMIT_TIME_ZONE = "Asia/Tokyo"
+export const DAILY_LIMIT_RESET_HOUR = 0
+export const DAILY_LIMIT_RESET_MINUTE = 0
