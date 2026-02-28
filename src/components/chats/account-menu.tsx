@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { LogOut, Menu } from "lucide-react"
+import Link from "next/link"
+import { LogOut, Menu, Settings } from "lucide-react"
 
 type AccountMenuProps = {
   user: {
@@ -63,15 +64,26 @@ export function AccountMenu({ user, onLogout }: AccountMenuProps) {
             </div>
           </div>
 
-          <form action={onLogout} className="p-2">
-            <button
-              type="submit"
+          <div className="space-y-1 p-2">
+            <Link
+              href="/settings"
+              onClick={() => setOpen(false)}
               className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b5a2]"
             >
-              <LogOut className="h-4 w-4" />
-              ログアウト
-            </button>
-          </form>
+              <Settings className="h-4 w-4" />
+              設定
+            </Link>
+
+            <form action={onLogout}>
+              <button
+                type="submit"
+                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b5a2]"
+              >
+                <LogOut className="h-4 w-4" />
+                ログアウト
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </div>

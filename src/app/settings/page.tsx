@@ -1,8 +1,6 @@
 import { auth } from "@/auth"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { redirect } from "next/navigation"
 import prisma from "@/lib/prisma"
-import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import {
@@ -12,6 +10,7 @@ import {
   FREE_PLAN_DAILY_LIMIT,
 } from "@/lib/usage-limits"
 import { resolveDailyLimitUsageDay } from "@/lib/usage-day"
+import { textStyle } from "@/styles/typography"
 
 export default async function SettingsPage() {
   const session = await auth()
@@ -43,74 +42,81 @@ export default async function SettingsPage() {
   const resetTimeLabel = `${String(DAILY_LIMIT_RESET_HOUR).padStart(2, "0")}:${String(
     DAILY_LIMIT_RESET_MINUTE
   ).padStart(2, "0")}`
+  const messageCount = usage?.messageCount ?? 0
+  const usagePercent = Math.min((messageCount / FREE_PLAN_DAILY_LIMIT) * 100, 100)
 
   return (
-    <div className="container mx-auto py-10 px-4 max-w-2xl">
-      <div className="mb-8">
-        <Link href="/chats">
-          <Button variant="ghost" className="pl-0">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Chats
-          </Button>
+    <div className="min-h-screen bg-[#f9f7f7] text-main">
+      <header className="flex w-full items-center justify-between px-2 py-6">
+        <Link
+          href="/chats"
+          className="text-left font-title text-3xl tracking-wide text-main md:text-2xl"
+          style={textStyle("pacifico")}
+        >
+          Branch
         </Link>
-      </div>
+      </header>
 
-      <h1 className="text-3xl font-bold tracking-tight mb-8">Settings</h1>
+      <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 pb-12">
+        <div>
+          <Link
+            href="/chats"
+            className="inline-flex items-center gap-2 rounded-full border border-[#f1d0c7] bg-white px-4 py-2 text-sm font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b5a2]"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            チャット一覧に戻る
+          </Link>
+        </div>
 
-      <div className="grid gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Account</CardTitle>
-            <CardDescription>Your account information.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Name</span>
-              <span className="font-medium">{user?.name}</span>
+        <h1 className="text-3xl font-semibold tracking-tight">設定</h1>
+
+        <div className="grid gap-5">
+          <section className="rounded-[24px] border border-[#f1d0c7] bg-white/90 p-6 shadow-[0_10px_40px_rgba(68,41,33,0.08)]">
+            <h2 className="text-xl font-semibold text-main">アカウント</h2>
+            <p className="mt-1 text-sm text-main-muted">アカウント情報を確認できます。</p>
+
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-main-muted">名前</span>
+                <span className="text-sm font-semibold text-main">{user?.name ?? "未設定"}</span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-main-muted">メールアドレス</span>
+                <span className="text-sm font-semibold text-main">{user?.email ?? "未設定"}</span>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Email</span>
-              <span className="font-medium">{user?.email}</span>
-            </div>
-          </CardContent>
-        </Card>
+          </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Plan & Usage</CardTitle>
-            <CardDescription>Your current plan and daily usage.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Current Plan</span>
-              <span className="font-bold uppercase bg-primary/10 text-primary px-2 py-1 rounded text-xs">
-                {user?.planType}
+          <section className="rounded-[24px] border border-[#f1d0c7] bg-white/90 p-6 shadow-[0_10px_40px_rgba(68,41,33,0.08)]">
+            <h2 className="text-xl font-semibold text-main">プランと利用状況</h2>
+            <p className="mt-1 text-sm text-main-muted">
+              現在のプランと本日のメッセージ利用数です。
+            </p>
+
+            <div className="mt-4 flex items-center justify-between gap-4">
+              <span className="text-sm text-main-muted">現在のプラン</span>
+              <span className="rounded-full bg-[#f6ece7] px-3 py-1 text-xs font-bold uppercase tracking-wide text-main">
+                {user?.planType ?? "FREE"}
               </span>
             </div>
-            
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Daily Messages</span>
-                <span>{usage?.messageCount || 0} / {FREE_PLAN_DAILY_LIMIT}</span>
+
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-main-muted">本日のメッセージ数</span>
+                <span className="font-semibold text-main">
+                  {messageCount} / {FREE_PLAN_DAILY_LIMIT}
+                </span>
               </div>
-              <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-primary transition-all" 
-                  style={{
-                    width: `${Math.min(
-                      ((usage?.messageCount || 0) / FREE_PLAN_DAILY_LIMIT) * 100,
-                      100
-                    )}%`,
-                  }}
-                />
+              <div className="h-2 w-full overflow-hidden rounded-full bg-[#f6ece7]">
+                <div className="h-full bg-[#4b2418] transition-all" style={{ width: `${usagePercent}%` }} />
               </div>
-              <p className="text-xs text-muted-foreground">
-                Resets daily at {resetTimeLabel} ({DAILY_LIMIT_TIME_ZONE}).
+              <p className="text-xs text-main-muted">
+                毎日 {resetTimeLabel} ({DAILY_LIMIT_TIME_ZONE}) にリセットされます。
               </p>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </section>
+        </div>
+      </main>
     </div>
   )
 }
