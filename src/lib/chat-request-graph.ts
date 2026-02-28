@@ -408,10 +408,9 @@ const persistNode = async (state: GraphState) => {
   })
 
   if (state.planType === "free") {
-    if (!state.usageDay) {
-      throw new ChatActionError("Usage day missing", 500)
-    }
-    await incrementDailyUsage(state.userId, state.planType, { usageDay: state.usageDay })
+    await incrementDailyUsage(state.userId, state.planType, {
+      usageDay: state.usageDay ?? undefined,
+    })
   }
 
   return {

@@ -5,7 +5,7 @@ import { getOpenAIClient } from "@/lib/openai-client"
 import type { ModelProvider, ReasoningEffort } from "@/lib/model-catalog"
 
 const SYSTEM_PROMPT = "You are a helpful AI assistant."
-const MAX_OUTPUT_TOKENS = 2000
+const MAX_OUTPUT_TOKENS = 6000
 
 type ResolvedModel = {
   provider: ModelProvider
