@@ -626,7 +626,7 @@ export function AssistantCard({
           </div>
           <span className="branch-connector branch-connector-bottom" aria-hidden="true" />
           {promptInput ? (
-            <div className="mt-0 flex w-full justify-center">{promptInput}</div>
+            <div className="-mt-px flex w-full justify-center">{promptInput}</div>
           ) : null}
         </div>
       ) : null}

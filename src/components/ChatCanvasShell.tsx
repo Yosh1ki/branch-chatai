@@ -1080,7 +1080,7 @@ export function ChatCanvasShell({
                     className="flex w-full flex-col items-center"
                   >
                     {index > 0 ? (
-                      <div className="flex items-center gap-3">
+                      <div className="-mt-8 mb-8 flex items-center gap-3">
                         {!parentLeftBranch?.hasSubmitted ? (
                           <button
                             type="button"
