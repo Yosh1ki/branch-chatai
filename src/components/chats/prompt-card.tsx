@@ -98,14 +98,21 @@ export function PromptCard({ action }: PromptCardProps) {
           alt="Branch logo"
           width={160}
           height={160}
-          className="mb-3 h-20 w-20 md:h-28 md:w-28"
+          className="mb-3 h-20 w-20 dark:hidden md:h-28 md:w-28"
+        />
+        <Image
+          src="/icons/Branch_logo_48px_dark.svg"
+          alt="Branch logo dark"
+          width={160}
+          height={160}
+          className="mb-3 hidden h-20 w-20 dark:block md:h-28 md:w-28"
         />
         <p className="text-center text-xl font-semibold text-main md:text-2xl">{tagline}</p>
       </div>
       <form
         action={formAction}
         onSubmit={handleSubmit}
-        className={`flex items-end gap-4 rounded-[32px] border ${isInputFocused ? "border-[#f1d0c7]" : "border-transparent"} bg-white px-5 py-4 shadow-[0_8px_30px_rgba(249,220,209,0.4)]`}
+        className={`flex items-end gap-4 rounded-[32px] border ${isInputFocused ? "border-[var(--color-border-soft)]" : "border-transparent"} bg-[var(--color-surface)] px-5 py-4 shadow-[var(--color-shadow-input)]`}
       >
         <div className="flex flex-1 flex-col gap-5">
           <textarea
@@ -137,7 +144,7 @@ export function PromptCard({ action }: PromptCardProps) {
               <ChevronDown className="h-3 w-3" />
             </button>
             {pickerOpen && (
-              <div className="absolute left-0 top-[calc(100%+6px)] z-10 w-56 rounded-2xl border border-[#f1d0c7] bg-white p-2 shadow-lg">
+              <div className="absolute left-0 top-[calc(100%+6px)] z-10 w-56 rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-surface)] p-2 shadow-lg">
                 {MODEL_OPTIONS.map((option) => (
                   <button
                     key={option.id}
@@ -146,7 +153,7 @@ export function PromptCard({ action }: PromptCardProps) {
                       setModel(option)
                       setPickerOpen(false)
                     }}
-                    className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs text-main transition hover:bg-[#fbf7f3]"
+                    className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs text-main transition hover:bg-[var(--color-surface-soft)]"
                   >
                     {option.label}
                     {model.id === option.id && <Check className="h-3.5 w-3.5 text-main" />}

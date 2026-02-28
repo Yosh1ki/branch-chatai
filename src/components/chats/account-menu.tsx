@@ -47,15 +47,15 @@ export function AccountMenu({ user, onLogout }: AccountMenuProps) {
         aria-label="Open account menu"
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
-        className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#f1d0c7] bg-white text-main shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b5a2]"
+        className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-border-soft)] bg-[var(--color-surface)] text-main shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]"
       >
         <Menu className="h-5 w-5" />
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-72 rounded-2xl border border-[#f1d0c7] bg-white shadow-lg">
-          <div className="flex items-center gap-3 border-b border-[#f1d0c7] px-4 py-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f6ece7] text-base font-semibold text-main">
+        <div className="absolute right-0 mt-2 w-72 rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-surface)] shadow-lg">
+          <div className="flex items-center gap-3 border-b border-[var(--color-border-soft)] px-4 py-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-surface-soft)] text-base font-semibold text-main">
               {initials}
             </div>
             <div className="min-w-0">
@@ -68,7 +68,7 @@ export function AccountMenu({ user, onLogout }: AccountMenuProps) {
             <Link
               href="/settings"
               onClick={() => setOpen(false)}
-              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b5a2]"
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]"
             >
               <Settings className="h-4 w-4" />
               設定
@@ -77,7 +77,7 @@ export function AccountMenu({ user, onLogout }: AccountMenuProps) {
             <form action={onLogout}>
               <button
                 type="submit"
-                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b5a2]"
+                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]"
               >
                 <LogOut className="h-4 w-4" />
                 ログアウト

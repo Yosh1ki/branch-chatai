@@ -5,7 +5,7 @@ import { textStyle } from "@/styles/typography";
 
 export default function LoginPage() {
     return (
-        <div className="min-h-screen bg-[#f9f7f7] text-main">
+        <div className="min-h-screen bg-[var(--color-app-bg)] text-main">
             <header className="flex w-full items-center justify-between gap-6 px-2 py-6">
                 <p
                     className="text-left font-title text-3xl tracking-wide text-main md:text-2xl"
@@ -132,9 +132,18 @@ export default function LoginPage() {
                         >
                             <Image
                                 src="/icons/signin_light.svg"
-                                alt=""
+                                alt="Sign in with Google"
                                 width={175}
                                 height={40}
+                                className="dark:hidden"
+                                priority
+                            />
+                            <Image
+                                src="/icons/singin_dark.svg"
+                                alt="Sign in with Google"
+                                width={175}
+                                height={40}
+                                className="hidden dark:block"
                                 priority
                             />
                         </button>

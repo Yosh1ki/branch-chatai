@@ -11,6 +11,7 @@ import {
 } from "@/lib/usage-limits"
 import { resolveDailyLimitUsageDay } from "@/lib/usage-day"
 import { textStyle } from "@/styles/typography"
+import { ThemeToggle } from "@/components/theme/theme-toggle"
 
 export default async function SettingsPage() {
   const session = await auth()
@@ -46,7 +47,7 @@ export default async function SettingsPage() {
   const usagePercent = Math.min((messageCount / FREE_PLAN_DAILY_LIMIT) * 100, 100)
 
   return (
-    <div className="min-h-screen bg-[#f9f7f7] text-main">
+    <div className="min-h-screen bg-[var(--color-app-bg)] text-main">
       <header className="flex w-full items-center justify-between px-2 py-6">
         <Link
           href="/chats"
@@ -61,7 +62,7 @@ export default async function SettingsPage() {
         <div>
           <Link
             href="/chats"
-            className="inline-flex items-center gap-2 rounded-full border border-[#f1d0c7] bg-white px-4 py-2 text-sm font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b5a2]"
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-soft)] bg-[var(--color-surface)] px-4 py-2 text-sm font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]"
           >
             <ArrowLeft className="h-4 w-4" />
             チャット一覧に戻る
@@ -71,7 +72,7 @@ export default async function SettingsPage() {
         <h1 className="text-3xl font-semibold tracking-tight">設定</h1>
 
         <div className="grid gap-5">
-          <section className="rounded-3xl border border-[#f1d0c7] bg-white/90 p-6 shadow-[0_10px_40px_rgba(68,41,33,0.08)]">
+          <section className="rounded-3xl border border-[var(--color-border-soft)] bg-[var(--color-surface)]/90 p-6 shadow-[var(--color-shadow-card)]">
             <h2 className="text-xl font-semibold text-main">アカウント</h2>
             <p className="mt-1 text-sm text-main-muted">アカウント情報を確認できます。</p>
 
@@ -87,7 +88,7 @@ export default async function SettingsPage() {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-[#f1d0c7] bg-white/90 p-6 shadow-[0_10px_40px_rgba(68,41,33,0.08)]">
+          <section className="rounded-3xl border border-[var(--color-border-soft)] bg-[var(--color-surface)]/90 p-6 shadow-[var(--color-shadow-card)]">
             <h2 className="text-xl font-semibold text-main">プランと利用状況</h2>
             <p className="mt-1 text-sm text-main-muted">
               現在のプランと本日のメッセージ利用数です。
@@ -95,7 +96,7 @@ export default async function SettingsPage() {
 
             <div className="mt-4 flex items-center justify-between gap-4">
               <span className="text-sm text-main-muted">現在のプラン</span>
-              <span className="rounded-full bg-[#f6ece7] px-3 py-1 text-xs font-bold uppercase tracking-wide text-main">
+              <span className="rounded-full bg-[var(--color-surface-soft)] px-3 py-1 text-xs font-bold uppercase tracking-wide text-main">
                 {user?.planType ?? "FREE"}
               </span>
             </div>
@@ -107,12 +108,25 @@ export default async function SettingsPage() {
                   {messageCount} / {FREE_PLAN_DAILY_LIMIT}
                 </span>
               </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-[#f6ece7]">
-                <div className="h-full bg-[#4b2418] transition-all" style={{ width: `${usagePercent}%` }} />
+              <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--color-surface-soft)]">
+                <div
+                  className="h-full bg-main transition-all"
+                  style={{ width: `${usagePercent}%` }}
+                />
               </div>
               <p className="text-xs text-main-muted">
                 毎日 {resetTimeLabel} ({DAILY_LIMIT_TIME_ZONE}) にリセットされます。
               </p>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-[var(--color-border-soft)] bg-[var(--color-surface)]/90 p-6 shadow-[var(--color-shadow-card)]">
+            <h2 className="text-xl font-semibold text-main">表示テーマ</h2>
+            <p className="mt-1 text-sm text-main-muted">
+              ライト/ダークを切り替えできます。選択は次回ログイン後も保持されます。
+            </p>
+            <div className="mt-4">
+              <ThemeToggle />
             </div>
           </section>
         </div>

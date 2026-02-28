@@ -126,7 +126,7 @@ export default async function ChatsPage() {
   const chats = await getChats(session.user.id)
 
   return (
-    <div className="min-h-screen bg-[#f9f7f7] text-main">
+    <div className="min-h-screen bg-[var(--color-app-bg)] text-main">
       <header className="flex w-full items-center justify-between px-2 py-6">
         <Link
           href="/chats"

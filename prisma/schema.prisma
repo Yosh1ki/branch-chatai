@@ -11,12 +11,18 @@ enum PlanType {
   pro
 }
 
+enum ThemePreference {
+  light
+  dark
+}
+
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
   name          String?
   imageUrl      String?   @map("image_url")
   planType      PlanType  @default(free) @map("plan_type")
+  themePreference ThemePreference @default(light) @map("theme_preference")
   stripeCustomerId      String? @map("stripe_customer_id")
   stripeSubscriptionId  String? @map("stripe_subscription_id")
   stripeSubscriptionStatus String? @map("stripe_subscription_status")

@@ -984,7 +984,7 @@ export function ChatCanvasShell({
         }}
         placeholder="なんでも聞いてみましょう"
         rows={1}
-        className="w-full resize-none rounded-xl border border-[#efe5dc] bg-white px-4 py-3 text-base leading-6 text-main shadow-[0_8px_18px_rgba(239,229,220,0.6)] transition-[height] duration-150 ease-out focus:border-[#d9c9bb] focus:outline-none"
+        className="w-full resize-none rounded-xl border border-[var(--color-border-muted)] bg-[var(--color-surface)] px-4 py-3 text-base leading-6 text-main shadow-[var(--color-shadow-soft)] transition-[height] duration-150 ease-out focus:border-[var(--color-border-soft)] focus:outline-none"
       />
       <button
         type="submit"
@@ -1003,16 +1003,22 @@ export function ChatCanvasShell({
       aria-hidden="true"
     >
       {connectorPaths.map((path, index) => (
-        <path key={`connector-${index}`} d={path} fill="none" stroke="#e2d8cf" strokeWidth="1" />
+        <path
+          key={`connector-${index}`}
+          d={path}
+          fill="none"
+          stroke="var(--color-connector)"
+          strokeWidth="1"
+        />
       ))}
     </svg>
   );
 
   return (
-    <div className="min-h-screen bg-[#f9f7f7] text-main">
+    <div className="min-h-screen bg-[var(--color-app-bg)] text-main">
       <DisableCanvasNavigation />
       <CanvasControls scale={state.scale} onReset={handleReset} />
-      <div className="fixed left-0 right-0 top-0 z-40 bg-[#f9f7f7]/80 backdrop-blur">
+      <div className="fixed left-0 right-0 top-0 z-40 bg-[var(--color-app-bg)]/80 backdrop-blur">
         <div className="mx-auto w-full px-0">
           <ChatHeader />
         </div>
@@ -1106,7 +1112,7 @@ export function ChatCanvasShell({
                             新しいブランチ
                           </span>
                         )}
-                        <div className="h-10 w-px bg-[#e2d8cf]" />
+                        <div className="h-10 w-px bg-[var(--color-connector)]" />
                         {!parentRightBranch?.hasSubmitted ? (
                           <button
                             type="button"
@@ -1237,7 +1243,7 @@ export function ChatCanvasShell({
                                       }}
                                       placeholder="なんでも聞いてみましょう"
                                       rows={1}
-                                      className="w-full resize-none rounded-xl border border-[#efe5dc] bg-white px-4 py-2 text-sm leading-5 text-main shadow-[0_8px_18px_rgba(239,229,220,0.6)] transition-[height] duration-150 ease-out focus:border-[#d9c9bb] focus:outline-none"
+                                      className="w-full resize-none rounded-xl border border-[var(--color-border-muted)] bg-[var(--color-surface)] px-4 py-2 text-sm leading-5 text-main shadow-[var(--color-shadow-soft)] transition-[height] duration-150 ease-out focus:border-[var(--color-border-soft)] focus:outline-none"
                                     />
                                     <button
                                       type="submit"
