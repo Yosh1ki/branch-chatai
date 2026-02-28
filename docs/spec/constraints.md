@@ -7,5 +7,5 @@
 
 ## Business Constraints
 - Plans: Free plan limited to 10 messages per day with access to all supported models and branching; Pro plan removes limits and is billed monthly via Stripe subscription tied to each Google-authenticated user.
-- Payment requirements: Stripe integration must capture `stripe_customer_id` and `stripe_subscription_id` for Pro accounts; MVP decision on enabling Stripe is deferred but planned.
+- Payment requirements: Stripe integration must capture `stripe_customer_id` and `stripe_subscription_id` for Pro accounts, expose checkout/portal entry points from settings, and synchronize plan state via Stripe webhooks.
 - Legal / compliance notes: Not specified in the provided spec.

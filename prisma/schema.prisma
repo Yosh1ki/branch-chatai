@@ -6,14 +6,22 @@ generator client {
   provider = "prisma-client-js"
 }
 
+enum PlanType {
+  free
+  pro
+}
+
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
   name          String?
   imageUrl      String?   @map("image_url")
-  planType      String    @default("free") @map("plan_type")
+  planType      PlanType  @default(free) @map("plan_type")
   stripeCustomerId      String? @map("stripe_customer_id")
   stripeSubscriptionId  String? @map("stripe_subscription_id")
+  stripeSubscriptionStatus String? @map("stripe_subscription_status")
+  billingCurrentPeriodEnd DateTime? @map("billing_current_period_end")
+  cancelAtPeriodEnd       Boolean   @default(false) @map("cancel_at_period_end")
   
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
@@ -139,4 +147,15 @@ model UsageStat {
 
   @@unique([userId, date])
   @@map("usage_stats")
+}
+
+model StripeWebhookEvent {
+  id          String   @id @default(uuid())
+  eventId     String   @unique @map("event_id")
+  eventType   String   @map("event_type")
+  payload     Json?
+  processedAt DateTime? @map("processed_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("stripe_webhook_events")
 }

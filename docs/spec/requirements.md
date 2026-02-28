@@ -8,6 +8,10 @@
 - **Mini map:** A minimap in the upper-right highlights the current viewport and lets users click a node to jump to that branch within the chat.
 - **Authentication and plans:** Google OAuth is the only login method for the MVP, and authenticated users are tied to Stripe customer IDs for Pro billing. Plans include Free (10 messages/day, all models, branching enabled) and Pro (unlimited messages, Stripe subscription).
 - **Data persistence:** Chats, messages (including parent-child relationships, provider info, collapse state, and usage stats), and daily usage counts are stored per the defined PostgreSQL/Prisma schema so quotas and branching can be enforced.
+- **Stripe billing (MVP scope):** Billing uses a single monthly Pro subscription (no annual plan, no trial). Free users can start checkout from settings, Pro users can open a billing portal to manage cancellation and payment methods.
+- **Plan entitlement rules:** Users are treated as Pro only while Stripe subscription status is `active` or `trialing`; all other states are treated as Free for quota enforcement.
+- **Cancellation behavior:** Cancellation is period-end only (`cancel_at_period_end=true`), and Pro entitlement remains until the billing period actually ends.
+- **Webhook-driven state sync:** Plan state is updated from Stripe webhook events, and webhook handling must be idempotent to avoid duplicate updates.
 
 ## Non-Goals
 - Not specified in the current spec.
@@ -17,3 +21,6 @@
 - **Branch creation:** Selecting “branch” on any message triggers `POST /api/messages/{id}/branch`, which stores a new child message with `parent_message_id`, then returns identifiers so the frontend can draw the new branch.
 - **Login and chat retrieval:** After Google OAuth succeeds the frontend calls `GET /api/chats` with the bearer token, the API queries chats for that user, and the UI shows the list before drilling into `/chats/[id]`.
 - **Free plan quota check:** `/api/chat` checks `usage_stats` for the user and current date; if the count equals the 10-message Free limit it returns HTTP 429. Pro users skip this branch of the flow.
+- **Upgrade to Pro:** From `/settings`, a Free user triggers `POST /api/billing/checkout`; the API creates a Stripe Checkout session and redirects the user to Stripe-hosted checkout.
+- **Manage existing subscription:** From `/settings`, a Pro user triggers `POST /api/billing/portal`; the API creates a Stripe Billing Portal session and redirects to Stripe-hosted management UI.
+- **Stripe webhook synchronization:** Stripe sends billing events to `POST /api/webhooks/stripe`; the API verifies the signature, stores processed event IDs for idempotency, and updates `plan_type` / `stripe_customer_id` / `stripe_subscription_id` based on subscription lifecycle.
