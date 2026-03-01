@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { AssistantCard } from "@/components/AssistantCard";
@@ -28,6 +29,12 @@ type ChatCanvasShellProps = {
   initialModelProvider?: string;
   initialModelName?: string;
   initialModelReasoningEffort?: string;
+  settingsContent: ReactNode;
+  user: {
+    name?: string | null;
+    email?: string | null;
+  };
+  onLogout: () => void | Promise<void>;
 };
 
 type ChatMessage = {
@@ -78,6 +85,9 @@ export function ChatCanvasShell({
   initialModelProvider,
   initialModelName,
   initialModelReasoningEffort,
+  settingsContent,
+  user,
+  onLogout,
 }: ChatCanvasShellProps) {
   const { t } = useI18n()
   const [state, setState] = useState(createCanvasState());
@@ -1023,7 +1033,7 @@ export function ChatCanvasShell({
       <CanvasControls scale={state.scale} onReset={handleReset} />
       <div className="fixed left-0 right-0 top-0 z-40 bg-[var(--color-app-bg)]/80 backdrop-blur">
         <div className="mx-auto w-full px-0">
-          <ChatHeader />
+          <ChatHeader settingsContent={settingsContent} user={user} onLogout={onLogout} />
         </div>
       </div>
       <div className="relative min-h-screen">

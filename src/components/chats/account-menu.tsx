@@ -1,6 +1,7 @@
 "use client"
 
 import { type ReactNode, useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { LogOut, Menu, Settings, X } from "lucide-react"
 import { useI18n } from "@/components/i18n/i18n-provider"
 
@@ -108,37 +109,40 @@ export function AccountMenu({ settingsContent, user, onLogout }: AccountMenuProp
         )}
       </div>
 
-      {isSettingsOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="settings-modal-title"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        >
-          <button
-            type="button"
-            aria-label={t("settings.close")}
-            onClick={() => setIsSettingsOpen(false)}
-            className="absolute inset-0 bg-black/35"
-          />
-          <div className="relative z-10 max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-3xl border border-[var(--color-border-soft)] bg-[var(--color-app-bg)] shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[var(--color-border-soft)] bg-[var(--color-surface)] px-6 py-4">
-              <h2 id="settings-modal-title" className="text-2xl font-semibold tracking-tight text-main">
-                {t("settings.title")}
-              </h2>
+      {isSettingsOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="settings-modal-title"
+              className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+            >
               <button
                 type="button"
-                onClick={() => setIsSettingsOpen(false)}
                 aria-label={t("settings.close")}
-                className="rounded-full border border-[var(--color-border-soft)] bg-[var(--color-surface)] p-2 text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="max-h-[calc(90vh-84px)] overflow-y-auto px-6 py-6">{settingsContent}</div>
-          </div>
-        </div>
-      )}
+                onClick={() => setIsSettingsOpen(false)}
+                className="absolute inset-0 bg-black/35"
+              />
+              <div className="relative z-10 max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-3xl border border-[var(--color-border-soft)] bg-[var(--color-app-bg)] shadow-2xl">
+                <div className="flex items-center justify-between border-b border-[var(--color-border-soft)] bg-[var(--color-surface)] px-6 py-4">
+                  <h2 id="settings-modal-title" className="text-2xl font-semibold tracking-tight text-main">
+                    {t("settings.title")}
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setIsSettingsOpen(false)}
+                    aria-label={t("settings.close")}
+                    className="rounded-full border border-[var(--color-border-soft)] bg-[var(--color-surface)] p-2 text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="max-h-[calc(90vh-84px)] overflow-y-auto px-6 py-6">{settingsContent}</div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </>
   )
 }
