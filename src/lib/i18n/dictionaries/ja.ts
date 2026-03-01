@@ -28,6 +28,10 @@ export const jaDictionary = {
   "settings.languageDescription": "アプリの表示言語を切り替えできます。",
   "settings.close": "設定を閉じる",
 
+  "billing.upgrade": "アップグレード",
+  "billing.upgrading": "処理中...",
+  "billing.upgradeFailed": "アップグレード画面の起動に失敗しました。時間をおいて再度お試しください。",
+
   "account.guest": "ゲスト",
   "account.settings": "設定",
   "account.logout": "ログアウト",

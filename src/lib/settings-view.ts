@@ -44,7 +44,7 @@ export async function getSettingsViewData(userId: string): Promise<SettingsViewD
     email: user?.email ?? null,
     messageCount,
     name: user?.name ?? null,
-    planType: user?.planType ?? "FREE",
+    planType: user?.planType ?? "free",
     resetTimeLabel: `${String(DAILY_LIMIT_RESET_HOUR).padStart(2, "0")}:${String(
       DAILY_LIMIT_RESET_MINUTE
     ).padStart(2, "0")}`,

@@ -12,7 +12,13 @@ import {
   type KeyboardEvent,
 } from "react"
 import { ArrowRight, Check, ChevronDown } from "lucide-react"
-import { MODEL_OPTIONS, type ModelOption } from "@/lib/model-catalog"
+import { UpgradeButton } from "@/components/billing/upgrade-button"
+import {
+  MODEL_OPTIONS,
+  isModelOptionAvailableForPlan,
+  normalizePlanTier,
+  type ModelOption,
+} from "@/lib/model-catalog"
 import { useI18n } from "@/components/i18n/i18n-provider"
 
 type PromptCardActionState = {
@@ -21,10 +27,14 @@ type PromptCardActionState = {
 
 type PromptCardProps = {
   action: (state: PromptCardActionState, formData: FormData) => Promise<PromptCardActionState>
+  planType: string | null | undefined
 }
 
-export function PromptCard({ action }: PromptCardProps) {
+export function PromptCard({ action, planType }: PromptCardProps) {
   const { t } = useI18n()
+  const normalizedPlan = normalizePlanTier(planType)
+  const isFreePlan = normalizedPlan === "free"
+  const currentPlanLabel = normalizedPlan
   const taglines = useMemo(
     () => [
       t("prompt.tagline1"),
@@ -100,6 +110,8 @@ export function PromptCard({ action }: PromptCardProps) {
     () => MODEL_OPTIONS.find((option) => option.id === hoveredModelId) ?? null,
     [hoveredModelId]
   )
+  const hoveredModelLocked =
+    hoveredModel !== null && !isModelOptionAvailableForPlan(hoveredModel, normalizedPlan)
 
   const getModelDescription = (modelId: string) => {
     switch (modelId) {
@@ -137,6 +149,13 @@ export function PromptCard({ action }: PromptCardProps) {
           height={160}
           className="mb-3 hidden h-20 w-20 dark:block md:h-28 md:w-28"
         />
+        <div className="mb-3 flex flex-wrap items-center justify-center gap-2">
+          <span className="text-sm text-main">{t("settings.currentPlan")} :</span>
+          <span className="rounded-full bg-[var(--color-surface-soft)] px-3 py-1 text-xs font-bold uppercase tracking-wide text-main">
+            {currentPlanLabel}
+          </span>
+          {isFreePlan ? <UpgradeButton /> : null}
+        </div>
         <p className="text-center text-xl font-semibold text-main md:text-2xl">{tagline}</p>
       </div>
       <form
@@ -181,28 +200,45 @@ export function PromptCard({ action }: PromptCardProps) {
             </button>
             {pickerOpen && (
               <div className="absolute left-0 top-[calc(100%+6px)] z-10">
-                <div className="flex flex-col gap-2 md:flex-row">
+                <div
+                  className="flex flex-col gap-0 md:flex-row"
+                  onMouseLeave={() => setHoveredModelId(null)}
+                >
                   <div
                     className="w-56 rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-surface)] p-2 shadow-lg"
-                    onMouseLeave={() => setHoveredModelId(null)}
                   >
-                    {MODEL_OPTIONS.map((option) => (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onMouseEnter={() => setHoveredModelId(option.id)}
-                        onFocus={() => setHoveredModelId(option.id)}
-                        onClick={() => {
-                          setModel(option)
-                          setPickerOpen(false)
-                          setHoveredModelId(null)
-                        }}
-                        className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs text-main transition hover:bg-[var(--color-surface-soft)]"
-                      >
-                        {option.label}
-                        {model.id === option.id && <Check className="h-3.5 w-3.5 text-main" />}
-                      </button>
-                    ))}
+                    {MODEL_OPTIONS.map((option) => {
+                      const isLocked = !isModelOptionAvailableForPlan(option, normalizedPlan)
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onMouseEnter={() => setHoveredModelId(option.id)}
+                          onFocus={() => setHoveredModelId(option.id)}
+                          onClick={() => {
+                            if (isLocked) {
+                              return
+                            }
+                            setModel(option)
+                            setPickerOpen(false)
+                            setHoveredModelId(null)
+                          }}
+                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs transition ${
+                            isLocked
+                              ? "cursor-not-allowed text-main-muted"
+                              : "text-main hover:bg-[var(--color-surface-soft)]"
+                          }`}
+                        >
+                          <span>{option.label}</span>
+                          {isLocked ? (
+                            <span className="rounded-full border border-[var(--color-border-soft)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                              Pro
+                            </span>
+                          ) : null}
+                          {model.id === option.id && <Check className="h-3.5 w-3.5 text-main" />}
+                        </button>
+                      )
+                    })}
                   </div>
                   {hoveredModel ? (
                     <div className="w-56 rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-surface)] px-3 py-3 text-xs text-main-muted shadow-lg">
@@ -210,6 +246,11 @@ export function PromptCard({ action }: PromptCardProps) {
                         {hoveredModel.label}
                       </p>
                       <p>{getModelDescription(hoveredModel.id)}</p>
+                      {hoveredModelLocked ? (
+                        <div className="mt-3">
+                          <UpgradeButton />
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>

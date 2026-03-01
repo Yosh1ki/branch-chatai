@@ -159,7 +159,7 @@ export default async function ChatsPage() {
       </header>
 
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 pb-12">
-        <PromptCard action={createChatAction} />
+        <PromptCard action={createChatAction} planType={settings.planType} />
         <ChatListSection
           initialChats={chats.map((chat) => ({
             id: chat.id,

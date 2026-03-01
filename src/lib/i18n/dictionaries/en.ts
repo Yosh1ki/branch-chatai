@@ -30,6 +30,10 @@ export const enDictionary: { [K in keyof JaDictionary]: string } = {
   "settings.languageDescription": "Switch the app display language.",
   "settings.close": "Close settings",
 
+  "billing.upgrade": "Upgrade",
+  "billing.upgrading": "Opening...",
+  "billing.upgradeFailed": "Failed to open the upgrade page. Please try again later.",
+
   "account.guest": "Guest",
   "account.settings": "Settings",
   "account.logout": "Log out",

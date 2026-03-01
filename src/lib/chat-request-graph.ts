@@ -3,7 +3,9 @@ import { randomUUID } from "crypto"
 import prisma from "@/lib/prisma"
 import { ChatActionError } from "@/lib/chat-errors"
 import {
+  getDefaultModelSelectionForPlan,
   isModelProvider,
+  isModelSelectionAvailableForPlan,
   isReasoningEffort,
   type ModelProvider,
   type ReasoningEffort,
@@ -69,19 +71,30 @@ const ChatGraphAnnotation = Annotation.Root({
 })
 
 const resolveModelSelection = async (
+  planType: UserPlanType,
   chatId: string | null | undefined,
   modelProvider?: string | null,
   modelName?: string | null,
   modelReasoningEffort?: string | null
 ) => {
-  if (isModelProvider(modelProvider) && modelName) {
-    return {
-      provider: modelProvider,
-      name: modelName,
-      reasoningEffort: isReasoningEffort(modelReasoningEffort)
-        ? modelReasoningEffort
-        : null,
+  const defaultModel = getDefaultModelSelectionForPlan(planType)
+
+  const toSelection = (
+    provider: ModelProvider,
+    name: string,
+    reasoningEffortValue: string | null | undefined
+  ) => {
+    const reasoningEffort = isReasoningEffort(reasoningEffortValue)
+      ? reasoningEffortValue
+      : null
+    if (!isModelSelectionAvailableForPlan(provider, name, reasoningEffort, planType)) {
+      return { provider: defaultModel.provider, name: defaultModel.model, reasoningEffort: null }
     }
+    return { provider, name, reasoningEffort }
+  }
+
+  if (isModelProvider(modelProvider) && modelName) {
+    return toSelection(modelProvider, modelName, modelReasoningEffort)
   }
 
   if (chatId) {
@@ -92,17 +105,15 @@ const resolveModelSelection = async (
     })
 
     if (isModelProvider(latestMessage?.modelProvider) && latestMessage?.modelName) {
-      return {
-        provider: latestMessage.modelProvider,
-        name: latestMessage.modelName,
-        reasoningEffort: isReasoningEffort(latestMessage.modelReasoningEffort)
-          ? latestMessage.modelReasoningEffort
-          : null,
-      }
+      return toSelection(
+        latestMessage.modelProvider,
+        latestMessage.modelName,
+        latestMessage.modelReasoningEffort
+      )
     }
   }
 
-  return { provider: "openai" as ModelProvider, name: "gpt-5.2", reasoningEffort: null }
+  return { provider: defaultModel.provider, name: defaultModel.model, reasoningEffort: null }
 }
 
 const validateNode = async (state: GraphState) => {
@@ -115,6 +126,7 @@ const validateNode = async (state: GraphState) => {
     where: { id: state.userId },
     select: { planType: true },
   })
+  const planType = user?.planType ?? "free"
 
   let chatRecord: ChatRecord | undefined
   let createdChat = false
@@ -153,6 +165,7 @@ const validateNode = async (state: GraphState) => {
   }
   const requestId = state.requestId || randomUUID()
   const resolvedModel = await resolveModelSelection(
+    planType,
     resolvedChatId,
     state.modelProvider ?? null,
     state.modelName ?? null,
@@ -166,7 +179,7 @@ const validateNode = async (state: GraphState) => {
     chatId: resolvedChatId,
     chatRecord,
     branchIdResolved: resolvedBranchId,
-    planType: user?.planType ?? "free",
+    planType,
     modelProvider: resolvedModel.provider,
     modelName: resolvedModel.name,
     modelReasoningEffort: resolvedModel.reasoningEffort,

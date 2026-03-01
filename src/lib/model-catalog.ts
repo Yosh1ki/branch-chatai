@@ -14,6 +14,8 @@ export type ModelOption = {
   reasoningEffort?: ReasoningEffort
 }
 
+export type PlanTier = "free" | "pro"
+
 export const PROVIDER_LABELS: Record<ModelProvider, string> = {
   openai: "OpenAI",
   anthropic: "Anthropic",
@@ -54,6 +56,62 @@ export const MODEL_OPTIONS: ModelOption[] = [
     label: "Gemini 2.5 Flash",
   },
 ]
+
+const FREE_PLAN_MODEL_IDS = new Set([
+  "gpt-5.2",
+  "claude-sonnet-4-5",
+  "gemini-2.5-flash",
+])
+
+export const normalizePlanTier = (planType: string | null | undefined): PlanTier =>
+  planType === "pro" ? "pro" : "free"
+
+export const isModelOptionAvailableForPlan = (
+  option: ModelOption,
+  planType: string | null | undefined
+) => normalizePlanTier(planType) === "pro" || FREE_PLAN_MODEL_IDS.has(option.id)
+
+export const findModelOption = (
+  provider: ModelProvider,
+  model: string,
+  reasoningEffort?: ReasoningEffort | null
+) =>
+  MODEL_OPTIONS.find(
+    (option) =>
+      option.provider === provider &&
+      option.model === model &&
+      (option.reasoningEffort ?? null) === (reasoningEffort ?? null)
+  ) ?? null
+
+export const isModelSelectionAvailableForPlan = (
+  provider: ModelProvider,
+  model: string,
+  reasoningEffort: ReasoningEffort | null | undefined,
+  planType: string | null | undefined
+) => {
+  if (normalizePlanTier(planType) === "pro") {
+    return true
+  }
+  const option = findModelOption(provider, model, reasoningEffort)
+  return option ? isModelOptionAvailableForPlan(option, planType) : false
+}
+
+export const getDefaultModelSelectionForPlan = (
+  planType: string | null | undefined
+): { provider: ModelProvider; model: string; reasoningEffort: ReasoningEffort | null } => {
+  if (normalizePlanTier(planType) === "pro") {
+    return {
+      provider: "openai",
+      model: "gpt-5.2",
+      reasoningEffort: null,
+    }
+  }
+  return {
+    provider: "openai",
+    model: "gpt-5.2",
+    reasoningEffort: null,
+  }
+}
 
 export const isModelProvider = (value: string | null | undefined): value is ModelProvider =>
   MODEL_PROVIDERS.includes(value as ModelProvider)
