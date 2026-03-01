@@ -26,6 +26,7 @@ export const jaDictionary = {
   "settings.themeDescription": "ライト/ダークを切り替えできます。選択は次回ログイン後も保持されます。",
   "settings.languageTitle": "表示言語",
   "settings.languageDescription": "アプリの表示言語を切り替えできます。",
+  "settings.close": "設定を閉じる",
 
   "account.guest": "ゲスト",
   "account.settings": "設定",

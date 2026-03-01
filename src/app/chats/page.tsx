@@ -13,6 +13,8 @@ import { ChatActionError } from "@/lib/chat-errors"
 import { FREE_PLAN_DAILY_LIMIT } from "@/lib/usage-limits"
 import { resolveErrorMessage } from "@/lib/i18n/error-messages"
 import { resolveRequestLocale } from "@/lib/i18n/locale"
+import { getSettingsViewData } from "@/lib/settings-view"
+import { SettingsSections } from "@/components/settings/settings-sections"
 
 async function getChats(userId: string) {
   const chats = await prisma.chat.findMany({
@@ -125,12 +127,16 @@ async function logoutAction() {
 
 export default async function ChatsPage() {
   const session = await auth()
+  const locale = await resolveRequestLocale()
 
   if (!session?.user?.id) {
     redirect("/login")
   }
 
-  const chats = await getChats(session.user.id)
+  const [chats, settings] = await Promise.all([
+    getChats(session.user.id),
+    getSettingsViewData(session.user.id),
+  ])
 
   return (
     <div className="min-h-screen bg-[var(--color-app-bg)] text-main">
@@ -142,7 +148,11 @@ export default async function ChatsPage() {
         >
           Branch
         </Link>
-        <AccountMenu user={session.user} onLogout={logoutAction} />
+        <AccountMenu
+          user={session.user}
+          onLogout={logoutAction}
+          settingsContent={<SettingsSections locale={locale} settings={settings} />}
+        />
       </header>
 
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 pb-12">

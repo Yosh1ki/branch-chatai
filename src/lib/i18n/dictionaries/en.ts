@@ -28,6 +28,7 @@ export const enDictionary: { [K in keyof JaDictionary]: string } = {
   "settings.themeDescription": "Switch between light and dark. Your choice is kept for future sign-ins.",
   "settings.languageTitle": "Language",
   "settings.languageDescription": "Switch the app display language.",
+  "settings.close": "Close settings",
 
   "account.guest": "Guest",
   "account.settings": "Settings",
