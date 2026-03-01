@@ -57,6 +57,18 @@ export const enDictionary: { [K in keyof JaDictionary]: string } = {
   "prompt.tagline4": "Capture that branching point right now.",
   "prompt.tagline5": "Let's expand your map of ideas together.",
   "prompt.placeholder": "Ask anything",
+  "prompt.modelHint.gpt52":
+    "Reliable, high-quality responses for a wide range of everyday and professional tasks.",
+  "prompt.modelHint.gpt52Thinking":
+    "Uses deeper reasoning for careful answers, suited to complex problems and planning.",
+  "prompt.modelHint.claudeOpus45":
+    "Strong long-context understanding and precise analysis for heavier thinking tasks.",
+  "prompt.modelHint.claudeSonnet45":
+    "Balanced speed and quality, great for research, summaries, and writing workflows.",
+  "prompt.modelHint.gemini25Pro":
+    "High reasoning capability with broad context handling for advanced problem-solving.",
+  "prompt.modelHint.gemini25Flash":
+    "Fast lightweight model optimized for quick iterations and responsive conversations.",
 
   "chat.sendFailed": "Failed to send your message.",
   "chat.loadFailed": "Failed to load data.",

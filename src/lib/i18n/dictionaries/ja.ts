@@ -54,6 +54,12 @@ export const jaDictionary = {
   "prompt.tagline4": "気になる分岐点を、今ここで。",
   "prompt.tagline5": "考えの地図を一緒に広げよう。",
   "prompt.placeholder": "なんでも聞いてみましょう",
+  "prompt.modelHint.gpt52": "高品質で安定した回答が得意。日常的な相談から実務まで幅広く対応。",
+  "prompt.modelHint.gpt52Thinking": "推論を深めて慎重に回答。複雑な課題や手順設計に向いています。",
+  "prompt.modelHint.claudeOpus45": "長文理解と精度重視の分析が得意。重たい検討タスクに強いモデルです。",
+  "prompt.modelHint.claudeSonnet45": "精度と速度のバランス型。調査・要約・文章作成を軽快に進められます。",
+  "prompt.modelHint.gemini25Pro": "高い推論力と広い文脈処理が強み。難易度の高い問題解決に適しています。",
+  "prompt.modelHint.gemini25Flash": "応答速度を重視した軽量モデル。素早い試行やラフな対話に最適です。",
 
   "chat.sendFailed": "送信に失敗しました。",
   "chat.loadFailed": "読み込みに失敗しました。",
