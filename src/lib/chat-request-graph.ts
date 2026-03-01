@@ -18,6 +18,7 @@ import type { ChatGraphState } from "@/lib/chat-graph-state"
 import { generateChatTitle } from "@/lib/title-generator"
 import { serializeMarkdownContent } from "@/lib/rich-text"
 import { buildDevAssistantResponse } from "@/lib/dev-assistant-response"
+import { fallbackChatTitle, inferChatTitleLocale } from "@/lib/chat-title"
 
 type ChatRecord = Awaited<ReturnType<typeof prisma.chat.create>>
 type MessageRecord = Awaited<ReturnType<typeof prisma.message.create>>
@@ -325,6 +326,7 @@ const persistNode = async (state: GraphState) => {
   if (!state.assistantText || !state.assistantContent) {
     throw new ChatActionError("Assistant response missing", 500)
   }
+  const titleLocale = inferChatTitleLocale(state.content)
 
   const existingUserMessage = await prisma.message.findUnique({
     where: { requestId: state.requestId },
@@ -359,8 +361,8 @@ const persistNode = async (state: GraphState) => {
     (await prisma.chat.create({
       data: {
         userId: state.userId,
-        title: state.content.slice(0, 50),
-        languageCode: "en",
+        title: fallbackChatTitle(titleLocale),
+        languageCode: titleLocale,
       },
     }))
   const branchIdResolved =
@@ -430,10 +432,14 @@ const titleNode = async (state: GraphState) => {
   if (!state.chatRecord || !state.createdChat || state.idempotentHit) {
     return state
   }
-  const title = await generateChatTitle(state.content)
+  const titleLocale = inferChatTitleLocale(state.content)
+  const title = await generateChatTitle(state.content, { locale: titleLocale })
   await prisma.chat.update({
     where: { id: state.chatRecord.id },
-    data: { title },
+    data: {
+      title,
+      languageCode: titleLocale,
+    },
   })
   return state
 }

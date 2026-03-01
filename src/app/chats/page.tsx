@@ -15,6 +15,7 @@ import { resolveErrorMessage } from "@/lib/i18n/error-messages"
 import { resolveRequestLocale } from "@/lib/i18n/locale"
 import { getSettingsViewData } from "@/lib/settings-view"
 import { SettingsSections } from "@/components/settings/settings-sections"
+import { fallbackChatTitle, inferChatTitleLocale } from "@/lib/chat-title"
 
 async function getChats(userId: string) {
   const chats = await prisma.chat.findMany({
@@ -75,6 +76,8 @@ async function createChatAction(
   if (typeof prompt !== "string" || !prompt.trim()) {
     throw new Error("Prompt is required")
   }
+  const trimmedPrompt = prompt.trim()
+  const titleLocale = inferChatTitleLocale(trimmedPrompt)
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -98,14 +101,14 @@ async function createChatAction(
   const chat = await prisma.chat.create({
     data: {
       userId: session.user.id,
-      title: prompt.trim().slice(0, 50),
-      languageCode: locale,
+      title: fallbackChatTitle(titleLocale),
+      languageCode: titleLocale,
     },
     select: { id: true },
   })
 
   const params = new URLSearchParams({
-    prompt: prompt.trim(),
+    prompt: trimmedPrompt,
   })
   if (typeof modelProvider === "string" && isModelProvider(modelProvider)) {
     params.set("modelProvider", modelProvider)
