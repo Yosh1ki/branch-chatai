@@ -3,11 +3,13 @@ import { Geist_Mono, Inter, Pacifico } from "next/font/google";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { I18nProvider } from "@/components/i18n/i18n-provider";
 import {
   DEFAULT_THEME_PREFERENCE,
   getStoredThemePreference,
   type ThemePreference,
 } from "@/lib/theme-preference";
+import { resolveRequestLocale } from "@/lib/i18n/locale";
 import "./globals.css";
 
 const inter = Inter({
@@ -50,19 +52,22 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await resolveRequestLocale()
   const initialThemePreference = await resolveInitialThemePreference()
   return (
     <html
-      lang="en"
+      lang={locale}
       className={initialThemePreference === "dark" ? "dark" : undefined}
       suppressHydrationWarning
     >
       <body
         className={`${inter.variable} ${pacifico.variable} ${geistMono.variable} antialiased`}
       >
-        <ThemeProvider initialThemePreference={initialThemePreference}>
-          {children}
-        </ThemeProvider>
+        <I18nProvider locale={locale}>
+          <ThemeProvider initialThemePreference={initialThemePreference}>
+            {children}
+          </ThemeProvider>
+        </I18nProvider>
       </body>
     </html>
   );

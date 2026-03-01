@@ -8,6 +8,7 @@ import { CanvasViewport } from "@/components/CanvasViewport";
 import { ChatHeader } from "@/components/ChatHeader";
 import { DisableCanvasNavigation } from "@/components/DisableCanvasNavigation";
 import { UserBubble } from "@/components/UserBubble";
+import { useI18n } from "@/components/i18n/i18n-provider";
 import { createCanvasState, resetCanvasState } from "@/lib/canvas-state";
 import { fetchChatMessages } from "@/lib/chat-messages";
 import { groupConversationPairs } from "@/lib/chat-conversation";
@@ -78,6 +79,7 @@ export function ChatCanvasShell({
   initialModelName,
   initialModelReasoningEffort,
 }: ChatCanvasShellProps) {
+  const { t } = useI18n()
   const [state, setState] = useState(createCanvasState());
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [selectedModel, setSelectedModel] = useState<SelectedModel | null>(null);
@@ -149,7 +151,7 @@ export function ChatCanvasShell({
             const message =
               typeof parsed.error === "string" && parsed.error.length > 0
                 ? parsed.error
-                : "送信に失敗しました。";
+                : t("chat.sendFailed");
             throw new Error(message);
           }
           if (parsed?.type === "final") {
@@ -181,7 +183,7 @@ export function ChatCanvasShell({
             const message =
               typeof parsed.error === "string" && parsed.error.length > 0
                 ? parsed.error
-                : "送信に失敗しました。";
+                : t("chat.sendFailed");
             throw new Error(message);
           }
           if (parsed?.type === "final") {
@@ -191,7 +193,7 @@ export function ChatCanvasShell({
       }
       return {};
     },
-    []
+    [t]
   );
 
   const getNextTempId = useCallback((prefix: string) => {
@@ -339,7 +341,7 @@ export function ChatCanvasShell({
         setIsLoading(false);
       } catch (error) {
         if (!isActive) return;
-        setLoadError(error instanceof Error ? error.message : "読み込みに失敗しました。");
+        setLoadError(error instanceof Error ? error.message : t("chat.loadFailed"));
         setIsLoading(false);
       }
     };
@@ -349,7 +351,7 @@ export function ChatCanvasShell({
     return () => {
       isActive = false;
     };
-  }, [chatId, buildBranchState]);
+  }, [chatId, buildBranchState, t]);
 
   useEffect(() => {
     if (!promptTextareaRef.current) return;
@@ -447,7 +449,7 @@ export function ChatCanvasShell({
           const errorMessage =
             typeof payload?.error === "string"
               ? payload.error
-              : "送信に失敗しました。";
+              : t("chat.sendFailed");
           setMessages((prev) =>
             prev.filter((message) => message.id !== tempId && message.id !== tempAssistantId)
           );
@@ -513,7 +515,7 @@ export function ChatCanvasShell({
         setIsSending(false);
       } catch (error) {
         const errorMessage =
-          error instanceof Error && error.message ? error.message : "送信に失敗しました。";
+          error instanceof Error && error.message ? error.message : t("chat.sendFailed");
         setMessages((prev) =>
           prev.filter((message) => message.id !== tempId && message.id !== tempAssistantId)
         );
@@ -530,6 +532,7 @@ export function ChatCanvasShell({
       promptText,
       readChatStream,
       selectedModel,
+      t,
     ]
   );
 
@@ -766,7 +769,7 @@ export function ChatCanvasShell({
         const errorMessage =
           typeof payload?.error === "string"
             ? payload.error
-            : "送信に失敗しました。";
+            : t("chat.sendFailed");
         setMessages((prev) =>
           prev.filter((message) => message.id !== tempId && message.id !== tempAssistantId)
         );
@@ -906,7 +909,7 @@ export function ChatCanvasShell({
       });
     } catch (error) {
       const errorMessage =
-        error instanceof Error && error.message ? error.message : "送信に失敗しました。";
+        error instanceof Error && error.message ? error.message : t("chat.sendFailed");
       setMessages((prev) =>
         prev.filter((message) => message.id !== tempId && message.id !== tempAssistantId)
       );
@@ -982,7 +985,7 @@ export function ChatCanvasShell({
             handleSend();
           }
         }}
-        placeholder="なんでも聞いてみましょう"
+        placeholder={t("prompt.placeholder")}
         rows={1}
         className="w-full resize-none rounded-xl border border-[var(--color-border-muted)] bg-[var(--color-surface)] px-4 py-3 text-base leading-6 text-main shadow-[var(--color-shadow-soft)] transition-[height] duration-150 ease-out focus:border-[var(--color-border-soft)] focus:outline-none"
       />
@@ -1102,14 +1105,14 @@ export function ChatCanvasShell({
                               parentLeftBranch ? "branch-pill-selected" : ""
                             }`}
                           >
-                            新しいブランチ
+                            {t("chat.newBranch")}
                           </button>
                         ) : (
                           <span
                             aria-hidden="true"
                             className="branch-pill invisible pointer-events-none"
                           >
-                            新しいブランチ
+                            {t("chat.newBranch")}
                           </span>
                         )}
                         <div className="h-10 w-px bg-[var(--color-connector)]" />
@@ -1128,14 +1131,14 @@ export function ChatCanvasShell({
                               parentRightBranch ? "branch-pill-selected" : ""
                             }`}
                           >
-                            新しいブランチ
+                            {t("chat.newBranch")}
                           </button>
                         ) : (
                           <span
                             aria-hidden="true"
                             className="branch-pill invisible pointer-events-none"
                           >
-                            新しいブランチ
+                            {t("chat.newBranch")}
                           </span>
                         )}
                       </div>
@@ -1241,7 +1244,7 @@ export function ChatCanvasShell({
                                           handleBranchSend(branch.key);
                                         }
                                       }}
-                                      placeholder="なんでも聞いてみましょう"
+                                      placeholder={t("prompt.placeholder")}
                                       rows={1}
                                       className="w-full resize-none rounded-xl border border-[var(--color-border-muted)] bg-[var(--color-surface)] px-4 py-2 text-sm leading-5 text-main shadow-[var(--color-shadow-soft)] transition-[height] duration-150 ease-out focus:border-[var(--color-border-soft)] focus:outline-none"
                                     />

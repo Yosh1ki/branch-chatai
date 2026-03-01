@@ -13,6 +13,7 @@ import {
 } from "react"
 import { ArrowRight, Check, ChevronDown } from "lucide-react"
 import { MODEL_OPTIONS, type ModelOption } from "@/lib/model-catalog"
+import { useI18n } from "@/components/i18n/i18n-provider"
 
 type PromptCardActionState = {
   error?: string
@@ -22,15 +23,18 @@ type PromptCardProps = {
   action: (state: PromptCardActionState, formData: FormData) => Promise<PromptCardActionState>
 }
 
-const TAGLINES = [
-  "思考を止めたくないんじゃないですか？",
-  "今のひらめきを枝分かれさせよう。",
-  "話題が広がるほど、整理は美しくなる。",
-  "気になる分岐点を、今ここで。",
-  "考えの地図を一緒に広げよう。",
-]
-
 export function PromptCard({ action }: PromptCardProps) {
+  const { t } = useI18n()
+  const taglines = useMemo(
+    () => [
+      t("prompt.tagline1"),
+      t("prompt.tagline2"),
+      t("prompt.tagline3"),
+      t("prompt.tagline4"),
+      t("prompt.tagline5"),
+    ],
+    [t]
+  )
   const [state, formAction] = useActionState(action, { error: "" })
   const [model, setModel] = useState<ModelOption>(MODEL_OPTIONS[0])
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -42,10 +46,10 @@ export function PromptCard({ action }: PromptCardProps) {
   const tagline = useMemo(() => {
     let hash = 0
     for (let i = 0; i < taglineId.length; i += 1) {
-      hash = (hash + taglineId.charCodeAt(i)) % TAGLINES.length
+      hash = (hash + taglineId.charCodeAt(i)) % taglines.length
     }
-    return TAGLINES[hash]
-  }, [taglineId])
+    return taglines[hash]
+  }, [taglineId, taglines])
 
   useEffect(() => {
     const handler = (event: MouseEvent) => {
@@ -118,7 +122,7 @@ export function PromptCard({ action }: PromptCardProps) {
           <textarea
             ref={textareaRef}
             name="prompt"
-            placeholder="なんでも聞いてみましょう"
+            placeholder={t("prompt.placeholder")}
             rows={1}
             value={prompt}
             onInput={(event) => handleTextareaInput(event.currentTarget.value)}

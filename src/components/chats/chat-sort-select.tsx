@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Check, ChevronDown } from "lucide-react"
+import { useI18n } from "@/components/i18n/i18n-provider"
 
 type SortOrder = "newest" | "oldest"
 
@@ -10,20 +11,20 @@ type SortOption = {
   value: SortOrder
 }
 
-const SORT_OPTIONS: SortOption[] = [
-  { label: "新しい順", value: "newest" },
-  { label: "古い順", value: "oldest" },
-]
-
 type ChatSortSelectProps = {
   value: SortOrder
   onChange: (value: SortOrder) => void
 }
 
 export function ChatSortSelect({ value, onChange }: ChatSortSelectProps) {
+  const { t } = useI18n()
+  const sortOptions: SortOption[] = [
+    { label: t("sort.newest"), value: "newest" },
+    { label: t("sort.oldest"), value: "oldest" },
+  ]
   const [pickerOpen, setPickerOpen] = useState(false)
   const pickerRef = useRef<HTMLDivElement>(null)
-  const selectedOption = SORT_OPTIONS.find((option) => option.value === value) ?? SORT_OPTIONS[0]
+  const selectedOption = sortOptions.find((option) => option.value === value) ?? sortOptions[0]
 
   useEffect(() => {
     const handler = (event: MouseEvent) => {
@@ -38,7 +39,7 @@ export function ChatSortSelect({ value, onChange }: ChatSortSelectProps) {
 
   return (
     <div className="relative" ref={pickerRef}>
-      <span className="sr-only">並び順</span>
+      <span className="sr-only">{t("sort.label")}</span>
       <button
         type="button"
         onClick={() => setPickerOpen((prev) => !prev)}
@@ -54,7 +55,7 @@ export function ChatSortSelect({ value, onChange }: ChatSortSelectProps) {
           role="listbox"
           className="absolute left-0 top-[calc(100%+6px)] z-10 w-36 rounded-2xl border border-[#f1d0c7] bg-white p-2 shadow-lg"
         >
-          {SORT_OPTIONS.map((option) => (
+          {sortOptions.map((option) => (
             <button
               key={option.value}
               type="button"

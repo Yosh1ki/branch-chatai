@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { ChatList } from "@/components/chats/chat-list"
 import { ChatSortSelect } from "@/components/chats/chat-sort-select"
+import { useI18n } from "@/components/i18n/i18n-provider"
 
 type SortOrder = "newest" | "oldest"
 
@@ -18,12 +19,13 @@ type ChatListSectionProps = {
 }
 
 export function ChatListSection({ initialChats }: ChatListSectionProps) {
+  const { t } = useI18n()
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest")
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-4">
-        <p className="font-semibold text-2xl">最近のチャット</p>
+        <p className="font-semibold text-2xl">{t("chats.recent")}</p>
         <ChatSortSelect value={sortOrder} onChange={setSortOrder} />
       </div>
       <ChatList initialChats={initialChats} sortOrder={sortOrder} />

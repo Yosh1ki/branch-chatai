@@ -1,3 +1,6 @@
+import { translate } from "@/lib/i18n"
+import { resolveLocaleFromDocument } from "@/lib/i18n/locale"
+
 export type ChatMessage = {
   id?: string;
   role: string;
@@ -34,7 +37,10 @@ export class ChatResponseError extends Error {
 
 const responseCache = new Map<string, Promise<ChatResponse>>();
 
-const DEFAULT_RESPONSE_ERROR = "レスポンスの取得に失敗しました。";
+const resolveCurrentLocale = () =>
+  resolveLocaleFromDocument(
+    typeof document === "undefined" ? null : document.documentElement.lang
+  )
 
 async function requestChatMessages(chatId: string): Promise<ChatResponse> {
   const response = await fetch(`/api/chats/${chatId}`);
@@ -47,7 +53,8 @@ async function requestChatMessages(chatId: string): Promise<ChatResponse> {
 
   if (!response.ok) {
     const errorText =
-      (data as ChatResponseErrorPayload)?.error || DEFAULT_RESPONSE_ERROR;
+      (data as ChatResponseErrorPayload)?.error ||
+      translate("errors.fetchResponseFailed", { locale: resolveCurrentLocale() });
     throw new ChatResponseError(errorText);
   }
 

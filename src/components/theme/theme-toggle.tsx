@@ -3,12 +3,17 @@
 import { useState, useTransition } from "react"
 import { parseThemePreference, type ThemePreference } from "@/lib/theme-preference"
 import { useThemePreference } from "./theme-provider"
+import { useI18n } from "@/components/i18n/i18n-provider"
 
 type ThemeToggleButtonProps = {
   themePreference: ThemePreference
   selectedThemePreference: ThemePreference
   onClick: (nextThemePreference: ThemePreference) => void
   disabled: boolean
+  labels: {
+    light: string
+    dark: string
+  }
 }
 
 function ThemeToggleButton({
@@ -16,6 +21,7 @@ function ThemeToggleButton({
   selectedThemePreference,
   onClick,
   disabled,
+  labels,
 }: ThemeToggleButtonProps) {
   const isActive = selectedThemePreference === themePreference
 
@@ -31,15 +37,20 @@ function ThemeToggleButton({
           : "bg-[var(--color-surface-soft)] text-main-muted hover:text-main"
       } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-60`}
     >
-      {themePreference === "light" ? "ライト" : "ダーク"}
+      {themePreference === "light" ? labels.light : labels.dark}
     </button>
   )
 }
 
 export function ThemeToggle() {
+  const { t } = useI18n()
   const { themePreference, setThemePreference } = useThemePreference()
   const [saveError, setSaveError] = useState("")
   const [isPending, startTransition] = useTransition()
+  const labels = {
+    light: t("theme.light"),
+    dark: t("theme.dark"),
+  }
 
   const persistThemePreference = (nextThemePreference: ThemePreference) => {
     if (themePreference === nextThemePreference || isPending) {
@@ -69,7 +80,7 @@ export function ThemeToggle() {
       } catch (error) {
         console.error("Failed to save theme preference:", error)
         setThemePreference(previousThemePreference)
-        setSaveError("テーマの保存に失敗しました。もう一度お試しください。")
+        setSaveError(t("errors.themeSaveFailed"))
       }
     })
   }
@@ -82,12 +93,14 @@ export function ThemeToggle() {
           selectedThemePreference={themePreference}
           onClick={persistThemePreference}
           disabled={isPending}
+          labels={labels}
         />
         <ThemeToggleButton
           themePreference="dark"
           selectedThemePreference={themePreference}
           onClick={persistThemePreference}
           disabled={isPending}
+          labels={labels}
         />
       </div>
 

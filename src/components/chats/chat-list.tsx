@@ -4,6 +4,7 @@ import { useMemo, useState, type MouseEvent } from "react"
 import Link from "next/link"
 import { MessageSquare, MoreHorizontal, Trash2, X } from "lucide-react"
 import { sortChatsByUpdatedAt } from "@/lib/chat-sort"
+import { useI18n } from "@/components/i18n/i18n-provider"
 
 type ChatSummary = {
   id: string
@@ -20,6 +21,7 @@ type ChatListProps = {
 }
 
 export function ChatList({ initialChats, sortOrder }: ChatListProps) {
+  const { locale, t } = useI18n()
   const [chats, setChats] = useState<ChatSummary[]>(initialChats)
   const [visibleCount, setVisibleCount] = useState(12)
   const sortedChats = useMemo(() => sortChatsByUpdatedAt(chats, sortOrder), [chats, sortOrder])
@@ -41,7 +43,7 @@ export function ChatList({ initialChats, sortOrder }: ChatListProps) {
     <div className="space-y-4">
       <div className="grid gap-5 md:grid-cols-2">
         {visibleChats.map((chat) => (
-          <ChatCard key={chat.id} chat={chat} onDeleted={handleDeleted} />
+          <ChatCard key={chat.id} chat={chat} onDeleted={handleDeleted} locale={locale} />
         ))}
       </div>
       {visibleChats.length < sortedChats.length ? (
@@ -51,7 +53,7 @@ export function ChatList({ initialChats, sortOrder }: ChatListProps) {
             onClick={() => setVisibleCount((count) => count + 12)}
             className="rounded-full border border-[#f1d0c7] px-4 py-2 text-sm font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f1d0c7]"
           >
-            さらに表示
+            {t("chats.showMore")}
           </button>
         </div>
       ) : null}
@@ -62,23 +64,27 @@ export function ChatList({ initialChats, sortOrder }: ChatListProps) {
 type ChatCardProps = {
   chat: ChatSummary
   onDeleted: (id: string) => void
+  locale: "ja" | "en"
 }
 
-function ChatCard({ chat, onDeleted }: ChatCardProps) {
+function ChatCard({ chat, onDeleted, locale }: ChatCardProps) {
+  const { t } = useI18n()
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const branchCount = chat.branchCount ?? 0
   const updatedAtLabel = useMemo(() => {
     if (!chat.updatedAt) {
-      return "更新日不明"
+      return t("chats.updatedAtUnknown")
     }
     const timestamp = new Date(chat.updatedAt)
     if (Number.isNaN(timestamp.getTime())) {
-      return "更新日不明"
+      return t("chats.updatedAtUnknown")
     }
-    return timestamp.toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })
-  }, [chat.updatedAt])
+    return timestamp.toLocaleDateString(locale === "en" ? "en-US" : "ja-JP", {
+      timeZone: "Asia/Tokyo",
+    })
+  }, [chat.updatedAt, locale, t])
 
   const toggleMenu = (event: MouseEvent) => {
     event.preventDefault()
@@ -112,7 +118,7 @@ function ChatCard({ chat, onDeleted }: ChatCardProps) {
       setConfirmOpen(false)
     } catch (error) {
       console.error(error)
-      alert("チャットの削除に失敗しました。時間をおいて再度お試しください。")
+      alert(t("chats.deleteFailed"))
     } finally {
       setIsDeleting(false)
     }
@@ -146,7 +152,7 @@ function ChatCard({ chat, onDeleted }: ChatCardProps) {
                   className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-[#e56b6f] transition hover:bg-[#fbf7f3]"
                 >
                   <Trash2 className="h-4 w-4 text-[#e56b6f]" />
-                  削除する
+                  {t("chats.deleteAction")}
                 </button>
               </div>
             )}
@@ -163,8 +169,8 @@ function ChatCard({ chat, onDeleted }: ChatCardProps) {
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold text-main">チャットを削除しますか？</h2>
-                <p className="mt-1 text-sm text-main-muted">この操作は取り消せません。</p>
+                <h2 className="text-lg font-semibold text-main">{t("chats.deleteConfirmTitle")}</h2>
+                <p className="mt-1 text-sm text-main-muted">{t("chats.deleteConfirmDescription")}</p>
               </div>
               <button
                 type="button"
@@ -182,7 +188,7 @@ function ChatCard({ chat, onDeleted }: ChatCardProps) {
                 className="rounded-full border border-[#f1d0c7] px-3 py-2 text-sm font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f1d0c7]"
                 disabled={isDeleting}
               >
-                キャンセル
+                {t("chats.cancel")}
               </button>
               <button
                 type="button"
@@ -190,7 +196,7 @@ function ChatCard({ chat, onDeleted }: ChatCardProps) {
                 className="rounded-full bg-[#e56b6f] px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b5a2]"
                 disabled={isDeleting}
               >
-                {isDeleting ? "削除中..." : "削除"}
+                {isDeleting ? t("chats.deleting") : t("chats.delete")}
               </button>
             </div>
           </div>

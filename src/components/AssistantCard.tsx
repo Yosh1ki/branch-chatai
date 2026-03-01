@@ -13,6 +13,7 @@ import { getModelLabel, isModelProvider, isReasoningEffort } from "@/lib/model-c
 import { parseMessageContent } from "@/lib/rich-text";
 import { RichTextRenderer } from "@/components/RichTextRenderer";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/components/i18n/i18n-provider";
 
 type AssistantCardProps = {
   content: string;
@@ -58,17 +59,17 @@ type ResearchStep = {
 const BRANCH_ORDER: BranchSelection[] = ["left", "right"];
 const BRANCH_OPTIONS: Array<{
   value: BranchSelection;
-  label: string;
+  labelKey: "chat.newBranch";
   className: string;
 }> = [
   {
     value: "left",
-    label: "新しいブランチ",
+    labelKey: "chat.newBranch",
     className: "branch-pill-delay-1 branch-col-left",
   },
   {
     value: "right",
-    label: "新しいブランチ",
+    labelKey: "chat.newBranch",
     className: "branch-pill-delay-2 branch-col-right",
   },
 ];
@@ -230,6 +231,7 @@ export function AssistantCard({
   onBranchSelect,
   activeBranchSides = null,
 }: AssistantCardProps) {
+  const { t } = useI18n()
   const hiddenBranchSideSet = useMemo(
     () => new Set(hiddenBranchSides ?? []),
     [hiddenBranchSides]
@@ -292,25 +294,25 @@ export function AssistantCard({
   const researchSteps = useMemo((): ResearchStep[] => {
     return [
       {
-        title: "Searching the web",
+        title: t("assistant.searchWeb"),
         queries: researchQueries.slice(0, 3),
         sources: researchSources.slice(0, 6),
         done: true,
       },
       {
-        title: "情報を整理",
+        title: t("assistant.organizeInfo"),
         queries: researchHeadings.slice(0, 3).map((heading) => heading.text),
         sources: researchSources.slice(0, 3),
         done: true,
       },
       {
-        title: "回答を作成",
+        title: t("assistant.buildAnswer"),
         queries: [],
         sources: [],
         done: true,
       },
     ];
-  }, [researchHeadings, researchQueries, researchSources]);
+  }, [researchHeadings, researchQueries, researchSources, t]);
   const thinkingSeconds = Math.max(1, Math.ceil(thinkingElapsedMs / 1000));
   const lastThinkingSeconds =
     lastThinkingMs === null ? null : Math.max(1, Math.ceil(lastThinkingMs / 1000));
@@ -432,7 +434,7 @@ export function AssistantCard({
         <div className="cursor-text space-y-6 text-[15px] leading-7" data-allow-selection="true">
           {isLoading && canShowResearchUI ? (
             <div className="inline-flex rounded-full border border-[#eadfd5] bg-[#f9f4ef] px-3 py-1 text-[11px] text-main-soft">
-              考え中... {thinkingSeconds}秒
+              {t("assistant.thinking", { seconds: thinkingSeconds })}
             </div>
           ) : content && canShowResearchUI ? (
             <div className="relative inline-flex items-center">
@@ -441,7 +443,7 @@ export function AssistantCard({
                 onClick={() => setIsResearchModalOpen((value) => !value)}
                 className="inline-flex rounded-full border border-[#eadfd5] bg-[#f9f4ef] px-3 py-1 text-[11px] text-main-soft transition hover:border-[#d6c9be] hover:text-main"
               >
-                調査メモを見る
+                {t("assistant.viewResearchNotes")}
               </button>
               {isResearchModalOpen ? (
                 <div
@@ -450,7 +452,7 @@ export function AssistantCard({
                   className="absolute left-full top-1/2 z-30 ml-2 w-[260px] -translate-y-1/2 rounded-xl border border-[#e9ddd2] bg-white p-3 text-main shadow-lg md:w-[320px]"
                 >
                   <div className="mb-2 flex items-center justify-between">
-                    <p className="text-xs font-semibold">調査メモ</p>
+                    <p className="text-xs font-semibold">{t("assistant.researchNotes")}</p>
                     <button
                       type="button"
                       onClick={() => setIsResearchModalOpen(false)}
@@ -465,7 +467,12 @@ export function AssistantCard({
                       type="button"
                       className="inline-flex items-center gap-1 text-left text-xs font-semibold text-main"
                     >
-                      思考時間: {lastThinkingSeconds !== null ? `${lastThinkingSeconds}s` : "計測中"}
+                      {t("assistant.thinkingTime", {
+                        seconds:
+                          lastThinkingSeconds !== null
+                            ? `${lastThinkingSeconds}s`
+                            : t("assistant.measuring"),
+                      })}
                       <ChevronRight className="h-3 w-3" />
                     </button>
                     <div className="relative space-y-3 pl-6 before:absolute before:bottom-1 before:left-2 before:top-2 before:w-px before:bg-[#e8ddd3]">
@@ -515,14 +522,16 @@ export function AssistantCard({
                         </div>
                       ))}
                     </div>
-                    {!hasResearchDetails ? <p>表示できる調査情報はありません。</p> : null}
+                    {!hasResearchDetails ? <p>{t("assistant.noResearchInfo")}</p> : null}
                   </div>
                 </div>
               ) : null}
             </div>
           ) : null}
           {errorMessage ? (
-            <p className="text-base text-red-500">エラー: {errorMessage}</p>
+            <p className="text-base text-red-500">
+              {t("assistant.errorPrefix")}: {errorMessage}
+            </p>
           ) : content ? (
             <>
               {parsedContent.format === "richjson" && parsedContent.doc ? (
@@ -542,18 +551,18 @@ export function AssistantCard({
                 >
                   <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#48a56c] opacity-75" />
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#2f8a56]" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#2f8a56]" />
                   </span>
-                  生成中...
+                  {t("assistant.generating")}
                 </p>
               ) : null}
             </>
           ) : isLoading ? (
             <p className="text-base text-main-soft" aria-live="polite">
-              回答を取得中です...
+              {t("assistant.loadingAnswer")}
             </p>
           ) : (
-            <p className="text-base text-main-soft">まだ回答がありません。</p>
+            <p className="text-base text-main-soft">{t("assistant.noAnswerYet")}</p>
           )}
         </div>
 
@@ -572,16 +581,16 @@ export function AssistantCard({
               {isMenuOpen ? (
                 <div className="absolute bottom-full right-0 z-20 mb-2 w-32 rounded-2xl border border-[#efe5dc] bg-white p-2 text-xs text-main shadow-md">
                   <button type="button" className="w-full rounded-xl px-3 py-2 text-left hover:bg-[#f8f3ee]">
-                    再生成
+                    {t("assistant.regenerate")}
                   </button>
                   <button type="button" className="w-full rounded-xl px-3 py-2 text-left hover:bg-[#f8f3ee]">
-                    共有
+                    {t("assistant.share")}
                   </button>
                   <button
                     type="button"
                     className="w-full rounded-xl px-3 py-2 text-left text-red-500 hover:bg-[#f8f3ee]"
                   >
-                    削除
+                    {t("assistant.delete")}
                   </button>
                 </div>
               ) : null}
@@ -613,7 +622,7 @@ export function AssistantCard({
                     aria-hidden="true"
                     className={`branch-pill ${option.className} invisible pointer-events-none`}
                   >
-                    {option.label}
+                    {t(option.labelKey)}
                   </span>
                 );
               }
@@ -627,7 +636,7 @@ export function AssistantCard({
                     selectedBranches.includes(option.value) ? "branch-pill-selected" : ""
                   }`}
                 >
-                  {option.label}
+                  {t(option.labelKey)}
                 </button>
               );
             })}

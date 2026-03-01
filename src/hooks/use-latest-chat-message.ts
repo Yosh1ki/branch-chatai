@@ -4,6 +4,8 @@ import {
   fetchChatMessages,
   findLastMessageByRole,
 } from "@/lib/chat-messages";
+import { translate } from "@/lib/i18n";
+import { resolveLocaleFromDocument } from "@/lib/i18n/locale";
 
 type LatestChatMessageState = {
   chatId: string;
@@ -13,7 +15,10 @@ type LatestChatMessageState = {
   isLoading: boolean;
 };
 
-const NETWORK_ERROR_MESSAGE = "通信に失敗しました。";
+const resolveCurrentLocale = () =>
+  resolveLocaleFromDocument(
+    typeof document === "undefined" ? null : document.documentElement.lang
+  );
 
 export function useLatestChatMessage(chatId: string, role: string) {
   const [state, setState] = useState<LatestChatMessageState>({
@@ -47,7 +52,7 @@ export function useLatestChatMessage(chatId: string, role: string) {
         const errorMessage =
           error instanceof ChatResponseError
             ? error.message
-            : NETWORK_ERROR_MESSAGE;
+            : translate("errors.networkFailed", { locale: resolveCurrentLocale() });
         setState({
           chatId,
           role,

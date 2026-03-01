@@ -10,6 +10,9 @@ import { isModelProvider, isReasoningEffort } from "@/lib/model-catalog"
 import { Prisma } from "@prisma/client"
 import { assertWithinDailyLimit } from "@/lib/usage-limiter"
 import { ChatActionError } from "@/lib/chat-errors"
+import { FREE_PLAN_DAILY_LIMIT } from "@/lib/usage-limits"
+import { resolveErrorMessage } from "@/lib/i18n/error-messages"
+import { resolveRequestLocale } from "@/lib/i18n/locale"
 
 async function getChats(userId: string) {
   const chats = await prisma.chat.findMany({
@@ -56,6 +59,7 @@ async function createChatAction(
   formData: FormData
 ): Promise<ChatActionState> {
   "use server"
+  const locale = await resolveRequestLocale()
   const session = await auth()
   if (!session?.user?.id) {
     redirect("/login")
@@ -80,7 +84,10 @@ async function createChatAction(
   } catch (error) {
     if (error instanceof ChatActionError && error.status === 429) {
       return {
-        error: "本日の無料プラン上限（10件）に達しました。明日以降に再度お試しください。",
+        error: resolveErrorMessage("dailyLimitReached", {
+          locale,
+          params: { limit: FREE_PLAN_DAILY_LIMIT },
+        }).message,
       }
     }
     throw error
@@ -90,7 +97,7 @@ async function createChatAction(
     data: {
       userId: session.user.id,
       title: prompt.trim().slice(0, 50),
-      languageCode: "en",
+      languageCode: locale,
     },
     select: { id: true },
   })

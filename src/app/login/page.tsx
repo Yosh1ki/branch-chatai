@@ -2,8 +2,12 @@ import Image from "next/image";
 
 import { signIn } from "@/auth";
 import { textStyle } from "@/styles/typography";
+import { createTranslator } from "@/lib/i18n";
+import { resolveRequestLocale } from "@/lib/i18n/locale";
 
-export default function LoginPage() {
+export default async function LoginPage() {
+    const locale = await resolveRequestLocale()
+    const t = createTranslator(locale)
     return (
         <div className="min-h-screen bg-[var(--color-app-bg)] text-main">
             <header className="flex w-full items-center justify-between gap-6 px-2 py-6">
@@ -20,7 +24,7 @@ export default function LoginPage() {
                             className="inline-flex items-center gap-1 transition-colors hover:text-main focus-visible:outline-none"
                             aria-haspopup="true"
                         >
-                            Branchとは
+                            {t("login.aboutBranch")}
                             <svg
                                 aria-hidden="true"
                                 viewBox="0 0 20 20"
@@ -39,19 +43,19 @@ export default function LoginPage() {
                                 type="button"
                                 className="w-full rounded-lg px-3 py-1.5 text-left text-xs transition-colors hover:bg-black/5"
                             >
-                                仕組み
+                                {t("login.mechanism")}
                             </button>
                             <button
                                 type="button"
                                 className="w-full rounded-lg px-3 py-1.5 text-left text-xs transition-colors hover:bg-black/5"
                             >
-                                使い方
+                                {t("login.howToUse")}
                             </button>
                             <button
                                 type="button"
                                 className="w-full rounded-lg px-3 py-1.5 text-left text-xs transition-colors hover:bg-black/5"
                             >
-                                特徴
+                                {t("login.features")}
                             </button>
                         </div>
                     </div>
@@ -61,7 +65,7 @@ export default function LoginPage() {
                             className="inline-flex items-center gap-1 transition-colors hover:text-main focus-visible:outline-none"
                             aria-haspopup="true"
                         >
-                            料金プラン
+                            {t("login.pricing")}
                             <svg
                                 aria-hidden="true"
                                 viewBox="0 0 20 20"
@@ -80,7 +84,7 @@ export default function LoginPage() {
                                 type="button"
                                 className="w-full rounded-lg px-3 py-1.5 text-left text-xs transition-colors hover:bg-black/5"
                             >
-                                無料
+                                {t("login.free")}
                             </button>
                             <button
                                 type="button"
@@ -100,7 +104,7 @@ export default function LoginPage() {
                         type="button"
                         className="rounded-full bg-theme-main px-4 py-2 text-sm text-main transition-transform hover:-translate-y-0.5"
                     >
-                        Branchを使ってみる
+                        {t("login.tryBranch")}
                     </button>
                 </div>
             </header>
@@ -108,12 +112,12 @@ export default function LoginPage() {
                 <section className="space-y-8 text-center">
                     <div className="space-y-6">
                         <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl md:text-6xl text-center">
-                            思考を止めない
+                            {t("login.headline")}
                         </h1>
                         <p className="text-base text-main-soft sm:text-lg text-center m-0 p-0">
-                            Branchは、1つのテーマから
+                            {t("login.subline1")}
                             <br />
-                            複数の思考を育てるAIです。
+                            {t("login.subline2")}
                         </p>
                     </div>
                     <form

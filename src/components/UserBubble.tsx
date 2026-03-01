@@ -2,6 +2,7 @@
 
 import { Check, Copy } from "lucide-react";
 import { useCopyFeedback } from "@/hooks/use-copy-feedback";
+import { useI18n } from "@/components/i18n/i18n-provider";
 
 type UserBubbleProps = {
   content: string;
@@ -10,6 +11,7 @@ type UserBubbleProps = {
 };
 
 export function UserBubble({ content, errorMessage, isLoading }: UserBubbleProps) {
+  const { t } = useI18n()
   const { isCopied, handleCopy } = useCopyFeedback(content);
 
   return (
@@ -19,13 +21,15 @@ export function UserBubble({ content, errorMessage, isLoading }: UserBubbleProps
         className="cursor-text rounded-xl bg-theme-main px-5 py-2 text-base text-main"
       >
         {isLoading ? (
-          "読み込み中..."
+          t("user.loading")
         ) : errorMessage ? (
-          <span className="text-red-500">エラー: {errorMessage}</span>
+          <span className="text-red-500">
+            {t("user.errorPrefix")}: {errorMessage}
+          </span>
         ) : content ? (
           content
         ) : (
-          "まだメッセージがありません。"
+          t("user.noMessageYet")
         )}
       </div>
       <button

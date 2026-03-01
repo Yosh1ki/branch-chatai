@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { LogOut, Menu, Settings } from "lucide-react"
+import { useI18n } from "@/components/i18n/i18n-provider"
 
 type AccountMenuProps = {
   user: {
@@ -13,10 +14,11 @@ type AccountMenuProps = {
 }
 
 export function AccountMenu({ user, onLogout }: AccountMenuProps) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  const displayName = user.name || user.email || "Guest"
+  const displayName = user.name || user.email || t("account.guest")
   const initials = displayName.slice(0, 1).toUpperCase()
 
   useEffect(() => {
@@ -71,7 +73,7 @@ export function AccountMenu({ user, onLogout }: AccountMenuProps) {
               className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]"
             >
               <Settings className="h-4 w-4" />
-              設定
+              {t("account.settings")}
             </Link>
 
             <form action={onLogout}>
@@ -80,7 +82,7 @@ export function AccountMenu({ user, onLogout }: AccountMenuProps) {
                 className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]"
               >
                 <LogOut className="h-4 w-4" />
-                ログアウト
+                {t("account.logout")}
               </button>
             </form>
           </div>
