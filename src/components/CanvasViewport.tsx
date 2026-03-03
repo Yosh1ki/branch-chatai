@@ -11,6 +11,8 @@ type CanvasState = {
   offsetY: number;
 };
 
+type NavigationMode = "free" | "vertical";
+
 type CanvasViewportProps = {
   state: CanvasState;
   onStateChange: (next: CanvasState) => void;
@@ -21,6 +23,7 @@ type CanvasViewportProps = {
   overlay?: React.ReactNode;
   onPanStateChange?: (isPanning: boolean) => void;
   className?: string;
+  navigationMode?: NavigationMode;
   children: React.ReactNode;
 };
 
@@ -53,6 +56,7 @@ export function CanvasViewport({
   overlay,
   onPanStateChange,
   className,
+  navigationMode = "free",
   children,
 }: CanvasViewportProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -103,7 +107,8 @@ export function CanvasViewport({
       const dx = points[0].x - points[1].x;
       const dy = points[0].y - points[1].y;
       const distance = Math.hypot(dx, dy);
-      pinchState.current = { distance, scale: stateRef.current.scale };
+      pinchState.current =
+        navigationMode === "free" ? { distance, scale: stateRef.current.scale } : null;
     }
   };
 
@@ -118,11 +123,13 @@ export function CanvasViewport({
       const dx = nextPoint.x - prev.x;
       const dy = nextPoint.y - prev.y;
       const current = stateRef.current;
-      updateOffsets(current.offsetX + dx, current.offsetY + dy, current.scale);
+      const nextOffsetX =
+        navigationMode === "vertical" ? current.offsetX : current.offsetX + dx;
+      updateOffsets(nextOffsetX, current.offsetY + dy, current.scale);
       return;
     }
 
-    if (pointerMap.current.size === 2 && pinchState.current) {
+    if (navigationMode === "free" && pointerMap.current.size === 2 && pinchState.current) {
       const points = Array.from(pointerMap.current.values());
       const dx = points[0].x - points[1].x;
       const dy = points[0].y - points[1].y;
@@ -150,8 +157,13 @@ export function CanvasViewport({
 
   const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
     event.preventDefault();
-    const behavior = getWheelBehavior({ isCtrlPressed: event.ctrlKey });
     const current = stateRef.current;
+    if (navigationMode === "vertical") {
+      updateOffsets(current.offsetX, current.offsetY - event.deltaY, current.scale);
+      return;
+    }
+
+    const behavior = getWheelBehavior({ isCtrlPressed: event.ctrlKey });
 
     if (behavior.mode === "zoom") {
       const { minScale: minValue, maxScale: maxValue } = normalizeScaleRange(minScale, maxScale);

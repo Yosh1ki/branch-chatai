@@ -10,7 +10,7 @@ import { ChatHeader } from "@/components/ChatHeader";
 import { DisableCanvasNavigation } from "@/components/DisableCanvasNavigation";
 import { UserBubble } from "@/components/UserBubble";
 import { useI18n } from "@/components/i18n/i18n-provider";
-import { createCanvasState, resetCanvasState } from "@/lib/canvas-state";
+import { createCanvasState } from "@/lib/canvas-state";
 import { fetchChatMessages } from "@/lib/chat-messages";
 import { groupConversationPairs } from "@/lib/chat-conversation";
 import { insertAfterMessage } from "@/lib/chat-message-insert";
@@ -100,8 +100,9 @@ export function ChatCanvasShell({
   user,
   onLogout,
 }: ChatCanvasShellProps) {
-  const { t } = useI18n()
+  const { t } = useI18n();
   const [state, setState] = useState(createCanvasState());
+  const [isVerticalMode, setIsVerticalMode] = useState(false);
   const latestCanvasStateRef = useRef(state);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [selectedModel, setSelectedModel] = useState<SelectedModel | null>(null);
@@ -113,11 +114,15 @@ export function ChatCanvasShell({
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [branches, setBranches] = useState<Record<string, BranchDraft>>({});
   const [activeIndicatorId, setActiveIndicatorId] = useState<string | null>(null);
+  const [isBranchIndicatorIdle, setIsBranchIndicatorIdle] = useState(false);
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const canvasContentRef = useRef<HTMLDivElement | null>(null);
   const nodeRefs = useRef(new Map<string, HTMLDivElement>());
+  const branchIndicatorContainerRef = useRef<HTMLDivElement | null>(null);
+  const branchIndicatorIdleTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
   const isPanningRef = useRef(false);
   const focusAnimationFrameRef = useRef<number | null>(null);
+  const verticalModeFocusFrameRef = useRef<number | null>(null);
   const tempIdRef = useRef(0);
   const [connectorPaths, setConnectorPaths] = useState<string[]>([]);
   const lastPathsRef = useRef<string[]>([]);
@@ -408,10 +413,6 @@ export function ChatCanvasShell({
     [createBranchKey]
   );
 
-  const handleReset = () => {
-    setState(resetCanvasState());
-  };
-
   useEffect(() => {
     latestCanvasStateRef.current = state;
   }, [state]);
@@ -425,6 +426,10 @@ export function ChatCanvasShell({
   useEffect(
     () => () => {
       cancelFocusAnimation();
+      if (verticalModeFocusFrameRef.current != null) {
+        window.cancelAnimationFrame(verticalModeFocusFrameRef.current);
+        verticalModeFocusFrameRef.current = null;
+      }
     },
     [cancelFocusAnimation]
   );
@@ -495,6 +500,29 @@ export function ChatCanvasShell({
       animateCanvasOffset(
         currentState.offsetX + (viewportCenterX - nodeCenterX),
         currentState.offsetY + (viewportCenterY - nodeCenterY)
+      );
+    },
+    [animateCanvasOffset]
+  );
+
+  const focusElementToViewportCenter = useCallback(
+    (element: HTMLElement | null, targetViewportYRatio = 0.5) => {
+      const viewport = canvasContainerRef.current;
+      if (!element || !viewport) {
+        return;
+      }
+
+      const viewportRect = viewport.getBoundingClientRect();
+      const elementRect = element.getBoundingClientRect();
+      const viewportCenterX = viewportRect.left + viewportRect.width / 2;
+      const viewportTargetY = viewportRect.top + viewportRect.height * targetViewportYRatio;
+      const elementCenterX = elementRect.left + elementRect.width / 2;
+      const elementCenterY = elementRect.top + elementRect.height / 2;
+      const currentState = latestCanvasStateRef.current;
+
+      animateCanvasOffset(
+        currentState.offsetX + (viewportCenterX - elementCenterX),
+        currentState.offsetY + (viewportTargetY - elementCenterY)
       );
     },
     [animateCanvasOffset]
@@ -965,6 +993,53 @@ export function ChatCanvasShell({
     [updateConnectorPaths]
   );
 
+  const clearBranchIndicatorIdleTimer = useCallback(() => {
+    if (!branchIndicatorIdleTimerRef.current) return;
+    window.clearTimeout(branchIndicatorIdleTimerRef.current);
+    branchIndicatorIdleTimerRef.current = null;
+  }, []);
+
+  const startBranchIndicatorIdleTimer = useCallback(() => {
+    clearBranchIndicatorIdleTimer();
+    branchIndicatorIdleTimerRef.current = window.setTimeout(() => {
+      setIsBranchIndicatorIdle(true);
+      branchIndicatorIdleTimerRef.current = null;
+    }, 3000);
+  }, [clearBranchIndicatorIdleTimer]);
+
+  const handleIndicatorEngage = useCallback(() => {
+    setIsBranchIndicatorIdle(false);
+    clearBranchIndicatorIdleTimer();
+  }, [clearBranchIndicatorIdleTimer]);
+
+  const handleIndicatorDisengage = useCallback(() => {
+    startBranchIndicatorIdleTimer();
+  }, [startBranchIndicatorIdleTimer]);
+
+  const handleIndicatorBlur = useCallback(
+    (event: React.FocusEvent<HTMLDivElement>) => {
+      const nextTarget = event.relatedTarget;
+      const container = branchIndicatorContainerRef.current;
+      if (
+        container &&
+        nextTarget instanceof Node &&
+        container.contains(nextTarget)
+      ) {
+        return;
+      }
+      startBranchIndicatorIdleTimer();
+    },
+    [startBranchIndicatorIdleTimer]
+  );
+
+  useEffect(() => {
+    startBranchIndicatorIdleTimer();
+
+    return () => {
+      clearBranchIndicatorIdleTimer();
+    };
+  }, [clearBranchIndicatorIdleTimer, startBranchIndicatorIdleTimer]);
+
   const handleIndicatorSelect = useCallback(
     (item: IndicatorItem) => {
       setActiveIndicatorId(item.id);
@@ -972,6 +1047,94 @@ export function ChatCanvasShell({
     },
     [focusNodeToViewportCenter]
   );
+
+  const isInteractiveTapTarget = useCallback((target: EventTarget | null) => {
+    if (!(target instanceof Element)) {
+      return false;
+    }
+    const editableTarget = target instanceof HTMLElement ? target : null;
+    return Boolean(
+      target.closest(
+        "button,textarea,input,a,[role='button'],[contenteditable='true'],[data-prevent-viewport-jump='true']"
+      ) ||
+      editableTarget?.isContentEditable
+    );
+  }, []);
+
+  const focusBranchByKey = useCallback(
+    (branchKey: string) => {
+      setActiveIndicatorId(`branch:${branchKey}`);
+      focusNodeToViewportCenter(`branch-${branchKey}`);
+    },
+    [focusNodeToViewportCenter]
+  );
+
+  const focusMainLatest = useCallback(() => {
+    if (!mainIndicatorNodeId) {
+      return;
+    }
+    setActiveIndicatorId("main");
+    focusNodeToViewportCenter(mainIndicatorNodeId);
+  }, [focusNodeToViewportCenter, mainIndicatorNodeId]);
+
+  const findNearestBranchIndicator = useCallback(() => {
+    const viewport = canvasContainerRef.current;
+    if (!viewport) return null;
+
+    const viewportRect = viewport.getBoundingClientRect();
+    const viewportCenterX = viewportRect.left + viewportRect.width / 2;
+    const viewportCenterY = viewportRect.top + viewportRect.height / 2;
+
+    let nearestItem: IndicatorItem | null = null;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+
+    for (const item of indicatorItems) {
+      if (item.kind !== "branch" || !item.nodeId) {
+        continue;
+      }
+      const node = nodeRefs.current.get(item.nodeId);
+      if (!node) {
+        continue;
+      }
+      const rect = node.getBoundingClientRect();
+      const nodeCenterX = rect.left + rect.width / 2;
+      const nodeCenterY = rect.top + rect.height / 2;
+      const distance =
+        (nodeCenterX - viewportCenterX) * (nodeCenterX - viewportCenterX) +
+        (nodeCenterY - viewportCenterY) * (nodeCenterY - viewportCenterY);
+
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestItem = item;
+      }
+    }
+
+    return nearestItem;
+  }, [indicatorItems]);
+
+  const handleToggleVerticalMode = useCallback(() => {
+    if (isVerticalMode) {
+      setIsVerticalMode(false);
+      return;
+    }
+
+    if (verticalModeFocusFrameRef.current != null) {
+      window.cancelAnimationFrame(verticalModeFocusFrameRef.current);
+      verticalModeFocusFrameRef.current = null;
+    }
+
+    setState((prev) => ({ ...prev, scale: 1 }));
+    setIsVerticalMode(true);
+    verticalModeFocusFrameRef.current = window.requestAnimationFrame(() => {
+      verticalModeFocusFrameRef.current = null;
+      const nearestBranch = findNearestBranchIndicator();
+      if (!nearestBranch) {
+        return;
+      }
+      setActiveIndicatorId(nearestBranch.id);
+      focusNodeToViewportCenter(nearestBranch.nodeId);
+    });
+  }, [findNearestBranchIndicator, focusNodeToViewportCenter, isVerticalMode]);
 
   const handleBranchSend = async (branchKey: string) => {
     const branch = branches[branchKey];
@@ -1228,48 +1391,77 @@ export function ChatCanvasShell({
     });
   }, []);
 
+  const focusMainPromptInput = useCallback(() => {
+    const textarea = promptTextareaRef.current;
+    if (!textarea) {
+      return;
+    }
+    textarea.focus({ preventScroll: true });
+  }, []);
+
   const promptInput = (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        handleSend();
-      }}
-      className="flex w-full max-w-3xl items-start gap-3"
+    <div
+      className="relative w-full max-w-3xl"
+      data-prevent-viewport-jump="true"
     >
-      <textarea
-        ref={promptTextareaRef}
-        value={promptText}
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          handleSend();
+        }}
+        className="flex w-full items-start gap-3"
+      >
+        <textarea
+          ref={promptTextareaRef}
+          value={promptText}
         onChange={(event) => {
           closeOpenBranchesForAssistant(latestAssistantId);
           const nextValue = event.currentTarget.value;
           setPromptText(nextValue);
           resizeTextarea(event.currentTarget);
         }}
-        onFocus={() => closeOpenBranchesForAssistant(latestAssistantId)}
-        onKeyDown={(event) => {
-          if (event.nativeEvent.isComposing) return;
-          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-            if (!promptText.trim() || isSending) {
-              event.preventDefault();
-              return;
-            }
-            event.preventDefault();
-            handleSend();
-          }
+        onFocus={(event) => {
+          closeOpenBranchesForAssistant(latestAssistantId);
+          focusElementToViewportCenter(event.currentTarget, 0.58);
         }}
-        placeholder={t("prompt.placeholder")}
-        rows={1}
-        className="w-full resize-none rounded-xl border border-[var(--color-border-muted)] bg-[var(--color-surface)] px-4 py-3 text-base leading-6 text-main shadow-[var(--color-shadow-soft)] transition-[height] duration-150 ease-out focus:border-[var(--color-border-soft)] focus:outline-none"
-      />
+          onKeyDown={(event) => {
+            if (event.nativeEvent.isComposing) return;
+            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+              if (!promptText.trim() || isSending) {
+                event.preventDefault();
+                return;
+              }
+              event.preventDefault();
+              handleSend();
+            }
+          }}
+          placeholder={t("prompt.placeholder")}
+          rows={1}
+          className="w-full resize-none rounded-xl border border-[var(--color-border-muted)] bg-[var(--color-surface)] px-4 py-3 text-base leading-6 text-main shadow-[var(--color-shadow-soft)] transition-[height] duration-150 ease-out focus:border-[var(--color-border-soft)] focus:outline-none"
+        />
+        <button
+          type="submit"
+          aria-label="Send prompt"
+          disabled={!promptText.trim() || isSending}
+          className="flex h-11 w-11 self-end items-center justify-center rounded-lg bg-theme-main text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <ArrowRight className="h-5 w-5" />
+        </button>
+      </form>
       <button
-        type="submit"
-        aria-label="Send prompt"
-        disabled={!promptText.trim() || isSending}
-        className="flex h-11 w-11 self-end items-center justify-center rounded-lg bg-theme-main text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82] disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        <ArrowRight className="h-5 w-5" />
-      </button>
-    </form>
+        type="button"
+        aria-label="Focus prompt input"
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          focusMainPromptInput();
+        }}
+        onClick={(event) => {
+          event.stopPropagation();
+          focusMainPromptInput();
+        }}
+        className="absolute left-0 right-0 top-full z-10 h-100 translate-y-2 rounded-2xl bg-transparent"
+      />
+    </div>
   );
 
   const connectorsOverlay = (
@@ -1319,17 +1511,39 @@ export function ChatCanvasShell({
   return (
     <div className="min-h-screen bg-[var(--color-app-bg)] text-main">
       <DisableCanvasNavigation />
-      <CanvasControls scale={state.scale} onReset={handleReset} />
+      <CanvasControls
+        scale={state.scale}
+        isVerticalMode={isVerticalMode}
+        onToggleVerticalMode={handleToggleVerticalMode}
+      />
       <div className="fixed left-0 right-0 top-0 z-40 bg-[var(--color-app-bg)]/80 backdrop-blur">
         <div className="mx-auto w-full px-0">
           <ChatHeader
             settingsContent={settingsContent}
-            indicatorContent={indicatorContent}
             user={user}
             onLogout={onLogout}
           />
         </div>
       </div>
+      {indicatorContent ? (
+        <div
+          className={`pointer-events-none fixed inset-x-0 bottom-20 z-[45] flex justify-center px-4 transition-opacity duration-300 ${
+            isBranchIndicatorIdle ? "opacity-15" : "opacity-100"
+          }`}
+        >
+          <div
+            ref={branchIndicatorContainerRef}
+            className="pointer-events-auto w-full max-w-[560px]"
+            onPointerEnter={handleIndicatorEngage}
+            onPointerDown={handleIndicatorEngage}
+            onPointerLeave={handleIndicatorDisengage}
+            onFocusCapture={handleIndicatorEngage}
+            onBlurCapture={handleIndicatorBlur}
+          >
+            {indicatorContent}
+          </div>
+        </div>
+      ) : null}
       <div className="relative min-h-screen">
         <CanvasViewport
           state={state}
@@ -1340,9 +1554,18 @@ export function ChatCanvasShell({
           contentRef={canvasContentRef}
           overlay={connectorsOverlay}
           onPanStateChange={handlePanStateChange}
+          navigationMode={isVerticalMode ? "vertical" : "free"}
         >
           <div className="min-h-screen px-6 pb-24 pt-28">
-            <main className="mx-auto flex w-full max-w-[760px] flex-col items-center gap-10">
+            <main
+              className="mx-auto flex w-full max-w-[760px] flex-col items-center gap-10"
+              onClick={(event) => {
+                if (isInteractiveTapTarget(event.target)) {
+                  return;
+                }
+                focusMainLatest();
+              }}
+            >
               {displayPairs.map((pair, index) => {
                 const isLast = index === displayPairs.length - 1;
                 const userContent = pair.user?.content ?? "";
@@ -1502,19 +1725,40 @@ export function ChatCanvasShell({
                               <div
                                 key={branch.key}
                                 ref={setNodeRef(`branch-${branch.key}`)}
+                                data-branch-region="true"
                                 className="absolute left-0 top-0"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  if (event.metaKey || event.ctrlKey) {
+                                    return;
+                                  }
+                                  if (isInteractiveTapTarget(event.target)) {
+                                    return;
+                                  }
+                                  focusBranchByKey(branch.key);
+                                }}
                                 style={{
                                   transform: branchTransform,
                                   width: "clamp(280px, 50vw, 560px)",
                                 }}
                               >
+                                <button
+                                  type="button"
+                                  aria-label={t("chat.branchList")}
+                                  onPointerDown={(event) => event.stopPropagation()}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    focusBranchByKey(branch.key);
+                                  }}
+                                  className="absolute -bottom-[18vh] -left-8 -right-8 -top-[40vh] z-0 block cursor-pointer rounded-[28px] bg-transparent"
+                                />
                                 {!branch.hasSubmitted ? (
                                   <form
                                     onSubmit={(event) => {
                                       event.preventDefault();
                                       handleBranchSend(branch.key);
                                     }}
-                                    className="flex items-end gap-3"
+                                    className="relative z-10 flex items-end gap-3"
                                   >
                                     <textarea
                                       ref={setBranchTextareaRef(branch.key)}
@@ -1533,6 +1777,12 @@ export function ChatCanvasShell({
                                           };
                                         });
                                         resizeTextarea(event.currentTarget);
+                                      }}
+                                      onPointerDown={(event) => {
+                                        focusElementToViewportCenter(event.currentTarget);
+                                      }}
+                                      onFocus={(event) => {
+                                        focusElementToViewportCenter(event.currentTarget);
                                       }}
                                       onKeyDown={(event) => {
                                         if (event.nativeEvent.isComposing) return;
@@ -1563,7 +1813,7 @@ export function ChatCanvasShell({
                                   </form>
                                 ) : null}
                                 {branch.hasSubmitted && branch.lastUserContent ? (
-                                  <div className="mt-4 flex w-full justify-center">
+                                  <div className="relative z-10 mt-4 flex w-full justify-center">
                                     <UserBubble
                                       content={branch.lastUserContent}
                                       isLoading={false}
@@ -1572,7 +1822,7 @@ export function ChatCanvasShell({
                                   </div>
                                 ) : null}
                                 {showBranchReply ? (
-                                  <div className="mt-4 w-full">
+                                  <div className="relative z-10 mt-4 w-full">
                                     <AssistantCard
                                       content={branch.reply.assistantMessage?.content ?? ""}
                                       isLoading={branch.reply.isLoading}
