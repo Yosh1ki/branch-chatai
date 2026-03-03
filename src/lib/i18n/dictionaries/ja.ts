@@ -95,6 +95,7 @@ export const jaDictionary = {
   "chat.sendFailed": "送信に失敗しました。",
   "chat.loadFailed": "読み込みに失敗しました。",
   "chat.branchList": "ブランチ一覧",
+  "chat.mainBranch": "メイン",
   "chat.newBranch": "新しいブランチ",
 
   "assistant.organizeInfo": "情報を整理",

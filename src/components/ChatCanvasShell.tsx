@@ -79,6 +79,17 @@ type SelectedModel = {
   reasoningEffort?: ReasoningEffort | null;
 };
 
+type IndicatorItem = {
+  id: string;
+  nodeId: string | null;
+  index: number;
+  kind: "main" | "branch";
+  branchKey?: string;
+};
+
+const isBranchSide = (value: string): value is BranchSide =>
+  value === "left" || value === "right";
+
 export function ChatCanvasShell({
   chatId,
   initialPrompt,
@@ -91,6 +102,7 @@ export function ChatCanvasShell({
 }: ChatCanvasShellProps) {
   const { t } = useI18n()
   const [state, setState] = useState(createCanvasState());
+  const latestCanvasStateRef = useRef(state);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [selectedModel, setSelectedModel] = useState<SelectedModel | null>(null);
   const [promptText, setPromptText] = useState("");
@@ -100,10 +112,12 @@ export function ChatCanvasShell({
   const [loadError, setLoadError] = useState("");
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [branches, setBranches] = useState<Record<string, BranchDraft>>({});
+  const [activeIndicatorId, setActiveIndicatorId] = useState<string | null>(null);
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const canvasContentRef = useRef<HTMLDivElement | null>(null);
   const nodeRefs = useRef(new Map<string, HTMLDivElement>());
   const isPanningRef = useRef(false);
+  const focusAnimationFrameRef = useRef<number | null>(null);
   const tempIdRef = useRef(0);
   const [connectorPaths, setConnectorPaths] = useState<string[]>([]);
   const lastPathsRef = useRef<string[]>([]);
@@ -275,9 +289,7 @@ export function ChatCanvasShell({
         messagesByBranch.set(message.branchId, list);
       });
 
-      return loadedBranches.reduce<Record<string, BranchDraft>>((acc, branch) => {
-        const key = createBranchKey(branch.parentMessageId, branch.side);
-        const branchMessages = messagesByBranch.get(branch.id) ?? [];
+      const getBranchSummary = (branchMessages: ChatMessage[]) => {
         let lastUserContent = "";
         let lastAssistant: ChatMessage | null = null;
 
@@ -289,6 +301,17 @@ export function ChatCanvasShell({
             lastAssistant = message;
           }
         });
+
+        return { lastUserContent, lastAssistant };
+      };
+
+      const branchState = loadedBranches.reduce<Record<string, BranchDraft>>((acc, branch) => {
+        if (!isBranchSide(branch.side)) {
+          return acc;
+        }
+        const key = createBranchKey(branch.parentMessageId, branch.side);
+        const branchMessages = messagesByBranch.get(branch.id) ?? [];
+        const { lastUserContent, lastAssistant } = getBranchSummary(branchMessages);
 
         acc[key] = {
           key,
@@ -307,6 +330,80 @@ export function ChatCanvasShell({
         };
         return acc;
       }, {});
+
+      const branchIdsInTable = new Set(loadedBranches.map((branch) => branch.id));
+      const usedSidesByParent = new Map<string, Set<BranchSide>>();
+      Object.values(branchState).forEach((branch) => {
+        const used = usedSidesByParent.get(branch.parentMessageId) ?? new Set<BranchSide>();
+        used.add(branch.side);
+        usedSidesByParent.set(branch.parentMessageId, used);
+      });
+
+      // Backfill branch state from message data when branch rows are missing.
+      for (const [branchId, branchMessages] of messagesByBranch.entries()) {
+        if (branchIdsInTable.has(branchId)) {
+          continue;
+        }
+
+        const rootUserMessage = branchMessages.find(
+          (message) => message.role === "user" && Boolean(message.parentMessageId)
+        );
+        const firstLinkedMessage = branchMessages.find((message) => Boolean(message.parentMessageId));
+        const parentMessageId = rootUserMessage?.parentMessageId ?? firstLinkedMessage?.parentMessageId ?? null;
+        if (!parentMessageId) {
+          continue;
+        }
+
+        const used = usedSidesByParent.get(parentMessageId) ?? new Set<BranchSide>();
+        let side: BranchSide = used.has("left") ? "right" : "left";
+        if (used.has("left") && !used.has("right")) {
+          side = "right";
+        }
+        if (used.has("left") && used.has("right")) {
+          side = "right";
+        }
+
+        let key = createBranchKey(parentMessageId, side);
+        if (branchState[key]) {
+          const alternateSide: BranchSide = side === "left" ? "right" : "left";
+          const alternateKey = createBranchKey(parentMessageId, alternateSide);
+          if (!branchState[alternateKey]) {
+            side = alternateSide;
+            key = alternateKey;
+          } else {
+            key = `${createBranchKey(parentMessageId, side)}:${branchId}`;
+          }
+        }
+
+        const { lastUserContent, lastAssistant } = getBranchSummary(branchMessages);
+        const inferredCreatedAt = (() => {
+          const firstMessageId = branchMessages[0]?.id;
+          if (!firstMessageId) return Date.now();
+          const index = loadedMessages.findIndex((message) => message.id === firstMessageId);
+          if (index < 0) return Date.now();
+          return Date.now() + index;
+        })();
+
+        branchState[key] = {
+          key,
+          parentMessageId,
+          side,
+          branchId,
+          text: "",
+          lastUserContent,
+          reply: {
+            assistantMessage: lastAssistant,
+            isLoading: false,
+            error: "",
+          },
+          hasSubmitted: Boolean(lastUserContent),
+          createdAt: inferredCreatedAt,
+        };
+        used.add(side);
+        usedSidesByParent.set(parentMessageId, used);
+      }
+
+      return branchState;
     },
     [createBranchKey]
   );
@@ -314,6 +411,94 @@ export function ChatCanvasShell({
   const handleReset = () => {
     setState(resetCanvasState());
   };
+
+  useEffect(() => {
+    latestCanvasStateRef.current = state;
+  }, [state]);
+
+  const cancelFocusAnimation = useCallback(() => {
+    if (focusAnimationFrameRef.current == null) return;
+    window.cancelAnimationFrame(focusAnimationFrameRef.current);
+    focusAnimationFrameRef.current = null;
+  }, []);
+
+  useEffect(
+    () => () => {
+      cancelFocusAnimation();
+    },
+    [cancelFocusAnimation]
+  );
+
+  const animateCanvasOffset = useCallback(
+    (targetOffsetX: number, targetOffsetY: number) => {
+      const startState = latestCanvasStateRef.current;
+      const startOffsetX = startState.offsetX;
+      const startOffsetY = startState.offsetY;
+      const deltaX = targetOffsetX - startOffsetX;
+      const deltaY = targetOffsetY - startOffsetY;
+
+      if (Math.abs(deltaX) < 0.5 && Math.abs(deltaY) < 0.5) {
+        const nextState = {
+          ...startState,
+          offsetX: targetOffsetX,
+          offsetY: targetOffsetY,
+        };
+        latestCanvasStateRef.current = nextState;
+        setState(nextState);
+        return;
+      }
+
+      cancelFocusAnimation();
+      const animationDurationMs = 320;
+      const startTime = performance.now();
+
+      const tick = (currentTime: number) => {
+        const progress = Math.min(1, (currentTime - startTime) / animationDurationMs);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const nextState = {
+          ...startState,
+          offsetX: startOffsetX + deltaX * eased,
+          offsetY: startOffsetY + deltaY * eased,
+        };
+        latestCanvasStateRef.current = nextState;
+        setState(nextState);
+
+        if (progress < 1) {
+          focusAnimationFrameRef.current = window.requestAnimationFrame(tick);
+          return;
+        }
+        focusAnimationFrameRef.current = null;
+      };
+
+      focusAnimationFrameRef.current = window.requestAnimationFrame(tick);
+    },
+    [cancelFocusAnimation]
+  );
+
+  const focusNodeToViewportCenter = useCallback(
+    (nodeId: string | null) => {
+      if (!nodeId) return;
+      const targetNode = nodeRefs.current.get(nodeId);
+      const viewport = canvasContainerRef.current;
+      if (!targetNode || !viewport) {
+        return;
+      }
+
+      const viewportRect = viewport.getBoundingClientRect();
+      const nodeRect = targetNode.getBoundingClientRect();
+      const viewportCenterX = viewportRect.left + viewportRect.width / 2;
+      const viewportCenterY = viewportRect.top + viewportRect.height / 2;
+      const nodeCenterX = nodeRect.left + nodeRect.width / 2;
+      const nodeCenterY = nodeRect.top + nodeRect.height / 2;
+      const currentState = latestCanvasStateRef.current;
+
+      animateCanvasOffset(
+        currentState.offsetX + (viewportCenterX - nodeCenterX),
+        currentState.offsetY + (viewportCenterY - nodeCenterY)
+      );
+    },
+    [animateCanvasOffset]
+  );
 
   useEffect(() => {
     let isActive = true;
@@ -597,9 +782,78 @@ export function ChatCanvasShell({
     });
     return map;
   }, [branches]);
+  const mainIndicatorNodeId = useMemo(() => {
+    for (let index = displayPairs.length - 1; index >= 0; index -= 1) {
+      const pair = displayPairs[index];
+      if (!pair.user && !pair.assistant) {
+        continue;
+      }
+      if (pair.assistant) {
+        const assistantNodeId = pair.assistant.id ?? `assistant-${index}`;
+        return `assistant-${assistantNodeId}`;
+      }
+      if (pair.user) {
+        const userNodeId = pair.user.id ?? `user-${index}`;
+        return `user-${userNodeId}`;
+      }
+    }
+    return null;
+  }, [displayPairs]);
+  const branchIndicators = useMemo(
+    () =>
+      Object.values(branches)
+        .slice()
+        .sort((a, b) => {
+          if (a.createdAt !== b.createdAt) {
+            return a.createdAt - b.createdAt;
+          }
+          return a.key.localeCompare(b.key);
+        })
+        .map((branch, index) => ({
+          index: index + 1,
+          key: branch.key,
+          side: branch.side,
+        })),
+    [branches]
+  );
+  const indicatorItems = useMemo<IndicatorItem[]>(
+    () => {
+      const leftBranches = branchIndicators.filter((branch) => branch.side === "left");
+      const rightBranches = branchIndicators.filter((branch) => branch.side === "right");
+      const orderedLeftBranches = leftBranches.slice().reverse();
+
+      return [
+        ...orderedLeftBranches.map((branch, index) => ({
+          id: `branch:${branch.key}`,
+          kind: "branch" as const,
+          nodeId: `branch-${branch.key}`,
+          branchKey: branch.key,
+          index: index + 1,
+        })),
+        {
+          id: "main",
+          kind: "main" as const,
+          nodeId: mainIndicatorNodeId,
+          index: orderedLeftBranches.length + 1,
+        },
+        ...rightBranches.map((branch, index) => ({
+          id: `branch:${branch.key}`,
+          kind: "branch" as const,
+          nodeId: `branch-${branch.key}`,
+          branchKey: branch.key,
+          index: leftBranches.length + 2 + index,
+        })),
+      ];
+    },
+    [branchIndicators, mainIndicatorNodeId]
+  );
   const promptInputEnabled = true;
   const branchOffset = "clamp(380px, 35vw, 560px)";
   const showBranchCenterGuide = false;
+  const resolvedActiveIndicatorId =
+    activeIndicatorId && indicatorItems.some((item) => item.id === activeIndicatorId)
+      ? activeIndicatorId
+      : "main";
 
   const normalizeBranchShift = (value: number | string) =>
     typeof value === "number" ? `${value}px` : value;
@@ -709,6 +963,14 @@ export function ChatCanvasShell({
       }
     },
     [updateConnectorPaths]
+  );
+
+  const handleIndicatorSelect = useCallback(
+    (item: IndicatorItem) => {
+      setActiveIndicatorId(item.id);
+      focusNodeToViewportCenter(item.nodeId);
+    },
+    [focusNodeToViewportCenter]
   );
 
   const handleBranchSend = async (branchKey: string) => {
@@ -1026,6 +1288,33 @@ export function ChatCanvasShell({
       ))}
     </svg>
   );
+  const indicatorContent = indicatorItems.length ? (
+    <nav className="branch-indicator-nav" aria-label={t("chat.branchList")}>
+      <div className="branch-indicator-scroll">
+        {indicatorItems.map((item) => {
+          const isActive = item.id === resolvedActiveIndicatorId;
+          const srLabel =
+            item.kind === "main"
+              ? `${t("chat.mainBranch")} ${item.index}`
+              : `${t("chat.branchList")} ${item.index}`;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={() => handleIndicatorSelect(item)}
+              aria-pressed={isActive}
+              className={`branch-indicator-button ${
+                isActive ? "branch-indicator-button-active" : ""
+              }`}
+            >
+              <span className="sr-only">{srLabel}</span>
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  ) : null;
 
   return (
     <div className="min-h-screen bg-[var(--color-app-bg)] text-main">
@@ -1033,7 +1322,12 @@ export function ChatCanvasShell({
       <CanvasControls scale={state.scale} onReset={handleReset} />
       <div className="fixed left-0 right-0 top-0 z-40 bg-[var(--color-app-bg)]/80 backdrop-blur">
         <div className="mx-auto w-full px-0">
-          <ChatHeader settingsContent={settingsContent} user={user} onLogout={onLogout} />
+          <ChatHeader
+            settingsContent={settingsContent}
+            indicatorContent={indicatorContent}
+            user={user}
+            onLogout={onLogout}
+          />
         </div>
       </div>
       <div className="relative min-h-screen">

@@ -19,7 +19,6 @@ export function CanvasControls({ scale, onReset }: CanvasControlsProps) {
         className="pointer-events-auto inline-flex items-center gap-1 rounded-full border border-[#e6ddd3] bg-white px-3 py-1 text-xs text-main-muted transition hover:text-main"
       >
         <RotateCcw className="h-3.5 w-3.5" />
-        Reset
       </button>
     </div>
   );

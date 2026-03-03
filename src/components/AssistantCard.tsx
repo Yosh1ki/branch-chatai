@@ -105,7 +105,7 @@ const markdownComponents = {
     <pre
       {...props}
       className={cn(
-        "overflow-x-auto rounded-md bg-[#f8f3ee] p-3 text-xs text-main",
+        "overflow-x-auto rounded-md border border-[var(--color-border-soft)] bg-[var(--color-surface-soft)] p-3 text-xs text-main",
         props.className
       )}
     />
@@ -116,7 +116,7 @@ const markdownComponents = {
         <code
           {...rest}
           className={cn(
-            "rounded bg-[#f8f3ee] px-1 py-0.5 text-xs font-semibold text-main",
+            "rounded bg-[var(--color-surface-soft)] px-1 py-0.5 text-xs font-semibold text-main",
             className
           )}
         >

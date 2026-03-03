@@ -7,6 +7,7 @@ import { AccountMenu } from "@/components/chats/account-menu";
 
 type ChatHeaderProps = {
   settingsContent: ReactNode;
+  indicatorContent?: ReactNode;
   user: {
     name?: string | null;
     email?: string | null;
@@ -14,18 +15,27 @@ type ChatHeaderProps = {
   onLogout: () => void | Promise<void>;
 };
 
-export function ChatHeader({ settingsContent, user, onLogout }: ChatHeaderProps) {
+export function ChatHeader({ settingsContent, indicatorContent, user, onLogout }: ChatHeaderProps) {
   return (
     <header className="w-full bg-transparent">
-      <div className="flex w-full items-center justify-between px-2 py-6">
+      <div className="relative flex w-full items-center justify-between px-2 py-6">
         <Link
           href="/chats"
-          className="text-left font-title text-3xl tracking-wide text-main md:text-2xl"
+          className="relative z-10 text-left font-title text-3xl tracking-wide text-main md:text-2xl"
           style={textStyle("pacifico")}
         >
           Branch
         </Link>
-        <AccountMenu user={user} onLogout={onLogout} settingsContent={settingsContent} />
+        {indicatorContent ? (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="pointer-events-auto w-full max-w-[560px] px-24 sm:px-20">
+              {indicatorContent}
+            </div>
+          </div>
+        ) : null}
+        <div className="relative z-10">
+          <AccountMenu user={user} onLogout={onLogout} settingsContent={settingsContent} />
+        </div>
       </div>
     </header>
   );

@@ -104,6 +104,7 @@ export const enDictionary: { [K in keyof JaDictionary]: string } = {
   "chat.sendFailed": "Failed to send your message.",
   "chat.loadFailed": "Failed to load data.",
   "chat.branchList": "Branch list",
+  "chat.mainBranch": "Main",
   "chat.newBranch": "New branch",
 
   "assistant.organizeInfo": "Organize information",
