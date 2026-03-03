@@ -2,7 +2,11 @@ import { PrismaClient } from '@prisma/client'
 import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
 
-const connectionString = process.env.DATABASE_URL
+const connectionString = process.env.DATABASE_URL_RUNTIME ?? process.env.DATABASE_URL
+
+if (!connectionString) {
+  throw new Error('DATABASE_URL_RUNTIME or DATABASE_URL must be set')
+}
 
 const pool = new Pool({ 
   connectionString,
