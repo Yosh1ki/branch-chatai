@@ -1,8 +1,14 @@
 import OpenAI from "openai"
+import type { Responses } from "openai/resources/responses/responses"
 import { GoogleGenAI } from "@google/genai"
 import { ChatActionError } from "@/lib/chat-errors"
 import { getOpenAIClient } from "@/lib/openai-client"
 import type { ModelProvider, ReasoningEffort } from "@/lib/model-catalog"
+import {
+  appendSourcesSection,
+  extractWebSourcesFromResponse,
+  shouldUseWebSearchForPrompt,
+} from "@/lib/openai-web-search"
 
 const SYSTEM_PROMPT = "You are a helpful AI assistant."
 const MAX_OUTPUT_TOKENS = 6000
@@ -133,6 +139,29 @@ const readSseStream = async (
   }
 }
 
+const WEB_SEARCH_INCLUDE_FIELDS: Responses.ResponseIncludable[] = [
+  "web_search_call.action.sources",
+  "web_search_call.results",
+]
+
+const WEB_SEARCH_INSTRUCTION_SUFFIX = `
+When answering questions that require fresh information:
+- Use web search results.
+- Prioritize factual accuracy over fluency.
+- Include citation URLs and available publication/update dates.
+`
+
+const shouldFallbackToWebSearchPreview = (error: unknown) => {
+  if (!(error instanceof OpenAI.APIError)) {
+    return false
+  }
+  if (error.status !== 400) {
+    return false
+  }
+  const message = error.message.toLowerCase()
+  return message.includes("web_search") && !message.includes("web_search_preview")
+}
+
 const generateOpenAIResponse = async (
   model: string,
   messagesForLLM: Array<{ role: "user" | "assistant"; content: string }>,
@@ -140,33 +169,92 @@ const generateOpenAIResponse = async (
   reasoningEffort?: ReasoningEffort | null,
   onToken?: (token: string) => void | Promise<void>
 ) => {
-  const params: OpenAI.Chat.ChatCompletionCreateParamsStreaming & {
-    reasoning_effort?: ReasoningEffort
-    max_completion_tokens?: number
-  } = {
+  const latestUserInput = [...messagesForLLM].reverse().find((message) => message.role === "user")
+  const useWebSearch = shouldUseWebSearchForPrompt(latestUserInput?.content ?? "")
+  const baseParams: Omit<Responses.ResponseCreateParamsBase, "stream" | "tools"> = {
     model,
-    messages: [{ role: "system", content: systemPrompt }, ...messagesForLLM],
-    max_completion_tokens: MAX_OUTPUT_TOKENS,
-    stream: true,
+    input: messagesForLLM,
+    instructions: useWebSearch
+      ? `${systemPrompt}\n\n${WEB_SEARCH_INSTRUCTION_SUFFIX.trim()}`
+      : systemPrompt,
+    max_output_tokens: MAX_OUTPUT_TOKENS,
+    include: useWebSearch ? WEB_SEARCH_INCLUDE_FIELDS : undefined,
   }
+
   if (reasoningEffort) {
-    params.reasoning_effort = reasoningEffort
+    baseParams.reasoning = { effort: reasoningEffort }
   }
 
-  const stream = await getOpenAIClient().chat.completions.create(params)
+  const createNonStreaming = async (toolType: "web_search" | "web_search_preview") =>
+    getOpenAIClient().responses.create({
+      ...baseParams,
+      stream: false,
+      tools: useWebSearch ? [{ type: toolType }] : undefined,
+    })
 
-  let text = ""
-  for await (const part of stream) {
-    const delta = part.choices?.[0]?.delta?.content ?? ""
-    if (!delta) {
+  const createStreaming = async (toolType: "web_search" | "web_search_preview") =>
+    getOpenAIClient().responses.create({
+      ...baseParams,
+      stream: true,
+      tools: useWebSearch ? [{ type: toolType }] : undefined,
+    })
+
+  const withWebSearchToolFallback = async <T>(
+    fn: (toolType: "web_search" | "web_search_preview") => Promise<T>
+  ) => {
+    try {
+      return await fn("web_search")
+    } catch (error) {
+      if (!useWebSearch || !shouldFallbackToWebSearchPreview(error)) {
+        throw error
+      }
+      return await fn("web_search_preview")
+    }
+  }
+
+  if (!onToken) {
+    const response = await withWebSearchToolFallback(createNonStreaming)
+    const rawText = response.output_text?.trim() ?? ""
+    return useWebSearch
+      ? appendSourcesSection(rawText, extractWebSourcesFromResponse(response))
+      : rawText
+  }
+
+  const stream = await withWebSearchToolFallback(createStreaming)
+  let streamedText = ""
+  let completedResponse: Responses.Response | null = null
+
+  for await (const event of stream) {
+    if (event.type === "response.output_text.delta") {
+      const delta = event.delta ?? ""
+      if (!delta) {
+        continue
+      }
+      streamedText += delta
+      await onToken(delta)
       continue
     }
-    text += delta
-    if (onToken) {
-      await onToken(delta)
+    if (event.type === "response.completed") {
+      completedResponse = event.response
     }
   }
-  return text
+
+  const rawText = completedResponse?.output_text?.trim() ?? streamedText.trim()
+  const finalText = useWebSearch
+    ? appendSourcesSection(rawText, extractWebSourcesFromResponse(completedResponse ?? { output: [] }))
+    : rawText
+
+  const streamedTextNormalized = streamedText.trim()
+  if (finalText && finalText !== streamedTextNormalized) {
+    if (finalText.startsWith(streamedTextNormalized)) {
+      const tail = finalText.slice(streamedTextNormalized.length)
+      if (tail) {
+        await onToken(tail)
+      }
+    }
+  }
+
+  return finalText
 }
 
 const generateAnthropicResponse = async (

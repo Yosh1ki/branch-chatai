@@ -1223,7 +1223,7 @@ export function ChatCanvasShell({
     focusNodeToViewportCenter(mainIndicatorNodeId);
   }, [focusNodeHorizontally, focusNodeToViewportCenter, isVerticalMode, mainIndicatorNodeId]);
 
-  const findNearestBranchIndicator = useCallback(() => {
+  const findNearestIndicator = useCallback(() => {
     const viewport = canvasContainerRef.current;
     if (!viewport) return null;
 
@@ -1235,7 +1235,7 @@ export function ChatCanvasShell({
     let nearestDistance = Number.POSITIVE_INFINITY;
 
     for (const item of indicatorItems) {
-      if (item.kind !== "branch" || !item.nodeId) {
+      if (!item.nodeId) {
         continue;
       }
       const node = nodeRefs.current.get(item.nodeId);
@@ -1273,14 +1273,14 @@ export function ChatCanvasShell({
     setIsVerticalMode(true);
     verticalModeFocusFrameRef.current = window.requestAnimationFrame(() => {
       verticalModeFocusFrameRef.current = null;
-      const nearestBranch = findNearestBranchIndicator();
-      if (!nearestBranch) {
+      const nearestIndicator = findNearestIndicator();
+      if (!nearestIndicator) {
         return;
       }
-      setActiveIndicatorId(nearestBranch.id);
-      focusNodeToViewportCenter(nearestBranch.nodeId);
+      setActiveIndicatorId(nearestIndicator.id);
+      focusNodeHorizontally(nearestIndicator.nodeId);
     });
-  }, [findNearestBranchIndicator, focusNodeToViewportCenter, isVerticalMode]);
+  }, [findNearestIndicator, focusNodeHorizontally, isVerticalMode]);
 
   const handleBranchSend = async (branchKey: string) => {
     const branch = branches[branchKey];
