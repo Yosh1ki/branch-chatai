@@ -123,6 +123,12 @@ export function ChatCanvasShell({
   const isPanningRef = useRef(false);
   const focusAnimationFrameRef = useRef<number | null>(null);
   const verticalModeFocusFrameRef = useRef<number | null>(null);
+  const focusedTextareaStateRef = useRef<{
+    element: HTMLTextAreaElement;
+    targetViewportYRatio: number;
+  } | null>(null);
+  const viewportAlignFrameRef = useRef<number | null>(null);
+  const viewportAlignTimeoutIdsRef = useRef<number[]>([]);
   const tempIdRef = useRef(0);
   const [connectorPaths, setConnectorPaths] = useState<string[]>([]);
   const lastPathsRef = useRef<string[]>([]);
@@ -430,6 +436,16 @@ export function ChatCanvasShell({
         window.cancelAnimationFrame(verticalModeFocusFrameRef.current);
         verticalModeFocusFrameRef.current = null;
       }
+      if (viewportAlignFrameRef.current != null) {
+        window.cancelAnimationFrame(viewportAlignFrameRef.current);
+        viewportAlignFrameRef.current = null;
+      }
+      if (viewportAlignTimeoutIdsRef.current.length) {
+        viewportAlignTimeoutIdsRef.current.forEach((timeoutId) => {
+          window.clearTimeout(timeoutId);
+        });
+        viewportAlignTimeoutIdsRef.current = [];
+      }
     },
     [cancelFocusAnimation]
   );
@@ -514,8 +530,26 @@ export function ChatCanvasShell({
 
       const viewportRect = viewport.getBoundingClientRect();
       const elementRect = element.getBoundingClientRect();
+      const safeTargetViewportYRatio = Math.min(Math.max(targetViewportYRatio, 0.1), 0.9);
+      const visualViewportTop = window.visualViewport
+        ? viewportRect.top + window.visualViewport.offsetTop
+        : viewportRect.top;
+      const visibleViewportHeight = window.visualViewport
+        ? Math.min(viewportRect.height, window.visualViewport.height)
+        : viewportRect.height;
+      const headerSafeTopPx = 96;
+      const bottomSafePaddingPx = 24;
+      const availableTop = Math.min(
+        visualViewportTop + headerSafeTopPx,
+        visualViewportTop + Math.max(visibleViewportHeight - 120, 0)
+      );
+      const availableBottom = Math.max(
+        availableTop + 40,
+        visualViewportTop + visibleViewportHeight - bottomSafePaddingPx
+      );
       const viewportCenterX = viewportRect.left + viewportRect.width / 2;
-      const viewportTargetY = viewportRect.top + viewportRect.height * targetViewportYRatio;
+      const viewportTargetY =
+        availableTop + (availableBottom - availableTop) * safeTargetViewportYRatio;
       const elementCenterX = elementRect.left + elementRect.width / 2;
       const elementCenterY = elementRect.top + elementRect.height / 2;
       const currentState = latestCanvasStateRef.current;
@@ -527,6 +561,83 @@ export function ChatCanvasShell({
     },
     [animateCanvasOffset]
   );
+
+  const alignFocusedTextareaToViewport = useCallback(() => {
+    const focused = focusedTextareaStateRef.current;
+    if (!focused) {
+      return;
+    }
+    if (document.activeElement !== focused.element) {
+      focusedTextareaStateRef.current = null;
+      return;
+    }
+    focusElementToViewportCenter(focused.element, focused.targetViewportYRatio);
+  }, [focusElementToViewportCenter]);
+
+  const scheduleFocusedTextareaAlignment = useCallback(() => {
+    if (viewportAlignFrameRef.current != null) {
+      return;
+    }
+    viewportAlignFrameRef.current = window.requestAnimationFrame(() => {
+      viewportAlignFrameRef.current = null;
+      alignFocusedTextareaToViewport();
+    });
+  }, [alignFocusedTextareaToViewport]);
+
+  const handleTextareaFocus = useCallback(
+    (textarea: HTMLTextAreaElement, targetViewportYRatio = 0.58) => {
+      focusedTextareaStateRef.current = { element: textarea, targetViewportYRatio };
+      focusElementToViewportCenter(textarea, targetViewportYRatio);
+      scheduleFocusedTextareaAlignment();
+      if (viewportAlignTimeoutIdsRef.current.length) {
+        viewportAlignTimeoutIdsRef.current.forEach((timeoutId) => {
+          window.clearTimeout(timeoutId);
+        });
+      }
+      viewportAlignTimeoutIdsRef.current = [120, 280].map((delay) =>
+        window.setTimeout(() => {
+          scheduleFocusedTextareaAlignment();
+        }, delay)
+      );
+    },
+    [focusElementToViewportCenter, scheduleFocusedTextareaAlignment]
+  );
+
+  const handleTextareaBlur = useCallback((textarea: HTMLTextAreaElement) => {
+    if (focusedTextareaStateRef.current?.element === textarea) {
+      focusedTextareaStateRef.current = null;
+    }
+    if (viewportAlignTimeoutIdsRef.current.length) {
+      viewportAlignTimeoutIdsRef.current.forEach((timeoutId) => {
+        window.clearTimeout(timeoutId);
+      });
+      viewportAlignTimeoutIdsRef.current = [];
+    }
+  }, []);
+
+  const focusTextareaWithoutBrowserScroll = useCallback(
+    (textarea: HTMLTextAreaElement, targetViewportYRatio = 0.58) => {
+      textarea.focus({ preventScroll: true });
+      handleTextareaFocus(textarea, targetViewportYRatio);
+    },
+    [handleTextareaFocus]
+  );
+
+  useEffect(() => {
+    const visualViewport = window.visualViewport;
+    if (!visualViewport) {
+      return;
+    }
+    const handleViewportChange = () => {
+      scheduleFocusedTextareaAlignment();
+    };
+    visualViewport.addEventListener("resize", handleViewportChange);
+    visualViewport.addEventListener("scroll", handleViewportChange);
+    return () => {
+      visualViewport.removeEventListener("resize", handleViewportChange);
+      visualViewport.removeEventListener("scroll", handleViewportChange);
+    };
+  }, [scheduleFocusedTextareaAlignment]);
 
   useEffect(() => {
     let isActive = true;
@@ -1040,12 +1151,39 @@ export function ChatCanvasShell({
     };
   }, [clearBranchIndicatorIdleTimer, startBranchIndicatorIdleTimer]);
 
+  const focusNodeHorizontally = useCallback(
+    (nodeId: string | null) => {
+      if (!nodeId) {
+        return;
+      }
+      const viewport = canvasContainerRef.current;
+      const targetNode = nodeRefs.current.get(nodeId);
+      if (!viewport || !targetNode) {
+        return;
+      }
+      const viewportRect = viewport.getBoundingClientRect();
+      const nodeRect = targetNode.getBoundingClientRect();
+      const viewportCenterX = viewportRect.left + viewportRect.width / 2;
+      const nodeCenterX = nodeRect.left + nodeRect.width / 2;
+      const currentState = latestCanvasStateRef.current;
+      animateCanvasOffset(
+        currentState.offsetX + (viewportCenterX - nodeCenterX),
+        currentState.offsetY
+      );
+    },
+    [animateCanvasOffset]
+  );
+
   const handleIndicatorSelect = useCallback(
     (item: IndicatorItem) => {
       setActiveIndicatorId(item.id);
+      if (isVerticalMode) {
+        focusNodeHorizontally(item.nodeId);
+        return;
+      }
       focusNodeToViewportCenter(item.nodeId);
     },
-    [focusNodeToViewportCenter]
+    [focusNodeHorizontally, focusNodeToViewportCenter, isVerticalMode]
   );
 
   const isInteractiveTapTarget = useCallback((target: EventTarget | null) => {
@@ -1064,9 +1202,13 @@ export function ChatCanvasShell({
   const focusBranchByKey = useCallback(
     (branchKey: string) => {
       setActiveIndicatorId(`branch:${branchKey}`);
+      if (isVerticalMode) {
+        focusNodeHorizontally(`branch-${branchKey}`);
+        return;
+      }
       focusNodeToViewportCenter(`branch-${branchKey}`);
     },
-    [focusNodeToViewportCenter]
+    [focusNodeHorizontally, focusNodeToViewportCenter, isVerticalMode]
   );
 
   const focusMainLatest = useCallback(() => {
@@ -1074,8 +1216,12 @@ export function ChatCanvasShell({
       return;
     }
     setActiveIndicatorId("main");
+    if (isVerticalMode) {
+      focusNodeHorizontally(mainIndicatorNodeId);
+      return;
+    }
     focusNodeToViewportCenter(mainIndicatorNodeId);
-  }, [focusNodeToViewportCenter, mainIndicatorNodeId]);
+  }, [focusNodeHorizontally, focusNodeToViewportCenter, isVerticalMode, mainIndicatorNodeId]);
 
   const findNearestBranchIndicator = useCallback(() => {
     const viewport = canvasContainerRef.current;
@@ -1414,16 +1560,22 @@ export function ChatCanvasShell({
         <textarea
           ref={promptTextareaRef}
           value={promptText}
-        onChange={(event) => {
-          closeOpenBranchesForAssistant(latestAssistantId);
-          const nextValue = event.currentTarget.value;
-          setPromptText(nextValue);
-          resizeTextarea(event.currentTarget);
-        }}
-        onFocus={(event) => {
-          closeOpenBranchesForAssistant(latestAssistantId);
-          focusElementToViewportCenter(event.currentTarget, 0.58);
-        }}
+          onPointerDown={(event) => {
+            focusTextareaWithoutBrowserScroll(event.currentTarget, 0.72);
+          }}
+          onChange={(event) => {
+            closeOpenBranchesForAssistant(latestAssistantId);
+            const nextValue = event.currentTarget.value;
+            setPromptText(nextValue);
+            resizeTextarea(event.currentTarget);
+          }}
+          onFocus={(event) => {
+            closeOpenBranchesForAssistant(latestAssistantId);
+            handleTextareaFocus(event.currentTarget, 0.72);
+          }}
+          onBlur={(event) => {
+            handleTextareaBlur(event.currentTarget);
+          }}
           onKeyDown={(event) => {
             if (event.nativeEvent.isComposing) return;
             if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
@@ -1560,6 +1712,9 @@ export function ChatCanvasShell({
             <main
               className="mx-auto flex w-full max-w-[760px] flex-col items-center gap-10"
               onClick={(event) => {
+                if (!isVerticalMode) {
+                  return;
+                }
                 if (isInteractiveTapTarget(event.target)) {
                   return;
                 }
@@ -1732,6 +1887,9 @@ export function ChatCanvasShell({
                                   if (event.metaKey || event.ctrlKey) {
                                     return;
                                   }
+                                  if (!isVerticalMode) {
+                                    return;
+                                  }
                                   if (isInteractiveTapTarget(event.target)) {
                                     return;
                                   }
@@ -1748,6 +1906,9 @@ export function ChatCanvasShell({
                                   onPointerDown={(event) => event.stopPropagation()}
                                   onClick={(event) => {
                                     event.stopPropagation();
+                                    if (!isVerticalMode) {
+                                      return;
+                                    }
                                     focusBranchByKey(branch.key);
                                   }}
                                   className="absolute -bottom-[18vh] -left-8 -right-8 -top-[40vh] z-0 block cursor-pointer rounded-[28px] bg-transparent"
@@ -1779,10 +1940,13 @@ export function ChatCanvasShell({
                                         resizeTextarea(event.currentTarget);
                                       }}
                                       onPointerDown={(event) => {
-                                        focusElementToViewportCenter(event.currentTarget);
+                                        focusTextareaWithoutBrowserScroll(event.currentTarget, 0.66);
                                       }}
                                       onFocus={(event) => {
-                                        focusElementToViewportCenter(event.currentTarget);
+                                        handleTextareaFocus(event.currentTarget, 0.66);
+                                      }}
+                                      onBlur={(event) => {
+                                        handleTextareaBlur(event.currentTarget);
                                       }}
                                       onKeyDown={(event) => {
                                         if (event.nativeEvent.isComposing) return;

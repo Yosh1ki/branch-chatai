@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { MutableRefObject, Ref } from "react";
 import { clampScale, normalizeScaleRange } from "@/lib/canvas-state";
 import { getPointerDragBehavior, getWheelBehavior } from "@/lib/canvas-input";
@@ -70,13 +70,19 @@ export function CanvasViewport({
     stateRef.current = state;
   }, [state]);
 
-  const applyState = (next: CanvasState) => {
-    onStateChange(next);
-  };
+  const applyState = useCallback(
+    (next: CanvasState) => {
+      onStateChange(next);
+    },
+    [onStateChange]
+  );
 
-  const updateOffsets = (offsetX: number, offsetY: number, scale: number) => {
-    applyState({ scale, offsetX, offsetY });
-  };
+  const updateOffsets = useCallback(
+    (offsetX: number, offsetY: number, scale: number) => {
+      applyState({ scale, offsetX, offsetY });
+    },
+    [applyState]
+  );
 
   const isSelectableTarget = (target: EventTarget | null) => {
     if (!(target instanceof HTMLElement)) return false;
@@ -155,40 +161,48 @@ export function CanvasViewport({
     }
   };
 
-  const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const current = stateRef.current;
-    if (navigationMode === "vertical") {
-      updateOffsets(current.offsetX, current.offsetY - event.deltaY, current.scale);
-      return;
-    }
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
 
-    const behavior = getWheelBehavior({ isCtrlPressed: event.ctrlKey });
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const current = stateRef.current;
+      if (navigationMode === "vertical") {
+        updateOffsets(current.offsetX, current.offsetY - event.deltaY, current.scale);
+        return;
+      }
 
-    if (behavior.mode === "zoom") {
-      const { minScale: minValue, maxScale: maxValue } = normalizeScaleRange(minScale, maxScale);
-      const zoomFactor = event.deltaY < 0 ? 1.06 : 0.94;
-      const nextScale = clampScale(current.scale * zoomFactor, minValue, maxValue);
+      const behavior = getWheelBehavior({ isCtrlPressed: event.ctrlKey });
 
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
+      if (behavior.mode === "zoom") {
+        const { minScale: minValue, maxScale: maxValue } = normalizeScaleRange(minScale, maxScale);
+        const zoomFactor = event.deltaY < 0 ? 1.06 : 0.94;
+        const nextScale = clampScale(current.scale * zoomFactor, minValue, maxValue);
 
-      const originX = event.clientX - rect.left - rect.width / 2;
-      const originY = event.clientY - rect.top - rect.height / 2;
-      const ratio = nextScale / current.scale;
-      const nextOffsetX = (current.offsetX - originX) * ratio + originX;
-      const nextOffsetY = (current.offsetY - originY) * ratio + originY;
+        const rect = node.getBoundingClientRect();
+        const originX = event.clientX - rect.left - rect.width / 2;
+        const originY = event.clientY - rect.top - rect.height / 2;
+        const ratio = nextScale / current.scale;
+        const nextOffsetX = (current.offsetX - originX) * ratio + originX;
+        const nextOffsetY = (current.offsetY - originY) * ratio + originY;
 
-      updateOffsets(nextOffsetX, nextOffsetY, nextScale);
-      return;
-    }
+        updateOffsets(nextOffsetX, nextOffsetY, nextScale);
+        return;
+      }
 
-    updateOffsets(
-      current.offsetX - event.deltaX,
-      current.offsetY - event.deltaY,
-      current.scale
-    );
-  };
+      updateOffsets(
+        current.offsetX - event.deltaX,
+        current.offsetY - event.deltaY,
+        current.scale
+      );
+    };
+
+    node.addEventListener("wheel", handleWheel, { passive: false });
+    return () => {
+      node.removeEventListener("wheel", handleWheel);
+    };
+  }, [maxScale, minScale, navigationMode, updateOffsets]);
 
   const setContainerRef = (node: HTMLDivElement | null) => {
     containerRef.current = node;
@@ -209,7 +223,6 @@ export function CanvasViewport({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
-      onWheel={handleWheel}
       style={{
         touchAction: "none",
         cursor: isDragging ? "grabbing" : "grab",
