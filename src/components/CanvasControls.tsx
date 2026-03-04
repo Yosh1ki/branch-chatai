@@ -45,7 +45,9 @@ export function CanvasControls({
       aria-pressed={isVerticalMode}
       className="fixed left-6 top-24 z-50 inline-flex items-center gap-3 rounded-full border border-[#e6ddd3] bg-white/90 px-4 py-2 text-xs text-main shadow-sm backdrop-blur transition hover:bg-white"
     >
-      <span className={isVerticalMode ? "text-main-muted" : "text-main"}>{percentage}%</span>
+      <span className={`${isVerticalMode ? "text-main-muted" : "text-main"} hidden sm:inline`}>
+        {percentage}%
+      </span>
       {isVerticalMode ? (
         <ArrowUpDown className="h-3.5 w-3.5 text-main" />
       ) : (

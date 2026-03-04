@@ -119,7 +119,7 @@ export function ChatCanvasShell({
   const canvasContentRef = useRef<HTMLDivElement | null>(null);
   const nodeRefs = useRef(new Map<string, HTMLDivElement>());
   const branchIndicatorContainerRef = useRef<HTMLDivElement | null>(null);
-  const branchIndicatorIdleTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const branchIndicatorIdleTimerRef = useRef<number | null>(null);
   const isPanningRef = useRef(false);
   const focusAnimationFrameRef = useRef<number | null>(null);
   const verticalModeFocusFrameRef = useRef<number | null>(null);
@@ -1437,7 +1437,7 @@ export function ChatCanvasShell({
           }}
           placeholder={t("prompt.placeholder")}
           rows={1}
-          className="w-full resize-none rounded-xl border border-[var(--color-border-muted)] bg-[var(--color-surface)] px-4 py-3 text-base leading-6 text-main shadow-[var(--color-shadow-soft)] transition-[height] duration-150 ease-out focus:border-[var(--color-border-soft)] focus:outline-none"
+          className="w-full resize-none rounded-xl border border-(--color-border-muted) bg-(--color-surface) px-4 py-3 text-base leading-6 text-main shadow-(--color-shadow-soft) transition-[height] duration-150 ease-out focus:border-(--color-border-soft) focus:outline-none"
         />
         <button
           type="submit"
@@ -1509,14 +1509,14 @@ export function ChatCanvasShell({
   ) : null;
 
   return (
-    <div className="min-h-screen bg-[var(--color-app-bg)] text-main">
+    <div className="min-h-screen bg-(--color-app-bg) text-main">
       <DisableCanvasNavigation />
       <CanvasControls
         scale={state.scale}
         isVerticalMode={isVerticalMode}
         onToggleVerticalMode={handleToggleVerticalMode}
       />
-      <div className="fixed left-0 right-0 top-0 z-40 bg-[var(--color-app-bg)]/80 backdrop-blur">
+      <div className="fixed left-0 right-0 top-0 z-40 bg-(--color-app-bg)/80 backdrop-blur">
         <div className="mx-auto w-full px-0">
           <ChatHeader
             settingsContent={settingsContent}
@@ -1527,7 +1527,7 @@ export function ChatCanvasShell({
       </div>
       {indicatorContent ? (
         <div
-          className={`pointer-events-none fixed inset-x-0 bottom-20 z-[45] flex justify-center px-4 transition-opacity duration-300 ${
+          className={`pointer-events-none fixed inset-x-0 bottom-20 z-45 flex justify-center px-4 transition-opacity duration-300 ${
             isBranchIndicatorIdle ? "opacity-15" : "opacity-100"
           }`}
         >
@@ -1642,7 +1642,7 @@ export function ChatCanvasShell({
                             {t("chat.newBranch")}
                           </span>
                         )}
-                        <div className="h-10 w-px bg-[var(--color-connector)]" />
+                        <div className="h-10 w-px bg-(--color-connector)" />
                         {!parentRightBranch?.hasSubmitted ? (
                           <button
                             type="button"
@@ -1800,7 +1800,7 @@ export function ChatCanvasShell({
                                       }}
                                       placeholder={t("prompt.placeholder")}
                                       rows={1}
-                                      className="w-full resize-none rounded-xl border border-[var(--color-border-muted)] bg-[var(--color-surface)] px-4 py-2 text-sm leading-5 text-main shadow-[var(--color-shadow-soft)] transition-[height] duration-150 ease-out focus:border-[var(--color-border-soft)] focus:outline-none"
+                                      className="w-full resize-none rounded-xl border border-(--color-border-muted) bg-(--color-surface) px-4 py-2 text-sm leading-5 text-main shadow-(--color-shadow-soft) transition-[height] duration-150 ease-out focus:border-(--color-border-soft) focus:outline-none"
                                     />
                                     <button
                                       type="submit"
