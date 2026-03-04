@@ -1,9 +1,10 @@
 "use client"
 
-import { useMemo, useState, type MouseEvent } from "react"
+import { useEffect, useMemo, useState, type MouseEvent } from "react"
 import Link from "next/link"
 import { MessageSquare, MoreHorizontal, Trash2, X } from "lucide-react"
 import { sortChatsByUpdatedAt } from "@/lib/chat-sort"
+import type { ChatViewMode } from "@/components/chats/chat-view-mode-toggle"
 import { useI18n } from "@/components/i18n/i18n-provider"
 
 type ChatSummary = {
@@ -18,18 +19,26 @@ type SortOrder = "newest" | "oldest"
 type ChatListProps = {
   initialChats: ChatSummary[]
   sortOrder: SortOrder
+  viewMode: ChatViewMode
 }
 
-export function ChatList({ initialChats, sortOrder }: ChatListProps) {
+const DETAIL_PAGE_SIZE = 12
+const LIST_PAGE_SIZE = 36
+
+export function ChatList({ initialChats, sortOrder, viewMode }: ChatListProps) {
   const { locale, t } = useI18n()
   const [chats, setChats] = useState<ChatSummary[]>(initialChats)
-  const [visibleCount, setVisibleCount] = useState(12)
+  const [visibleCount, setVisibleCount] = useState(DETAIL_PAGE_SIZE)
+  const pageSize = viewMode === "list" ? LIST_PAGE_SIZE : DETAIL_PAGE_SIZE
   const sortedChats = useMemo(() => sortChatsByUpdatedAt(chats, sortOrder), [chats, sortOrder])
   const visibleChats = useMemo(
     () => sortedChats.slice(0, visibleCount),
     [sortedChats, visibleCount]
   )
 
+  useEffect(() => {
+    setVisibleCount(pageSize)
+  }, [pageSize])
 
   const handleDeleted = (id: string) => {
     setChats((prev) => prev.filter((chat) => chat.id !== id))
@@ -41,17 +50,29 @@ export function ChatList({ initialChats, sortOrder }: ChatListProps) {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-5 md:grid-cols-2">
+      <div
+        className={
+          viewMode === "detail"
+            ? "grid gap-5 md:grid-cols-2"
+            : "overflow-hidden rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-surface)] shadow-[var(--color-shadow-soft)]"
+        }
+      >
         {visibleChats.map((chat) => (
-          <ChatCard key={chat.id} chat={chat} onDeleted={handleDeleted} locale={locale} />
+          <ChatCard
+            key={chat.id}
+            chat={chat}
+            onDeleted={handleDeleted}
+            locale={locale}
+            viewMode={viewMode}
+          />
         ))}
       </div>
       {visibleChats.length < sortedChats.length ? (
         <div className="flex justify-center">
           <button
             type="button"
-            onClick={() => setVisibleCount((count) => count + 12)}
-            className="rounded-full border border-[#f1d0c7] px-4 py-2 text-sm font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f1d0c7]"
+            onClick={() => setVisibleCount((count) => count + pageSize)}
+            className="rounded-full border border-[var(--color-border-soft)] px-4 py-2 text-sm font-semibold text-main transition hover:bg-[var(--color-surface-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]"
           >
             {t("chats.showMore")}
           </button>
@@ -65,9 +86,10 @@ type ChatCardProps = {
   chat: ChatSummary
   onDeleted: (id: string) => void
   locale: "ja" | "en"
+  viewMode: ChatViewMode
 }
 
-function ChatCard({ chat, onDeleted, locale }: ChatCardProps) {
+function ChatCard({ chat, onDeleted, locale, viewMode }: ChatCardProps) {
   const { t } = useI18n()
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -128,45 +150,59 @@ function ChatCard({ chat, onDeleted, locale }: ChatCardProps) {
     <>
       <Link
         href={`/chats/${chat.id}`}
-        className="relative rounded-[24px] bg-white/90 p-6 shadow-[0_10px_40px_rgba(68,41,33,0.08)] transition hover:-translate-y-1"
+        className={`group relative block transition ${
+          viewMode === "detail"
+            ? "rounded-[24px] border border-[var(--color-border-muted)] bg-[var(--color-surface)] p-6 shadow-[var(--color-shadow-card)] hover:-translate-y-1"
+            : "border-b border-[var(--color-border-muted)] px-4 py-3 last:border-b-0 hover:bg-[var(--color-surface-soft)]"
+        }`}
       >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-lg font-semibold leading-tight">{chat.title}</div>
-            <p className="mt-1 text-sm text-main-muted">{updatedAtLabel}</p>
+        {viewMode === "detail" ? (
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-lg font-semibold leading-tight">{chat.title}</div>
+              <p className="mt-1 text-sm text-main-muted">{updatedAtLabel}</p>
+            </div>
+            <div className="relative" onMouseLeave={() => setMenuOpen(false)}>
+              <button
+                type="button"
+                aria-label="Open chat actions"
+                onClick={toggleMenu}
+                className="rounded-md p-2 text-main-muted transition hover:bg-[var(--color-surface-soft)]"
+              >
+                <MoreHorizontal className="h-5 w-5" aria-hidden />
+              </button>
+              {menuOpen && (
+                <div className="absolute right-0 top-0 z-20 w-40 rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-surface)] p-2 shadow-[var(--color-shadow-card)]">
+                  <button
+                    type="button"
+                    onClick={openConfirm}
+                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-[#e56b6f] transition hover:bg-[var(--color-surface-soft)]"
+                  >
+                    <Trash2 className="h-4 w-4 text-[#e56b6f]" />
+                    {t("chats.deleteAction")}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="relative" onMouseLeave={() => setMenuOpen(false)}>
-            <button
-              type="button"
-              aria-label="Open chat actions"
-              onClick={toggleMenu}
-              className="rounded-md p-2 text-main-muted transition hover:bg-[#f6ece7]"
-            >
-              <MoreHorizontal className="h-5 w-5" aria-hidden />
-            </button>
-            {menuOpen && (
-              <div className="absolute right-0 top-0 z-20 w-40 rounded-2xl border border-[#f1d0c7] bg-white p-2 shadow-lg">
-                <button
-                  type="button"
-                  onClick={openConfirm}
-                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-[#e56b6f] transition hover:bg-[#fbf7f3]"
-                >
-                  <Trash2 className="h-4 w-4 text-[#e56b6f]" />
-                  {t("chats.deleteAction")}
-                </button>
-              </div>
-            )}
+        ) : (
+          <div className="flex items-center justify-between gap-3">
+            <p className="truncate text-sm font-semibold text-main">{chat.title}</p>
+            <p className="shrink-0 text-xs text-main-muted tabular-nums">{updatedAtLabel}</p>
           </div>
-        </div>
-        <div className="mt-4 flex items-center gap-2 text-sm text-main-lite">
-          <MessageSquare className="h-4 w-4" />
-          {branchCount} {branchCount === 1 ? "branch" : "branches"}
-        </div>
+        )}
+
+        {viewMode === "detail" ? (
+          <div className="mt-4 flex items-center gap-2 text-sm text-main-lite">
+            <MessageSquare className="h-4 w-4" />
+            {branchCount} {branchCount === 1 ? "branch" : "branches"}
+          </div>
+        ) : null}
       </Link>
 
       {confirmOpen && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+          <div className="w-full max-w-md rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-surface)] p-5 shadow-[var(--color-shadow-card)]">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-main">{t("chats.deleteConfirmTitle")}</h2>
@@ -176,7 +212,7 @@ function ChatCard({ chat, onDeleted, locale }: ChatCardProps) {
                 type="button"
                 aria-label="Close"
                 onClick={closeConfirm}
-                className="rounded-full p-1 text-main-muted transition hover:bg-[#f6ece7]"
+                className="rounded-full p-1 text-main-muted transition hover:bg-[var(--color-surface-soft)]"
               >
                 <X className="h-4 w-4" aria-hidden />
               </button>
@@ -185,7 +221,7 @@ function ChatCard({ chat, onDeleted, locale }: ChatCardProps) {
               <button
                 type="button"
                 onClick={closeConfirm}
-                className="rounded-full border border-[#f1d0c7] px-3 py-2 text-sm font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f1d0c7]"
+                className="rounded-full border border-[var(--color-border-soft)] px-3 py-2 text-sm font-semibold text-main transition hover:bg-[var(--color-surface-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]"
                 disabled={isDeleting}
               >
                 {t("chats.cancel")}
@@ -193,7 +229,7 @@ function ChatCard({ chat, onDeleted, locale }: ChatCardProps) {
               <button
                 type="button"
                 onClick={handleDelete}
-                className="rounded-full bg-[#e56b6f] px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b5a2]"
+                className="rounded-full bg-[#e56b6f] px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]"
                 disabled={isDeleting}
               >
                 {isDeleting ? t("chats.deleting") : t("chats.delete")}

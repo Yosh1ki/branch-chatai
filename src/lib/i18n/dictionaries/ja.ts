@@ -74,6 +74,12 @@ export const jaDictionary = {
   "chats.deleting": "削除中...",
   "chats.delete": "削除",
   "chats.dailyLimitReached": "本日の無料プラン上限（{{limit}}件）に達しました。明日以降に再度お試しください。",
+  "chats.viewMode": "表示モード",
+  "chats.viewList": "リスト表示",
+  "chats.viewDetail": "詳細表示",
+  "chats.roleUser": "あなた",
+  "chats.roleAssistant": "AI",
+  "chats.previewUnavailable": "表示できる会話内容がありません。",
 
   "sort.label": "並び順",
   "sort.newest": "新しい順",

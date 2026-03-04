@@ -77,6 +77,12 @@ export const enDictionary: { [K in keyof JaDictionary]: string } = {
   "chats.delete": "Delete",
   "chats.dailyLimitReached":
     "You have reached the free plan daily limit ({{limit}}). Please try again tomorrow.",
+  "chats.viewMode": "View mode",
+  "chats.viewList": "List",
+  "chats.viewDetail": "Detail",
+  "chats.roleUser": "You",
+  "chats.roleAssistant": "AI",
+  "chats.previewUnavailable": "No conversation preview is available.",
 
   "sort.label": "Sort order",
   "sort.newest": "Newest first",

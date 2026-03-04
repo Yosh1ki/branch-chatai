@@ -30,7 +30,6 @@ async function getChats(userId: string) {
       id: true,
       title: true,
       updatedAt: true,
-      rootMessageId: true,
     },
   })
 
