@@ -115,7 +115,7 @@ const markdownComponents = {
     <pre
       {...props}
       className={cn(
-        "overflow-x-auto rounded-md border border-[var(--color-border-soft)] bg-[var(--color-surface-soft)] p-3 text-xs text-main",
+        "overflow-x-auto rounded-md border border-(--color-border-soft) bg-(--color-surface-soft) p-3 text-xs text-main",
         props.className
       )}
     />
@@ -126,7 +126,7 @@ const markdownComponents = {
         <code
           {...rest}
           className={cn(
-            "rounded bg-[var(--color-surface-soft)] px-1 py-0.5 text-xs font-semibold text-main",
+            "rounded bg-(--color-surface-soft) px-1 py-0.5 text-xs font-semibold text-main",
             className
           )}
         >
@@ -439,7 +439,7 @@ export function AssistantCard({
     <>
       <div
         ref={cardRef}
-        className="relative w-full max-w-3xl rounded-xl border border-[#efe5dc] bg-[#FFFFFF] p-8 text-main dark:bg-(--color-surface)"
+        className="relative w-full max-w-3xl rounded-xl border border-[#efe5dc] bg-[#FFFFFF] p-4 text-main dark:bg-(--color-surface)"
       >
         <div className="cursor-text space-y-6 text-[15px] leading-7" data-allow-selection="true">
           {isLoading && canShowResearchUI ? (
@@ -619,7 +619,7 @@ export function AssistantCard({
       </div>
       {showPromptInput ? (
         <div className="branch-stack w-full max-w-3xl">
-          <span className="branch-connector branch-connector-top" aria-hidden="true" />
+          <span className="branch-connector branch-connector-top mt-2" aria-hidden="true" />
           <div className="branch-grid">
             <span className="branch-connector-rail" aria-hidden="true" />
             {BRANCH_OPTIONS.map((option) => {
@@ -653,9 +653,11 @@ export function AssistantCard({
               );
             })}
           </div>
-          <span className="branch-connector branch-connector-bottom" aria-hidden="true" />
           {promptInput ? (
-            <div className="-mt-px flex w-full justify-center">{promptInput}</div>
+            <>
+              <span className="branch-connector branch-connector-bottom" aria-hidden="true" />
+              <div className="-mt-px flex w-full justify-center">{promptInput}</div>
+            </>
           ) : null}
         </div>
       ) : null}

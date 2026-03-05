@@ -141,7 +141,7 @@ export default async function ChatsPage() {
   ])
 
   return (
-    <div className="min-h-screen bg-[var(--color-app-bg)] text-main">
+    <div className="min-h-screen bg-(--color-app-bg) text-main">
       <header className="flex w-full items-center justify-between px-2 py-6">
         <Link
           href="/chats"

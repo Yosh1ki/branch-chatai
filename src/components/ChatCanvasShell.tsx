@@ -132,7 +132,7 @@ export function ChatCanvasShell({
   const [isBranchIndicatorIdle, setIsBranchIndicatorIdle] = useState(false);
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const canvasContentRef = useRef<HTMLDivElement | null>(null);
-  const nodeRefs = useRef(new Map<string, HTMLDivElement>());
+  const nodeRefs = useRef(new Map<string, HTMLElement>());
   const branchIndicatorContainerRef = useRef<HTMLDivElement | null>(null);
   const branchIndicatorIdleTimerRef = useRef<number | null>(null);
   const isPanningRef = useRef(false);
@@ -1018,7 +1018,7 @@ export function ChatCanvasShell({
     typeof value === "number" ? `${value}px` : value;
 
   const setNodeRef = useCallback(
-    (id: string) => (node: HTMLDivElement | null) => {
+    (id: string) => (node: HTMLElement | null) => {
       if (!node) {
         nodeRefs.current.delete(id);
         return;
@@ -1882,6 +1882,7 @@ export function ChatCanvasShell({
                 const branchShift = normalizeBranchShift(branchOffset);
                 const userNodeId = pair.user?.id ?? `user-${index}`;
                 const assistantNodeId = pair.assistant?.id ?? `assistant-${index}`;
+                const shouldShowInlinePromptInput = isLast && promptInputEnabled;
                 const branchesForAssistant = assistantId
                   ? branchesByParent.get(assistantId) ?? []
                   : [];
@@ -1907,7 +1908,7 @@ export function ChatCanvasShell({
                     className="flex w-full flex-col items-center"
                   >
                     {index > 0 ? (
-                      <div className="-mt-8 mb-8 flex items-center gap-3">
+                      <div className="-mt-8 mb- flex items-center gap-3">
                         {!parentLeftBranch?.hasSubmitted ? (
                           <button
                             type="button"
@@ -1935,7 +1936,15 @@ export function ChatCanvasShell({
                             <span>{t("chat.newBranch")}</span>
                           </span>
                         )}
-                        <div className="h-10 w-px bg-(--color-connector)" />
+                        <div
+                          ref={
+                            parentAssistantId
+                              ? setNodeRef(`branch-origin-${parentAssistantId}`)
+                              : undefined
+                          }
+                          aria-hidden="true"
+                          className="mt-6 h-10 w-px bg-(--color-connector)"
+                        />
                         {!parentRightBranch?.hasSubmitted ? (
                           <button
                             type="button"
@@ -1985,10 +1994,10 @@ export function ChatCanvasShell({
                         modelProvider={assistantModelProvider}
                         modelName={assistantModelName}
                         modelReasoningEffort={assistantModelReasoningEffort}
-                        showPromptInput={isLast && promptInputEnabled}
-                        showAllBranchPills={isLast && promptInputEnabled}
+                        showPromptInput={shouldShowInlinePromptInput}
+                        showAllBranchPills={shouldShowInlinePromptInput}
                         hiddenBranchSides={isLast ? hiddenBranchSides : undefined}
-                        promptInput={isLast && promptInputEnabled ? promptInput : null}
+                        promptInput={null}
                         activeBranchSides={isLast ? activeBranchSides : null}
                         cardRef={setNodeRef(`assistant-${assistantNodeId}`)}
                         onBranchSelect={(side) => {
@@ -2145,6 +2154,9 @@ export function ChatCanvasShell({
                           })}
                         </div>
                       </div>
+                    ) : null}
+                    {shouldShowInlinePromptInput ? (
+                      <div className="mt-6 flex w-full justify-center">{promptInput}</div>
                     ) : null}
                   </div>
                 );

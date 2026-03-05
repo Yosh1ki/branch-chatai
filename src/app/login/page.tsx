@@ -9,7 +9,7 @@ export default async function LoginPage() {
     const locale = await resolveRequestLocale()
     const t = createTranslator(locale)
     return (
-        <div className="min-h-screen bg-[var(--color-app-bg)] text-main">
+        <div className="min-h-screen bg-(--color-app-bg) text-main">
             <header className="flex w-full items-center justify-between gap-6 px-2 py-6">
                 <p
                     className="text-left font-title text-3xl tracking-wide text-main md:text-2xl"

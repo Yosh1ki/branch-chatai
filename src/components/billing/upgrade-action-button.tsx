@@ -44,7 +44,7 @@ export function UpgradeActionButton({ planType, className }: UpgradeActionButton
       onClick={handleClick}
       disabled={isLoading}
       className={cn(
-        "inline-flex h-12 w-full items-center justify-center rounded-full bg-theme-main px-6 text-base font-bold text-main transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]",
+        "inline-flex h-12 w-full items-center justify-center rounded-full bg-theme-main px-6 text-base font-bold text-main transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)",
         className
       )}
     >

@@ -20,7 +20,7 @@ export default async function SettingsPage() {
   const settings = await getSettingsViewData(session.user.id)
 
   return (
-    <div className="min-h-screen bg-[var(--color-app-bg)] text-main">
+    <div className="min-h-screen bg-(--color-app-bg) text-main">
       <header className="flex w-full items-center justify-between px-2 py-6">
         <Link
           href="/chats"
@@ -35,7 +35,7 @@ export default async function SettingsPage() {
         <div>
           <Link
             href="/chats"
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-soft)] bg-[var(--color-surface)] px-4 py-2 text-sm font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]"
+            className="inline-flex items-center gap-2 rounded-full border border-(--color-border-soft) bg-(--color-surface) px-4 py-2 text-sm font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
           >
             <ArrowLeft className="h-4 w-4" />
             {t("settings.backToChats")}
