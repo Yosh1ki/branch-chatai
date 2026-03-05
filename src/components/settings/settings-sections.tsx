@@ -17,7 +17,6 @@ export function SettingsSections({ locale, settings }: SettingsSectionsProps) {
     <div className="grid gap-5">
       <section className="rounded-3xl border border-[var(--color-border-soft)] bg-[var(--color-surface)]/90 p-6 shadow-[var(--color-shadow-card)]">
         <h2 className="text-xl font-semibold text-main">{t("settings.accountTitle")}</h2>
-        <p className="mt-1 text-sm text-main-muted">{t("settings.accountDescription")}</p>
 
         <div className="mt-4 space-y-3">
           <div className="flex items-center justify-between gap-4">
@@ -33,7 +32,6 @@ export function SettingsSections({ locale, settings }: SettingsSectionsProps) {
 
       <section className="rounded-3xl border border-[var(--color-border-soft)] bg-[var(--color-surface)]/90 p-6 shadow-[var(--color-shadow-card)]">
         <h2 className="text-xl font-semibold text-main">{t("settings.planTitle")}</h2>
-        <p className="mt-1 text-sm text-main-muted">{t("settings.planDescription")}</p>
 
         <div className="mt-4 flex items-center justify-between gap-4">
           <span className="text-sm text-main-muted">{t("settings.currentPlan")}</span>
@@ -63,7 +61,6 @@ export function SettingsSections({ locale, settings }: SettingsSectionsProps) {
 
       <section className="rounded-3xl border border-[var(--color-border-soft)] bg-[var(--color-surface)]/90 p-6 shadow-[var(--color-shadow-card)]">
         <h2 className="text-xl font-semibold text-main">{t("settings.themeTitle")}</h2>
-        <p className="mt-1 text-sm text-main-muted">{t("settings.themeDescription")}</p>
         <div className="mt-4">
           <ThemeToggle />
         </div>
@@ -71,7 +68,6 @@ export function SettingsSections({ locale, settings }: SettingsSectionsProps) {
 
       <section className="rounded-3xl border border-[var(--color-border-soft)] bg-[var(--color-surface)]/90 p-6 shadow-[var(--color-shadow-card)]">
         <h2 className="text-xl font-semibold text-main">{t("settings.languageTitle")}</h2>
-        <p className="mt-1 text-sm text-main-muted">{t("settings.languageDescription")}</p>
         <div className="mt-4">
           <LanguageToggle />
         </div>

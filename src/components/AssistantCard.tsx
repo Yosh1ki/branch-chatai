@@ -439,7 +439,7 @@ export function AssistantCard({
     <>
       <div
         ref={cardRef}
-        className="relative w-full max-w-3xl rounded-xl border border-[#efe5dc] bg-white p-8 text-main"
+        className="relative w-full max-w-3xl rounded-xl border border-[#efe5dc] bg-[#FFFFFF] p-8 text-main dark:bg-(--color-surface)"
       >
         <div className="cursor-text space-y-6 text-[15px] leading-7" data-allow-selection="true">
           {isLoading && canShowResearchUI ? (
