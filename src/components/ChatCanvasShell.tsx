@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Plus } from "lucide-react";
 import { AssistantCard } from "@/components/AssistantCard";
 import { CanvasControls } from "@/components/CanvasControls";
 import { CanvasViewport } from "@/components/CanvasViewport";
@@ -87,6 +87,21 @@ type IndicatorItem = {
   branchKey?: string;
 };
 
+type ConnectorEntry = {
+  id: string;
+  from: string;
+  to: string;
+  kind: "thread" | "branch";
+  branchKey?: string;
+};
+
+type ConnectorPath = {
+  id: string;
+  d: string;
+  kind: "thread" | "branch";
+  branchKey?: string;
+};
+
 const isBranchSide = (value: string): value is BranchSide =>
   value === "left" || value === "right";
 
@@ -130,8 +145,11 @@ export function ChatCanvasShell({
   const viewportAlignFrameRef = useRef<number | null>(null);
   const viewportAlignTimeoutIdsRef = useRef<number[]>([]);
   const tempIdRef = useRef(0);
-  const [connectorPaths, setConnectorPaths] = useState<string[]>([]);
-  const lastPathsRef = useRef<string[]>([]);
+  const [connectorPaths, setConnectorPaths] = useState<ConnectorPath[]>([]);
+  const lastPathsRef = useRef<ConnectorPath[]>([]);
+  const pendingBranchAnimationKeysRef = useRef(new Set<string>());
+  const branchConnectorAnimationTimersRef = useRef(new Map<string, number>());
+  const connectorPathRefs = useRef(new Map<string, SVGPathElement>());
   const branchTextareaRefs = useRef(new Map<string, HTMLTextAreaElement>());
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
   const hasAutoSentInitialPromptRef = useRef(false);
@@ -719,10 +737,12 @@ export function ChatCanvasShell({
         if (existing.hasSubmitted) {
           return prev;
         }
+        pendingBranchAnimationKeysRef.current.delete(key);
         const next = { ...prev };
         delete next[key];
         return next;
       }
+      pendingBranchAnimationKeysRef.current.add(key);
       return {
         ...prev,
         [key]: {
@@ -1009,7 +1029,7 @@ export function ChatCanvasShell({
   );
 
   const connectors = useMemo(() => {
-    const entries: Array<{ from: string; to: string; kind: "thread" | "branch" }> = [];
+    const entries: ConnectorEntry[] = [];
 
     displayPairs.forEach((pair, index) => {
       if (!pair.user && !pair.assistant) return;
@@ -1018,15 +1038,22 @@ export function ChatCanvasShell({
       const nextPair = displayPairs[index + 1];
       if (pair.assistant?.content && nextPair?.user?.content) {
         const nextUserId = nextPair.user?.id ?? `user-${index + 1}`;
-        entries.push({ from: `assistant-${assistantId}`, to: `user-${nextUserId}`, kind: "thread" });
+        entries.push({
+          id: `thread:${assistantId}->${nextUserId}`,
+          from: `assistant-${assistantId}`,
+          to: `user-${nextUserId}`,
+          kind: "thread",
+        });
       }
     });
 
     Object.values(branches).forEach((branch) => {
       entries.push({
+        id: `branch:${branch.key}`,
         from: `assistant-${branch.parentMessageId}`,
         to: `branch-${branch.key}`,
         kind: "branch",
+        branchKey: branch.key,
       });
     });
 
@@ -1040,7 +1067,7 @@ export function ChatCanvasShell({
     const contentRect = content.getBoundingClientRect();
     const scale = Number.isFinite(state.scale) && state.scale !== 0 ? state.scale : 1;
 
-    const nextPaths = connectors.flatMap((connector) => {
+    const nextPaths = connectors.flatMap((connector): ConnectorPath[] => {
       const fromNode = nodeRefs.current.get(connector.from);
       const toNode = nodeRefs.current.get(connector.to);
       if (!fromNode || !toNode) return [];
@@ -1062,13 +1089,57 @@ export function ChatCanvasShell({
       const midYOffset = connector.kind === "branch" ? -64 : 0;
       const midY = Math.max(fromY + 8, baseMidY + midYOffset);
 
-      return [`M ${fromX} ${fromY} L ${fromX} ${midY} L ${toX} ${midY} L ${toX} ${toY}`];
+      if (connector.kind === "branch") {
+        const horizontalDistance = Math.abs(toX - fromX);
+        const verticalDistance = toY - fromY;
+        const direction = toX >= fromX ? 1 : -1;
+
+        if (verticalDistance > 8 && horizontalDistance > 6) {
+          const cornerRadius = Math.max(
+            4,
+            Math.min(14, horizontalDistance * 0.06, verticalDistance / 2, horizontalDistance / 2 - 1)
+          );
+          const laneY = toY - cornerRadius;
+          const startTurnY = laneY - cornerRadius;
+          const startCurveEndX = fromX + direction * cornerRadius;
+          const endCurveStartX = toX - direction * cornerRadius;
+          return [
+            {
+              id: connector.id,
+              kind: connector.kind,
+              branchKey: connector.branchKey,
+              d: `M ${fromX} ${fromY} L ${fromX} ${startTurnY} Q ${fromX} ${laneY} ${startCurveEndX} ${laneY} L ${endCurveStartX} ${laneY} Q ${toX} ${laneY} ${toX} ${toY}`,
+            },
+          ];
+        }
+
+        return [
+          {
+            id: connector.id,
+            kind: connector.kind,
+            branchKey: connector.branchKey,
+            d: `M ${fromX} ${fromY} C ${fromX} ${fromY + 20} ${toX} ${toY - 20} ${toX} ${toY}`,
+          },
+        ];
+      }
+
+      return [
+        {
+          id: connector.id,
+          kind: connector.kind,
+          branchKey: connector.branchKey,
+          d: `M ${fromX} ${fromY} L ${fromX} ${midY} L ${toX} ${midY} L ${toX} ${toY}`,
+        },
+      ];
     });
 
     const prevPaths = lastPathsRef.current;
     const pathsChanged =
       prevPaths.length !== nextPaths.length ||
-      nextPaths.some((path, index) => prevPaths[index] !== path);
+      nextPaths.some((path, index) => {
+        const prevPath = prevPaths[index];
+        return !prevPath || prevPath.id !== path.id || prevPath.d !== path.d;
+      });
 
     if (pathsChanged) {
       lastPathsRef.current = nextPaths;
@@ -1093,6 +1164,59 @@ export function ChatCanvasShell({
       window.removeEventListener("resize", updateConnectorPaths);
     };
   }, [displayPairs, branches, updateConnectorPaths]);
+
+  const triggerConnectorDrawAnimation = useCallback((connectorId: string) => {
+    const pathElement = connectorPathRefs.current.get(connectorId);
+    if (!pathElement) {
+      return false;
+    }
+
+    pathElement.classList.remove("branch-connector-draw");
+    void pathElement.getBoundingClientRect();
+    pathElement.classList.add("branch-connector-draw");
+
+    const existingTimer = branchConnectorAnimationTimersRef.current.get(connectorId);
+    if (existingTimer != null) {
+      window.clearTimeout(existingTimer);
+    }
+
+    const timer = window.setTimeout(() => {
+      const latestPathElement = connectorPathRefs.current.get(connectorId);
+      latestPathElement?.classList.remove("branch-connector-draw");
+      branchConnectorAnimationTimersRef.current.delete(connectorId);
+    }, 460);
+    branchConnectorAnimationTimersRef.current.set(connectorId, timer);
+    return true;
+  }, []);
+
+  useEffect(() => {
+    if (connectorPaths.length === 0 || pendingBranchAnimationKeysRef.current.size === 0) {
+      return;
+    }
+
+    connectorPaths.forEach((connectorPath) => {
+      if (connectorPath.kind !== "branch" || !connectorPath.branchKey) {
+        return;
+      }
+      if (!pendingBranchAnimationKeysRef.current.has(connectorPath.branchKey)) {
+        return;
+      }
+      const hasAnimated = triggerConnectorDrawAnimation(connectorPath.id);
+      if (hasAnimated) {
+        pendingBranchAnimationKeysRef.current.delete(connectorPath.branchKey);
+      }
+    });
+  }, [connectorPaths, triggerConnectorDrawAnimation]);
+
+  useEffect(() => {
+    const timerMap = branchConnectorAnimationTimersRef.current;
+    return () => {
+      timerMap.forEach((timer) => {
+        window.clearTimeout(timer);
+      });
+      timerMap.clear();
+    };
+  }, []);
 
   const handlePanStateChange = useCallback(
     (isPanning: boolean) => {
@@ -1621,15 +1745,27 @@ export function ChatCanvasShell({
       className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
       aria-hidden="true"
     >
-      {connectorPaths.map((path, index) => (
-        <path
-          key={`connector-${index}`}
-          d={path}
-          fill="none"
-          stroke="var(--color-connector)"
-          strokeWidth="1"
-        />
-      ))}
+      {connectorPaths.map((connectorPath) => {
+        return (
+          <path
+            key={connectorPath.id}
+            ref={(node) => {
+              if (!node) {
+                connectorPathRefs.current.delete(connectorPath.id);
+                return;
+              }
+              connectorPathRefs.current.set(connectorPath.id, node);
+            }}
+            d={connectorPath.d}
+            fill="none"
+            stroke="var(--color-connector)"
+            strokeWidth="1"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            pathLength={1}
+          />
+        );
+      })}
     </svg>
   );
   const indicatorContent = indicatorItems.length ? (
@@ -1787,14 +1923,16 @@ export function ChatCanvasShell({
                               parentLeftBranch ? "branch-pill-selected" : ""
                             }`}
                           >
-                            {t("chat.newBranch")}
+                            <Plus className="h-3 w-3" aria-hidden="true" />
+                            <span>{t("chat.newBranch")}</span>
                           </button>
                         ) : (
                           <span
                             aria-hidden="true"
                             className="branch-pill invisible pointer-events-none"
                           >
-                            {t("chat.newBranch")}
+                            <Plus className="h-3 w-3" aria-hidden="true" />
+                            <span>{t("chat.newBranch")}</span>
                           </span>
                         )}
                         <div className="h-10 w-px bg-(--color-connector)" />
@@ -1813,14 +1951,16 @@ export function ChatCanvasShell({
                               parentRightBranch ? "branch-pill-selected" : ""
                             }`}
                           >
-                            {t("chat.newBranch")}
+                            <Plus className="h-3 w-3" aria-hidden="true" />
+                            <span>{t("chat.newBranch")}</span>
                           </button>
                         ) : (
                           <span
                             aria-hidden="true"
                             className="branch-pill invisible pointer-events-none"
                           >
-                            {t("chat.newBranch")}
+                            <Plus className="h-3 w-3" aria-hidden="true" />
+                            <span>{t("chat.newBranch")}</span>
                           </span>
                         )}
                       </div>

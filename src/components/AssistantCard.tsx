@@ -6,7 +6,17 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import type { Components, ExtraProps } from "react-markdown";
-import { Check, CheckCircle2, ChevronRight, Copy, Globe, MoreHorizontal, Search, X } from "lucide-react";
+import {
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  Copy,
+  Globe,
+  MoreHorizontal,
+  Plus,
+  Search,
+  X,
+} from "lucide-react";
 import { toggleMenu } from "@/lib/chat-screen-state";
 import { useCopyFeedback } from "@/hooks/use-copy-feedback";
 import { getModelLabel, isModelProvider, isReasoningEffort } from "@/lib/model-catalog";
@@ -622,7 +632,8 @@ export function AssistantCard({
                     aria-hidden="true"
                     className={`branch-pill ${option.className} invisible pointer-events-none`}
                   >
-                    {t(option.labelKey)}
+                    <Plus className="h-3 w-3" aria-hidden="true" />
+                    <span>{t(option.labelKey)}</span>
                   </span>
                 );
               }
@@ -636,7 +647,8 @@ export function AssistantCard({
                     selectedBranches.includes(option.value) ? "branch-pill-selected" : ""
                   }`}
                 >
-                  {t(option.labelKey)}
+                  <Plus className="h-3 w-3" aria-hidden="true" />
+                  <span>{t(option.labelKey)}</span>
                 </button>
               );
             })}

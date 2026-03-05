@@ -261,9 +261,18 @@
 }
 
 .branch-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 122px;
+  white-space: nowrap;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   border-radius: 999px;
-  border: 1px solid var(--color-border-muted);
-  background: var(--color-surface-soft);
+  border: 1px solid transparent;
+  background: transparent;
   color: var(--color-main-text-soft);
   padding: 6px 14px;
   font-size: 12px;
@@ -274,10 +283,41 @@
   animation: branch-pill-enter 420ms ease forwards;
 }
 
+.branch-pill::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    120deg,
+    #9fd3b0 0%,
+    #74bc8f 18%,
+    #5eaa7f 36%,
+    #86c89f 54%,
+    #4f9a73 72%,
+    #b7dfc2 100%
+  );
+  background-size: 300% 300%;
+  will-change: background-position;
+  animation: branch-pill-border-shift 6s linear infinite;
+  z-index: -2;
+}
+
+.branch-pill::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background: var(--color-surface-soft);
+  z-index: -1;
+}
+
 .branch-pill-selected {
-  border-color: var(--color-border-soft);
-  background: var(--color-theme-main);
   color: var(--color-main-text);
+}
+
+.branch-pill-selected::after {
+  background: var(--color-theme-main);
 }
 
 .branch-pill-delay-1 {
@@ -292,6 +332,30 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes branch-pill-border-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  25% {
+    background-position: 100% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  75% {
+    background-position: 0% 100%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .branch-pill::before {
+    animation: none;
   }
 }
 
@@ -311,6 +375,26 @@
   height: 20px;
   margin: 0 auto;
   background: var(--color-connector);
+}
+
+.branch-connector-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: branch-connector-draw 460ms ease-out forwards;
+}
+
+@keyframes branch-connector-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .branch-connector-draw {
+    animation: none;
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+  }
 }
 
 .branch-grid {
