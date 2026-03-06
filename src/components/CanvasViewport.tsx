@@ -34,7 +34,58 @@ type PointerPosition = {
 
 type PinchState = {
   distance: number;
-  scale: number;
+  centerX: number;
+  centerY: number;
+};
+
+const WHEEL_ZOOM_SENSITIVITY = 0.01;
+const WHEEL_LINE_HEIGHT_PX = 16;
+const DRAG_PAN_SENSITIVITY = 1.4;
+const FREE_WHEEL_PAN_SENSITIVITY = 1.4;
+const VERTICAL_WHEEL_PAN_SENSITIVITY = 1.4;
+
+const getPinchMetrics = (points: PointerPosition[]) => {
+  const dx = points[0].x - points[1].x;
+  const dy = points[0].y - points[1].y;
+  return {
+    distance: Math.hypot(dx, dy),
+    centerX: (points[0].x + points[1].x) / 2,
+    centerY: (points[0].y + points[1].y) / 2,
+  };
+};
+
+const getZoomOrigin = (
+  rect: DOMRect,
+  clientX: number,
+  clientY: number
+) => ({
+  originX: clientX - rect.left - rect.width / 2,
+  originY: clientY - rect.top - rect.height / 2,
+});
+
+const getScaledOffsets = (
+  offsetX: number,
+  offsetY: number,
+  originX: number,
+  originY: number,
+  ratio: number
+) => ({
+  offsetX: (offsetX - originX) * ratio + originX,
+  offsetY: (offsetY - originY) * ratio + originY,
+});
+
+const normalizeWheelDelta = (
+  deltaY: number,
+  deltaMode: number,
+  viewportHeight: number
+) => {
+  if (deltaMode === WheelEvent.DOM_DELTA_LINE) {
+    return deltaY * WHEEL_LINE_HEIGHT_PX;
+  }
+  if (deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+    return deltaY * viewportHeight;
+  }
+  return deltaY;
 };
 
 const assignRef = <T,>(ref: Ref<T> | undefined, value: T | null) => {
@@ -110,11 +161,7 @@ export function CanvasViewport({
 
     if (pointerMap.current.size === 2) {
       const points = Array.from(pointerMap.current.values());
-      const dx = points[0].x - points[1].x;
-      const dy = points[0].y - points[1].y;
-      const distance = Math.hypot(dx, dy);
-      pinchState.current =
-        navigationMode === "free" ? { distance, scale: stateRef.current.scale } : null;
+      pinchState.current = navigationMode === "free" ? getPinchMetrics(points) : null;
     }
   };
 
@@ -126,8 +173,8 @@ export function CanvasViewport({
     pointerMap.current.set(event.pointerId, nextPoint);
 
     if (pointerMap.current.size === 1 && prev) {
-      const dx = nextPoint.x - prev.x;
-      const dy = nextPoint.y - prev.y;
+      const dx = (nextPoint.x - prev.x) * DRAG_PAN_SENSITIVITY;
+      const dy = (nextPoint.y - prev.y) * DRAG_PAN_SENSITIVITY;
       const current = stateRef.current;
       const nextOffsetX =
         navigationMode === "vertical" ? current.offsetX : current.offsetX + dx;
@@ -136,17 +183,36 @@ export function CanvasViewport({
     }
 
     if (navigationMode === "free" && pointerMap.current.size === 2 && pinchState.current) {
+      const node = containerRef.current;
+      if (!node) {
+        return;
+      }
+
       const points = Array.from(pointerMap.current.values());
-      const dx = points[0].x - points[1].x;
-      const dy = points[0].y - points[1].y;
-      const distance = Math.hypot(dx, dy);
+      const metrics = getPinchMetrics(points);
       const { minScale: minValue, maxScale: maxValue } = normalizeScaleRange(minScale, maxScale);
+      const distanceRatio = metrics.distance / pinchState.current.distance || 1;
+      const current = stateRef.current;
       const nextScale = clampScale(
-        pinchState.current.scale * (distance / pinchState.current.distance || 1),
+        current.scale * distanceRatio,
         minValue,
         maxValue
       );
-      updateOffsets(stateRef.current.offsetX, stateRef.current.offsetY, nextScale);
+      const rect = node.getBoundingClientRect();
+      const { originX, originY } = getZoomOrigin(rect, metrics.centerX, metrics.centerY);
+      const translatedOffsetX = current.offsetX + (metrics.centerX - pinchState.current.centerX);
+      const translatedOffsetY = current.offsetY + (metrics.centerY - pinchState.current.centerY);
+      const ratio = nextScale / current.scale;
+      const { offsetX: nextOffsetX, offsetY: nextOffsetY } = getScaledOffsets(
+        translatedOffsetX,
+        translatedOffsetY,
+        originX,
+        originY,
+        ratio
+      );
+
+      pinchState.current = metrics;
+      updateOffsets(nextOffsetX, nextOffsetY, nextScale);
     }
   };
 
@@ -169,7 +235,11 @@ export function CanvasViewport({
       event.preventDefault();
       const current = stateRef.current;
       if (navigationMode === "vertical") {
-        updateOffsets(current.offsetX, current.offsetY - event.deltaY, current.scale);
+        updateOffsets(
+          current.offsetX,
+          current.offsetY - event.deltaY * VERTICAL_WHEEL_PAN_SENSITIVITY,
+          current.scale
+        );
         return;
       }
 
@@ -177,23 +247,31 @@ export function CanvasViewport({
 
       if (behavior.mode === "zoom") {
         const { minScale: minValue, maxScale: maxValue } = normalizeScaleRange(minScale, maxScale);
-        const zoomFactor = event.deltaY < 0 ? 1.06 : 0.94;
+        const normalizedDeltaY = normalizeWheelDelta(event.deltaY, event.deltaMode, node.clientHeight);
+        const zoomFactor = Math.exp(-normalizedDeltaY * WHEEL_ZOOM_SENSITIVITY);
         const nextScale = clampScale(current.scale * zoomFactor, minValue, maxValue);
+        if (nextScale === current.scale) {
+          return;
+        }
 
         const rect = node.getBoundingClientRect();
-        const originX = event.clientX - rect.left - rect.width / 2;
-        const originY = event.clientY - rect.top - rect.height / 2;
+        const { originX, originY } = getZoomOrigin(rect, event.clientX, event.clientY);
         const ratio = nextScale / current.scale;
-        const nextOffsetX = (current.offsetX - originX) * ratio + originX;
-        const nextOffsetY = (current.offsetY - originY) * ratio + originY;
+        const { offsetX: nextOffsetX, offsetY: nextOffsetY } = getScaledOffsets(
+          current.offsetX,
+          current.offsetY,
+          originX,
+          originY,
+          ratio
+        );
 
         updateOffsets(nextOffsetX, nextOffsetY, nextScale);
         return;
       }
 
       updateOffsets(
-        current.offsetX - event.deltaX,
-        current.offsetY - event.deltaY,
+        current.offsetX - event.deltaX * FREE_WHEEL_PAN_SENSITIVITY,
+        current.offsetY - event.deltaY * FREE_WHEEL_PAN_SENSITIVITY,
         current.scale
       );
     };
