@@ -613,16 +613,8 @@ export function AssistantCard({
                 </div>
               )}
               {isLoading ? (
-                <p
-                  className="inline-flex w-fit items-center gap-2 rounded-full border border-[#b8dfc7] bg-[#eaf8ef] px-3 py-1 text-sm font-semibold text-[#1f5a35]"
-                  aria-live="polite"
-                  role="status"
-                >
-                  <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#48a56c] opacity-75" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#2f8a56]" />
-                  </span>
-                  {t("assistant.generating")}
+                <p className="assistant-loading-text" aria-live="polite" role="status">
+                  <span className="assistant-loading-text-gradient">{t("assistant.generating")}</span>
                 </p>
               ) : null}
             </>
