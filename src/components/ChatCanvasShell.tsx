@@ -104,6 +104,7 @@ type ConnectorPath = {
 
 const isBranchSide = (value: string): value is BranchSide =>
   value === "left" || value === "right";
+const BRANCH_CONNECTOR_DRAW_DURATION_MS = 980;
 
 export function ChatCanvasShell({
   chatId,
@@ -147,9 +148,14 @@ export function ChatCanvasShell({
   const tempIdRef = useRef(0);
   const [connectorPaths, setConnectorPaths] = useState<ConnectorPath[]>([]);
   const lastPathsRef = useRef<ConnectorPath[]>([]);
-  const pendingBranchAnimationKeysRef = useRef(new Set<string>());
+  const [pendingBranchAnimationKeys, setPendingBranchAnimationKeys] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [animatedBranchConnectorIds, setAnimatedBranchConnectorIds] = useState<Set<string>>(
+    () => new Set()
+  );
   const branchConnectorAnimationTimersRef = useRef(new Map<string, number>());
-  const connectorPathRefs = useRef(new Map<string, SVGPathElement>());
+  const branchConnectorAnimationFramesRef = useRef(new Map<string, number>());
   const branchTextareaRefs = useRef(new Map<string, HTMLTextAreaElement>());
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
   const hasAutoSentInitialPromptRef = useRef(false);
@@ -731,33 +737,53 @@ export function ChatCanvasShell({
 
   const handleBranchOpen = (parentMessageId: string, side: BranchSide) => {
     const key = createBranchKey(parentMessageId, side);
-    setBranches((prev) => {
-      const existing = prev[key];
-      if (existing) {
-        if (existing.hasSubmitted) {
+    const existingBranch = branches[key];
+    if (existingBranch) {
+      if (existingBranch.hasSubmitted) {
+        return;
+      }
+      setPendingBranchAnimationKeys((prev) => {
+        if (!prev.has(key)) {
           return prev;
         }
-        pendingBranchAnimationKeysRef.current.delete(key);
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+      setBranches((prev) => {
+        const existing = prev[key];
+        if (!existing || existing.hasSubmitted) {
+          return prev;
+        }
         const next = { ...prev };
         delete next[key];
         return next;
+      });
+      setSendError("");
+      return;
+    }
+    setPendingBranchAnimationKeys((prev) => {
+      if (prev.has(key)) {
+        return prev;
       }
-      pendingBranchAnimationKeysRef.current.add(key);
-      return {
-        ...prev,
-        [key]: {
-          key,
-          parentMessageId,
-          side,
-          branchId: null,
-          text: "",
-          lastUserContent: "",
-          reply: { isLoading: false, error: "", assistantMessage: null },
-          hasSubmitted: false,
-          createdAt: Date.now(),
-        },
-      };
+      const next = new Set(prev);
+      next.add(key);
+      return next;
     });
+    setBranches((prev) => ({
+      ...prev,
+      [key]: {
+        key,
+        parentMessageId,
+        side,
+        branchId: null,
+        text: "",
+        lastUserContent: "",
+        reply: { isLoading: false, error: "", assistantMessage: null },
+        hasSubmitted: false,
+        createdAt: Date.now(),
+      },
+    }));
     setSendError("");
   };
 
@@ -1083,32 +1109,32 @@ export function ChatCanvasShell({
       const fromHeight = fromRect.height / scale;
       const fromX = fromLeft + fromWidth / 2;
       const toX = toLeft + toWidth / 2;
-      const fromY = fromTop + fromHeight;
       const toY = toTop;
-      const baseMidY = (fromY + toY) / 2;
-      const midYOffset = connector.kind === "branch" ? -64 : 0;
-      const midY = Math.max(fromY + 8, baseMidY + midYOffset);
+      const fromY = fromTop + fromHeight;
 
       if (connector.kind === "branch") {
         const horizontalDistance = Math.abs(toX - fromX);
         const verticalDistance = toY - fromY;
         const direction = toX >= fromX ? 1 : -1;
+        const desiredLaneY = fromY + 28;
+        const laneY = Math.min(desiredLaneY, toY - 8);
+        const cornerRadius = Math.max(
+          0,
+          Math.min(12, horizontalDistance / 2 - 1, laneY - fromY, toY - laneY)
+        );
 
-        if (verticalDistance > 8 && horizontalDistance > 6) {
-          const cornerRadius = Math.max(
-            4,
-            Math.min(14, horizontalDistance * 0.06, verticalDistance / 2, horizontalDistance / 2 - 1)
-          );
-          const laneY = toY - cornerRadius;
+        if (cornerRadius >= 2 && verticalDistance > 10) {
           const startTurnY = laneY - cornerRadius;
+          const endTurnY = laneY + cornerRadius;
           const startCurveEndX = fromX + direction * cornerRadius;
           const endCurveStartX = toX - direction * cornerRadius;
+
           return [
             {
               id: connector.id,
               kind: connector.kind,
               branchKey: connector.branchKey,
-              d: `M ${fromX} ${fromY} L ${fromX} ${startTurnY} Q ${fromX} ${laneY} ${startCurveEndX} ${laneY} L ${endCurveStartX} ${laneY} Q ${toX} ${laneY} ${toX} ${toY}`,
+              d: `M ${fromX} ${fromY} L ${fromX} ${startTurnY} Q ${fromX} ${laneY} ${startCurveEndX} ${laneY} L ${endCurveStartX} ${laneY} Q ${toX} ${laneY} ${toX} ${endTurnY} L ${toX} ${toY}`,
             },
           ];
         }
@@ -1122,6 +1148,9 @@ export function ChatCanvasShell({
           },
         ];
       }
+
+      const baseMidY = (fromY + toY) / 2;
+      const midY = Math.max(fromY + 8, baseMidY);
 
       return [
         {
@@ -1166,51 +1195,86 @@ export function ChatCanvasShell({
   }, [displayPairs, branches, updateConnectorPaths]);
 
   const triggerConnectorDrawAnimation = useCallback((connectorId: string) => {
-    const pathElement = connectorPathRefs.current.get(connectorId);
-    if (!pathElement) {
-      return false;
+    const existingFrame = branchConnectorAnimationFramesRef.current.get(connectorId);
+    if (existingFrame != null) {
+      window.cancelAnimationFrame(existingFrame);
     }
-
-    pathElement.classList.remove("branch-connector-draw");
-    void pathElement.getBoundingClientRect();
-    pathElement.classList.add("branch-connector-draw");
+    setAnimatedBranchConnectorIds((prev) => {
+      if (!prev.has(connectorId)) {
+        return prev;
+      }
+      const next = new Set(prev);
+      next.delete(connectorId);
+      return next;
+    });
+    const frame = window.requestAnimationFrame(() => {
+      branchConnectorAnimationFramesRef.current.delete(connectorId);
+      setAnimatedBranchConnectorIds((prev) => {
+        const next = new Set(prev);
+        next.add(connectorId);
+        return next;
+      });
+    });
+    branchConnectorAnimationFramesRef.current.set(connectorId, frame);
 
     const existingTimer = branchConnectorAnimationTimersRef.current.get(connectorId);
     if (existingTimer != null) {
       window.clearTimeout(existingTimer);
     }
-
     const timer = window.setTimeout(() => {
-      const latestPathElement = connectorPathRefs.current.get(connectorId);
-      latestPathElement?.classList.remove("branch-connector-draw");
+      setAnimatedBranchConnectorIds((prev) => {
+        if (!prev.has(connectorId)) {
+          return prev;
+        }
+        const next = new Set(prev);
+        next.delete(connectorId);
+        return next;
+      });
       branchConnectorAnimationTimersRef.current.delete(connectorId);
-    }, 460);
+    }, BRANCH_CONNECTOR_DRAW_DURATION_MS);
     branchConnectorAnimationTimersRef.current.set(connectorId, timer);
-    return true;
   }, []);
 
   useEffect(() => {
-    if (connectorPaths.length === 0 || pendingBranchAnimationKeysRef.current.size === 0) {
+    if (connectorPaths.length === 0 || pendingBranchAnimationKeys.size === 0) {
       return;
     }
 
+    const consumedKeys: string[] = [];
     connectorPaths.forEach((connectorPath) => {
       if (connectorPath.kind !== "branch" || !connectorPath.branchKey) {
         return;
       }
-      if (!pendingBranchAnimationKeysRef.current.has(connectorPath.branchKey)) {
+      if (!pendingBranchAnimationKeys.has(connectorPath.branchKey)) {
         return;
       }
-      const hasAnimated = triggerConnectorDrawAnimation(connectorPath.id);
-      if (hasAnimated) {
-        pendingBranchAnimationKeysRef.current.delete(connectorPath.branchKey);
-      }
+      triggerConnectorDrawAnimation(connectorPath.id);
+      consumedKeys.push(connectorPath.branchKey);
     });
-  }, [connectorPaths, triggerConnectorDrawAnimation]);
+    if (consumedKeys.length === 0) {
+      return;
+    }
+    const consumedKeySet = new Set(consumedKeys);
+    const cleanupFrameId = window.requestAnimationFrame(() => {
+      setPendingBranchAnimationKeys((prev) => {
+        const next = new Set(prev);
+        consumedKeySet.forEach((key) => next.delete(key));
+        return next;
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(cleanupFrameId);
+    };
+  }, [connectorPaths, pendingBranchAnimationKeys, triggerConnectorDrawAnimation]);
 
   useEffect(() => {
     const timerMap = branchConnectorAnimationTimersRef.current;
+    const frameMap = branchConnectorAnimationFramesRef.current;
     return () => {
+      frameMap.forEach((frame) => {
+        window.cancelAnimationFrame(frame);
+      });
+      frameMap.clear();
       timerMap.forEach((timer) => {
         window.clearTimeout(timer);
       });
@@ -1746,20 +1810,31 @@ export function ChatCanvasShell({
       aria-hidden="true"
     >
       {connectorPaths.map((connectorPath) => {
+        const isPendingBranchConnector =
+          connectorPath.kind === "branch" &&
+          Boolean(connectorPath.branchKey) &&
+          pendingBranchAnimationKeys.has(connectorPath.branchKey);
+        const connectorClassName =
+          [
+            isPendingBranchConnector ? "branch-connector-pending" : "",
+            animatedBranchConnectorIds.has(connectorPath.id)
+              ? "branch-connector-draw"
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" ") || undefined;
         return (
           <path
             key={connectorPath.id}
-            ref={(node) => {
-              if (!node) {
-                connectorPathRefs.current.delete(connectorPath.id);
-                return;
-              }
-              connectorPathRefs.current.set(connectorPath.id, node);
-            }}
+            className={connectorClassName}
             d={connectorPath.d}
             fill="none"
-            stroke="var(--color-connector)"
-            strokeWidth="1"
+            stroke={
+              connectorPath.kind === "branch"
+                ? "var(--color-connector-branch)"
+                : "var(--color-connector)"
+            }
+            strokeWidth={connectorPath.kind === "branch" ? 1.25 : 1}
             strokeLinecap="round"
             strokeLinejoin="round"
             pathLength={1}
@@ -1937,11 +2012,6 @@ export function ChatCanvasShell({
                           </span>
                         )}
                         <div
-                          ref={
-                            parentAssistantId
-                              ? setNodeRef(`branch-origin-${parentAssistantId}`)
-                              : undefined
-                          }
                           aria-hidden="true"
                           className="mt-6 h-10 w-px bg-(--color-connector)"
                         />
@@ -1997,7 +2067,7 @@ export function ChatCanvasShell({
                         showPromptInput={shouldShowInlinePromptInput}
                         showAllBranchPills={shouldShowInlinePromptInput}
                         hiddenBranchSides={isLast ? hiddenBranchSides : undefined}
-                        promptInput={null}
+                        promptInput={shouldShowInlinePromptInput ? promptInput : null}
                         activeBranchSides={isLast ? activeBranchSides : null}
                         cardRef={setNodeRef(`assistant-${assistantNodeId}`)}
                         onBranchSelect={(side) => {
@@ -2154,9 +2224,6 @@ export function ChatCanvasShell({
                           })}
                         </div>
                       </div>
-                    ) : null}
-                    {shouldShowInlinePromptInput ? (
-                      <div className="mt-6 flex w-full justify-center">{promptInput}</div>
                     ) : null}
                   </div>
                 );

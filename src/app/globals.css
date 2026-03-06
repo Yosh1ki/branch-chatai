@@ -89,6 +89,7 @@
   --color-border-muted: #efe5dc;
   --color-focus-ring: #f3b5a2;
   --color-connector: #e2d8cf;
+  --color-connector-branch: #e9dfd6;
   --color-shadow-card: 0 10px 40px rgba(68, 41, 33, 0.08);
   --color-shadow-input: 0 8px 30px rgba(249, 220, 209, 0.4);
   --color-shadow-soft: 0 8px 18px rgba(239, 229, 220, 0.6);
@@ -150,6 +151,7 @@
   --color-border-muted: #4a3732;
   --color-focus-ring: #9ad68e;
   --color-connector: #665048;
+  --color-connector-branch: #71584f;
   --color-shadow-card: 0 12px 28px rgba(0, 0, 0, 0.36);
   --color-shadow-input: 0 8px 30px rgba(0, 0, 0, 0.3);
   --color-shadow-soft: 0 8px 18px rgba(0, 0, 0, 0.3);
@@ -380,7 +382,12 @@
 .branch-connector-draw {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: branch-connector-draw 460ms ease-out forwards;
+  animation: branch-connector-draw 980ms ease-in-out forwards;
+}
+
+.branch-connector-pending {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
 }
 
 @keyframes branch-connector-draw {
@@ -390,6 +397,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .branch-connector-pending {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+  }
+
   .branch-connector-draw {
     animation: none;
     stroke-dasharray: none;
