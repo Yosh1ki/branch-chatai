@@ -116,6 +116,8 @@ export const jaDictionary = {
   "assistant.regenerate": "再生成",
   "assistant.share": "共有",
   "assistant.delete": "削除",
+  "assistant.expand": "展開",
+  "assistant.collapse": "折りたたむ",
 
   "user.loading": "読み込み中...",
   "user.errorPrefix": "エラー",

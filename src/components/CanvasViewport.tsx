@@ -88,6 +88,29 @@ const normalizeWheelDelta = (
   return deltaY;
 };
 
+const getScrollableAncestor = (target: EventTarget | null) => {
+  if (!(target instanceof HTMLElement)) {
+    return null;
+  }
+  return target.closest("[data-scrollable-region='true']") as HTMLElement | null;
+};
+
+const canScrollElement = (element: HTMLElement, deltaY: number) => {
+  if (element.scrollHeight <= element.clientHeight) {
+    return false;
+  }
+
+  if (deltaY < 0) {
+    return element.scrollTop > 0;
+  }
+
+  if (deltaY > 0) {
+    return element.scrollTop + element.clientHeight < element.scrollHeight;
+  }
+
+  return false;
+};
+
 const assignRef = <T,>(ref: Ref<T> | undefined, value: T | null) => {
   if (!ref) return;
   if (typeof ref === "function") {
@@ -232,6 +255,15 @@ export function CanvasViewport({
     if (!node) return;
 
     const handleWheel = (event: WheelEvent) => {
+      const scrollableAncestor = getScrollableAncestor(event.target);
+      if (
+        !event.ctrlKey &&
+        scrollableAncestor &&
+        canScrollElement(scrollableAncestor, event.deltaY)
+      ) {
+        return;
+      }
+
       event.preventDefault();
       const current = stateRef.current;
       if (navigationMode === "vertical") {

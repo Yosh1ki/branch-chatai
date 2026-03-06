@@ -125,6 +125,8 @@ export const enDictionary: { [K in keyof JaDictionary]: string } = {
   "assistant.regenerate": "Regenerate",
   "assistant.share": "Share",
   "assistant.delete": "Delete",
+  "assistant.expand": "Expand",
+  "assistant.collapse": "Collapse",
 
   "user.loading": "Loading...",
   "user.errorPrefix": "Error",

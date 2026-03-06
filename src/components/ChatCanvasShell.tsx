@@ -105,6 +105,11 @@ type ConnectorPath = {
 const isBranchSide = (value: string): value is BranchSide =>
   value === "left" || value === "right";
 const BRANCH_CONNECTOR_DRAW_DURATION_MS = 980;
+const BRANCH_ANCHOR_OFFSET_PX = 24;
+const BRANCH_STACK_GAP_PX = 24;
+const BRANCH_MIN_VERTICAL_LEAD_PX = 40;
+const BRANCH_MAX_VERTICAL_LEAD_PX = 120;
+const BRANCH_VERTICAL_LEAD_RATIO = 0.4;
 
 export function ChatCanvasShell({
   chatId,
@@ -129,6 +134,8 @@ export function ChatCanvasShell({
   const [loadError, setLoadError] = useState("");
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [branches, setBranches] = useState<Record<string, BranchDraft>>({});
+  const [expandedBranchCards, setExpandedBranchCards] = useState<Record<string, boolean>>({});
+  const [branchVerticalOffsets, setBranchVerticalOffsets] = useState<Record<string, number>>({});
   const [activeIndicatorId, setActiveIndicatorId] = useState<string | null>(null);
   const [isBranchIndicatorIdle, setIsBranchIndicatorIdle] = useState(false);
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
@@ -157,6 +164,7 @@ export function ChatCanvasShell({
   const branchConnectorAnimationTimersRef = useRef(new Map<string, number>());
   const branchConnectorAnimationFramesRef = useRef(new Map<string, number>());
   const branchTextareaRefs = useRef(new Map<string, HTMLTextAreaElement>());
+  const branchLayoutFrameRef = useRef<number | null>(null);
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
   const hasAutoSentInitialPromptRef = useRef(false);
 
@@ -787,6 +795,29 @@ export function ChatCanvasShell({
     setSendError("");
   };
 
+  const handleBranchCardExpandChange = useCallback((branchKey: string, isExpanded: boolean) => {
+    setExpandedBranchCards((prev) => {
+      const current = prev[branchKey] ?? false;
+      if (current === isExpanded) {
+        return prev;
+      }
+
+      if (!isExpanded) {
+        if (!(branchKey in prev)) {
+          return prev;
+        }
+        const next = { ...prev };
+        delete next[branchKey];
+        return next;
+      }
+
+      return {
+        ...prev,
+        [branchKey]: true,
+      };
+    });
+  }, []);
+
   const handleSend = useCallback(
     async (overridePrompt?: string, overrideModel?: SelectedModel | null) => {
       const trimmed = (overridePrompt ?? promptText).trim();
@@ -1064,6 +1095,101 @@ export function ChatCanvasShell({
     []
   );
 
+  const measureBranchLayout = useCallback(() => {
+    const content = canvasContentRef.current;
+    if (!content) {
+      return {} as Record<string, number>;
+    }
+
+    const contentRect = content.getBoundingClientRect();
+    const scale = Number.isFinite(state.scale) && state.scale !== 0 ? state.scale : 1;
+    const nextOffsets: Record<string, number> = {};
+    const sideBottoms: Record<BranchSide, number> = {
+      left: Number.NEGATIVE_INFINITY,
+      right: Number.NEGATIVE_INFINITY,
+    };
+
+    displayPairs.forEach((pair, index) => {
+      const assistantId = pair.assistant?.id;
+      if (!assistantId) {
+        return;
+      }
+
+      const branchesForAssistant = branchesByParent.get(assistantId) ?? [];
+      if (!branchesForAssistant.length) {
+        return;
+      }
+
+      const parentNode = nodeRefs.current.get(`assistant-${assistantId}`);
+      if (!parentNode) {
+        return;
+      }
+
+      const parentRect = parentNode.getBoundingClientRect();
+      const parentTop = (parentRect.top - contentRect.top) / scale;
+      const parentHeight = parentRect.height / scale;
+      const parentBottom = parentTop + parentHeight;
+      const nextAssistantId = displayPairs[index + 1]?.assistant?.id ?? null;
+      const nextAssistantNode = nextAssistantId
+        ? nodeRefs.current.get(`assistant-${nextAssistantId}`)
+        : null;
+      const nextAssistantHeight = nextAssistantNode
+        ? nextAssistantNode.getBoundingClientRect().height / scale
+        : null;
+      const branchLaneHeight = nextAssistantHeight ?? parentHeight;
+      const baseTop = parentBottom + BRANCH_ANCHOR_OFFSET_PX;
+      const desiredTop =
+        baseTop +
+        Math.min(
+          BRANCH_MAX_VERTICAL_LEAD_PX,
+          Math.max(
+            BRANCH_MIN_VERTICAL_LEAD_PX,
+            branchLaneHeight * BRANCH_VERTICAL_LEAD_RATIO
+          )
+        );
+
+      branchesForAssistant.forEach((branch) => {
+        const branchNode = nodeRefs.current.get(`branch-${branch.key}`);
+        if (!branchNode) {
+          return;
+        }
+
+        const branchHeight = branchNode.getBoundingClientRect().height / scale;
+        const stackedTop = Math.max(
+          desiredTop,
+          sideBottoms[branch.side] + BRANCH_STACK_GAP_PX
+        );
+
+        nextOffsets[branch.key] = stackedTop - baseTop;
+        sideBottoms[branch.side] = stackedTop + branchHeight;
+      });
+    });
+
+    return nextOffsets;
+  }, [branchesByParent, displayPairs, state.scale]);
+
+  const scheduleBranchLayoutUpdate = useCallback(() => {
+    if (branchLayoutFrameRef.current != null) {
+      window.cancelAnimationFrame(branchLayoutFrameRef.current);
+    }
+
+    branchLayoutFrameRef.current = window.requestAnimationFrame(() => {
+      branchLayoutFrameRef.current = null;
+      const nextOffsets = measureBranchLayout();
+      setBranchVerticalOffsets((prev) => {
+        const prevEntries = Object.entries(prev);
+        const nextEntries = Object.entries(nextOffsets);
+        if (prevEntries.length === nextEntries.length) {
+          const hasChanges = nextEntries.some(([key, value]) => prev[key] !== value);
+          if (!hasChanges) {
+            return prev;
+          }
+        }
+        return nextOffsets;
+      });
+    });
+  }, [measureBranchLayout]);
+
   const connectors = useMemo(() => {
     const entries: ConnectorEntry[] = [];
 
@@ -1186,23 +1312,41 @@ export function ChatCanvasShell({
     }
   }, [connectors, state.scale]);
 
+  useEffect(() => {
+    scheduleBranchLayoutUpdate();
+
+    return () => {
+      if (branchLayoutFrameRef.current != null) {
+        window.cancelAnimationFrame(branchLayoutFrameRef.current);
+        branchLayoutFrameRef.current = null;
+      }
+    };
+  }, [scheduleBranchLayoutUpdate]);
+
   useLayoutEffect(() => {
     updateConnectorPaths();
-  }, [updateConnectorPaths, messages.length]);
+  }, [branchVerticalOffsets, messages.length, updateConnectorPaths]);
 
   useEffect(() => {
     const content = canvasContentRef.current;
     if (!content) return;
-    const resizeObserver = new ResizeObserver(() => updateConnectorPaths());
+    const resizeObserver = new ResizeObserver(() => {
+      scheduleBranchLayoutUpdate();
+      updateConnectorPaths();
+    });
     resizeObserver.observe(content);
     nodeRefs.current.forEach((node) => resizeObserver.observe(node));
-    window.addEventListener("resize", updateConnectorPaths);
+    const handleWindowResize = () => {
+      scheduleBranchLayoutUpdate();
+      updateConnectorPaths();
+    };
+    window.addEventListener("resize", handleWindowResize);
 
     return () => {
       resizeObserver.disconnect();
-      window.removeEventListener("resize", updateConnectorPaths);
+      window.removeEventListener("resize", handleWindowResize);
     };
-  }, [displayPairs, branches, updateConnectorPaths]);
+  }, [branches, displayPairs, scheduleBranchLayoutUpdate, updateConnectorPaths]);
 
   const triggerConnectorDrawAnimation = useCallback((connectorId: string) => {
     const existingFrame = branchConnectorAnimationFramesRef.current.get(connectorId);
@@ -1758,7 +1902,7 @@ export function ChatCanvasShell({
 
   const promptInput = (
     <div
-      className="relative w-full max-w-3xl"
+      className="relative z-0 w-full max-w-3xl"
       data-prevent-viewport-jump="true"
     >
       <form
@@ -1822,7 +1966,7 @@ export function ChatCanvasShell({
           event.stopPropagation();
           focusMainPromptInput();
         }}
-        className="absolute left-0 right-0 top-full z-10 h-100 translate-y-2 rounded-2xl bg-transparent"
+        className="absolute left-0 right-0 top-full z-0 h-100 translate-y-2 rounded-2xl bg-transparent"
       />
     </div>
   );
@@ -2109,10 +2253,18 @@ export function ChatCanvasShell({
                             />
                           ) : null}
                           {branchesForAssistant.map((branch) => {
+                            const branchVerticalOffset =
+                              branchVerticalOffsets[branch.key] ?? 0;
+                            const isBranchLayoutReady =
+                              branch.hasSubmitted ||
+                              Object.prototype.hasOwnProperty.call(
+                                branchVerticalOffsets,
+                                branch.key
+                              );
                             const branchTransform =
                               branch.side === "left"
-                                ? `translateX(calc(-100% - ${branchShift}))`
-                                : `translateX(${branchShift})`;
+                                ? `translate(calc(-100% - ${branchShift}), ${branchVerticalOffset}px)`
+                                : `translate(${branchShift}, ${branchVerticalOffset}px)`;
                             const showBranchReply =
                               !!branch.reply.assistantMessage ||
                               !!branch.reply.error ||
@@ -2123,7 +2275,11 @@ export function ChatCanvasShell({
                                 key={branch.key}
                                 ref={setNodeRef(`branch-${branch.key}`)}
                                 data-branch-region="true"
-                                className="absolute left-0 top-0"
+                                className={`absolute left-0 top-0 ${
+                                  expandedBranchCards[branch.key] ? "z-20" : "z-0"
+                                } ${
+                                  isBranchLayoutReady ? "" : "invisible pointer-events-none"
+                                }`}
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   if (event.metaKey || event.ctrlKey) {
@@ -2142,19 +2298,18 @@ export function ChatCanvasShell({
                                   width: "clamp(280px, 50vw, 560px)",
                                 }}
                               >
-                                <button
-                                  type="button"
-                                  aria-label={t("chat.branchList")}
-                                  onPointerDown={(event) => event.stopPropagation()}
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    if (!isVerticalMode) {
-                                      return;
-                                    }
-                                    focusBranchByKey(branch.key);
-                                  }}
-                                  className="absolute -bottom-[18vh] -left-8 -right-8 -top-[40vh] z-0 block cursor-pointer rounded-[28px] bg-transparent"
-                                />
+                                {isVerticalMode ? (
+                                  <button
+                                    type="button"
+                                    aria-label={t("chat.branchList")}
+                                    onPointerDown={(event) => event.stopPropagation()}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      focusBranchByKey(branch.key);
+                                    }}
+                                    className="absolute -inset-x-6 -inset-y-4 z-0 block cursor-pointer rounded-[28px] bg-transparent"
+                                  />
+                                ) : null}
                                 {!branch.hasSubmitted ? (
                                   <form
                                     onSubmit={(event) => {
@@ -2233,12 +2388,17 @@ export function ChatCanvasShell({
                                       content={branch.reply.assistantMessage?.content ?? ""}
                                       isLoading={branch.reply.isLoading}
                                       errorMessage={branch.reply.error}
+                                      scrollBody
+                                      canToggleExpand
                                       modelProvider={branch.reply.assistantMessage?.modelProvider}
                                       modelName={branch.reply.assistantMessage?.modelName}
                                       modelReasoningEffort={
                                         branch.reply.assistantMessage?.modelReasoningEffort
                                       }
                                       showPromptInput={false}
+                                      onExpandChange={(isExpanded) => {
+                                        handleBranchCardExpandChange(branch.key, isExpanded);
+                                      }}
                                     />
                                   </div>
                                 ) : null}

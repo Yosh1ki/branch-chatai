@@ -12,6 +12,8 @@ import {
   ChevronRight,
   Copy,
   Globe,
+  Maximize2,
+  Minimize2,
   MoreHorizontal,
   Plus,
   Search,
@@ -30,6 +32,8 @@ type AssistantCardProps = {
   isLoading: boolean;
   errorMessage: string;
   showPromptInput: boolean;
+  scrollBody?: boolean;
+  canToggleExpand?: boolean;
   modelProvider?: string | null;
   modelName?: string | null;
   modelReasoningEffort?: string | null;
@@ -39,6 +43,7 @@ type AssistantCardProps = {
   promptInput?: ReactNode;
   onBranchSelect?: (value: BranchSelection) => void;
   activeBranchSides?: BranchSelection[] | null;
+  onExpandChange?: (isExpanded: boolean) => void;
 };
 
 type BranchSelection = "left" | "right";
@@ -231,6 +236,8 @@ export function AssistantCard({
   isLoading,
   errorMessage,
   showPromptInput,
+  scrollBody = false,
+  canToggleExpand = false,
   modelProvider,
   modelName,
   modelReasoningEffort,
@@ -240,6 +247,7 @@ export function AssistantCard({
   promptInput,
   onBranchSelect,
   activeBranchSides = null,
+  onExpandChange,
 }: AssistantCardProps) {
   const { t } = useI18n()
   const hiddenBranchSideSet = useMemo(
@@ -278,9 +286,12 @@ export function AssistantCard({
   const menuContainerRef = useRef<HTMLDivElement | null>(null);
   const [activeBranch, setActiveBranch] = useState<BranchSelection | null>(null);
   const [isResearchModalOpen, setIsResearchModalOpen] = useState(false);
+  const [isExpandPopupOpen, setIsExpandPopupOpen] = useState(false);
   const [thinkingStartedAt, setThinkingStartedAt] = useState<number | null>(null);
   const [thinkingElapsedMs, setThinkingElapsedMs] = useState(0);
   const [lastThinkingMs, setLastThinkingMs] = useState<number | null>(null);
+  const cardContainerRef = useRef<HTMLDivElement | null>(null);
+  const onExpandChangeRef = useRef(onExpandChange);
   const copyContent = parsedContent.text || content;
   const { isCopied, handleCopy } = useCopyFeedback(copyContent);
   const shouldShowBranchPills = showPromptInput;
@@ -378,6 +389,36 @@ export function AssistantCard({
     };
   }, [isMenuOpen]);
 
+  useEffect(() => {
+    onExpandChangeRef.current = onExpandChange;
+  }, [onExpandChange]);
+
+  useEffect(() => {
+    if (!isExpandPopupOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (cardContainerRef.current?.contains(target)) return;
+      setIsExpandPopupOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [isExpandPopupOpen]);
+
+  useEffect(() => {
+    onExpandChangeRef.current?.(isExpandPopupOpen);
+  }, [isExpandPopupOpen]);
+
+  useEffect(() => {
+    return () => {
+      onExpandChangeRef.current?.(false);
+    };
+  }, []);
+
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
@@ -435,13 +476,31 @@ export function AssistantCard({
     [activeBranch, onBranchSelect, selectedBranches]
   );
 
+  const setCardContainerNode = useCallback(
+    (node: HTMLDivElement | null) => {
+      cardContainerRef.current = node;
+      cardRef?.(node);
+    },
+    [cardRef]
+  );
+
   return (
     <>
       <div
-        ref={cardRef}
-        className="relative w-full max-w-3xl rounded-xl border border-[#efe5dc] bg-[#FFFFFF] p-4 text-main dark:bg-(--color-surface)"
+        ref={setCardContainerNode}
+        className={`relative flex w-full max-w-3xl flex-col rounded-xl border border-[#efe5dc] bg-[#FFFFFF] p-4 text-main dark:bg-(--color-surface) ${
+          isExpandPopupOpen ? "z-50" : ""
+        } ${
+          scrollBody ? "max-h-[min(52vh,280px)]" : ""
+        }`}
       >
-        <div className="cursor-text space-y-6 text-[15px] leading-7" data-allow-selection="true">
+        <div
+          className={`cursor-text space-y-6 text-[15px] leading-7 ${
+            scrollBody ? "min-h-0 overflow-y-auto pr-1 touch-pan-y overscroll-contain" : ""
+          }`}
+          data-allow-selection="true"
+          data-scrollable-region={scrollBody ? "true" : undefined}
+        >
           {isLoading && canShowResearchUI ? (
             <div className="inline-flex rounded-full border border-[#eadfd5] bg-[#f9f4ef] px-3 py-1 text-[11px] text-main-soft">
               {t("assistant.thinking", { seconds: thinkingSeconds })}
@@ -576,9 +635,25 @@ export function AssistantCard({
           )}
         </div>
 
-        <div className="mt-8 flex items-center justify-between text-xs text-main-muted">
+        <div className="mt-8 flex shrink-0 items-center justify-between text-xs text-main-muted">
           <span>{modelLabel}</span>
           <div className="flex items-center gap-2">
+            {canToggleExpand ? (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setIsExpandPopupOpen((value) => !value)}
+                  aria-label={isExpandPopupOpen ? t("assistant.collapse") : t("assistant.expand")}
+                  className="flex h-6 w-6 items-center justify-center rounded-lg border border-[#e6ddd3] bg-white text-main-muted transition-colors duration-150 hover:border-[#d6c9be] hover:bg-[#f8f3ee] hover:text-main active:border-[#cbb9aa]"
+                >
+                  {isExpandPopupOpen ? (
+                    <Minimize2 className="h-3 w-3" />
+                  ) : (
+                    <Maximize2 className="h-3 w-3" />
+                  )}
+                </button>
+              </div>
+            ) : null}
             <div ref={menuContainerRef} className="relative">
               <button
                 type="button"
@@ -616,6 +691,21 @@ export function AssistantCard({
             </button>
           </div>
         </div>
+        {isExpandPopupOpen ? (
+          <div className="pointer-events-none absolute -left-6 -top-7 z-40 w-[calc(100%+48px)]">
+            <div className="pointer-events-auto rounded-[24px] border border-[#d9c0b1] bg-[#fff8f3]/50 p-2 shadow-[0_28px_90px_rgba(44,23,18,0.30)] ring-1 ring-[#f1ddd0] backdrop-blur-sm">
+              <AssistantCard
+                content={content}
+                isLoading={isLoading}
+                errorMessage={errorMessage}
+                showPromptInput={false}
+                modelProvider={modelProvider}
+                modelName={modelName}
+                modelReasoningEffort={modelReasoningEffort}
+              />
+            </div>
+          </div>
+        ) : null}
       </div>
       {showPromptInput ? (
         <div className="branch-stack w-full max-w-3xl">
