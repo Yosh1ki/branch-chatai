@@ -84,7 +84,7 @@ type IndicatorItem = {
   nodeId: string | null;
   index: number;
   kind: "main" | "branch";
-  branchKey?: string;
+  side?: BranchSide;
 };
 
 type ConnectorEntry = {
@@ -984,7 +984,7 @@ export function ChatCanvasShell({
     }
     return null;
   }, [displayPairs]);
-  const branchIndicators = useMemo(
+  const sortedBranches = useMemo(
     () =>
       Object.values(branches)
         .slice()
@@ -993,44 +993,54 @@ export function ChatCanvasShell({
             return a.createdAt - b.createdAt;
           }
           return a.key.localeCompare(b.key);
-        })
-        .map((branch, index) => ({
-          index: index + 1,
-          key: branch.key,
-          side: branch.side,
-        })),
+        }),
     [branches]
   );
+  const leftIndicatorNodeId = useMemo(() => {
+    const leftBranch = sortedBranches.find((branch) => branch.side === "left");
+    return leftBranch ? `branch-${leftBranch.key}` : null;
+  }, [sortedBranches]);
+  const rightIndicatorNodeId = useMemo(() => {
+    const rightBranch = sortedBranches.find((branch) => branch.side === "right");
+    return rightBranch ? `branch-${rightBranch.key}` : null;
+  }, [sortedBranches]);
   const indicatorItems = useMemo<IndicatorItem[]>(
     () => {
-      const leftBranches = branchIndicators.filter((branch) => branch.side === "left");
-      const rightBranches = branchIndicators.filter((branch) => branch.side === "right");
-      const orderedLeftBranches = leftBranches.slice().reverse();
+      const hasLeftColumn = leftIndicatorNodeId !== null;
+      const hasRightColumn = rightIndicatorNodeId !== null;
 
       return [
-        ...orderedLeftBranches.map((branch, index) => ({
-          id: `branch:${branch.key}`,
-          kind: "branch" as const,
-          nodeId: `branch-${branch.key}`,
-          branchKey: branch.key,
-          index: index + 1,
-        })),
+        ...(hasLeftColumn
+          ? [
+              {
+                id: "branch:left",
+                kind: "branch" as const,
+                nodeId: leftIndicatorNodeId,
+                side: "left" as const,
+                index: 1,
+              },
+            ]
+          : []),
         {
           id: "main",
           kind: "main" as const,
           nodeId: mainIndicatorNodeId,
-          index: orderedLeftBranches.length + 1,
+          index: hasLeftColumn ? 2 : 1,
         },
-        ...rightBranches.map((branch, index) => ({
-          id: `branch:${branch.key}`,
-          kind: "branch" as const,
-          nodeId: `branch-${branch.key}`,
-          branchKey: branch.key,
-          index: leftBranches.length + 2 + index,
-        })),
+        ...(hasRightColumn
+          ? [
+              {
+                id: "branch:right",
+                kind: "branch" as const,
+                nodeId: rightIndicatorNodeId,
+                side: "right" as const,
+                index: hasLeftColumn ? 3 : 2,
+              },
+            ]
+          : []),
       ];
     },
-    [branchIndicators, mainIndicatorNodeId]
+    [leftIndicatorNodeId, mainIndicatorNodeId, rightIndicatorNodeId]
   );
   const promptInputEnabled = true;
   const branchOffset = "clamp(380px, 35vw, 560px)";
@@ -1362,16 +1372,23 @@ export function ChatCanvasShell({
     [animateCanvasOffset]
   );
 
+  const focusIndicatorItem = useCallback(
+    (item: IndicatorItem) => {
+      if (item.kind === "main" && !isVerticalMode) {
+        focusNodeToViewportCenter(item.nodeId);
+        return;
+      }
+      focusNodeHorizontally(item.nodeId);
+    },
+    [focusNodeHorizontally, focusNodeToViewportCenter, isVerticalMode]
+  );
+
   const handleIndicatorSelect = useCallback(
     (item: IndicatorItem) => {
       setActiveIndicatorId(item.id);
-      if (isVerticalMode) {
-        focusNodeHorizontally(item.nodeId);
-        return;
-      }
-      focusNodeToViewportCenter(item.nodeId);
+      focusIndicatorItem(item);
     },
-    [focusNodeHorizontally, focusNodeToViewportCenter, isVerticalMode]
+    [focusIndicatorItem]
   );
 
   const isInteractiveTapTarget = useCallback((target: EventTarget | null) => {
@@ -1389,14 +1406,18 @@ export function ChatCanvasShell({
 
   const focusBranchByKey = useCallback(
     (branchKey: string) => {
-      setActiveIndicatorId(`branch:${branchKey}`);
+      const branch = branches[branchKey];
+      if (!branch) {
+        return;
+      }
+      setActiveIndicatorId(`branch:${branch.side}`);
       if (isVerticalMode) {
         focusNodeHorizontally(`branch-${branchKey}`);
         return;
       }
       focusNodeToViewportCenter(`branch-${branchKey}`);
     },
-    [focusNodeHorizontally, focusNodeToViewportCenter, isVerticalMode]
+    [branches, focusNodeHorizontally, focusNodeToViewportCenter, isVerticalMode]
   );
 
   const focusMainLatest = useCallback(() => {
@@ -1434,8 +1455,10 @@ export function ChatCanvasShell({
       const nodeCenterX = rect.left + rect.width / 2;
       const nodeCenterY = rect.top + rect.height / 2;
       const distance =
-        (nodeCenterX - viewportCenterX) * (nodeCenterX - viewportCenterX) +
-        (nodeCenterY - viewportCenterY) * (nodeCenterY - viewportCenterY);
+        item.kind === "main"
+          ? (nodeCenterX - viewportCenterX) * (nodeCenterX - viewportCenterX) +
+            (nodeCenterY - viewportCenterY) * (nodeCenterY - viewportCenterY)
+          : (nodeCenterX - viewportCenterX) * (nodeCenterX - viewportCenterX);
 
       if (distance < nearestDistance) {
         nearestDistance = distance;
@@ -1812,7 +1835,7 @@ export function ChatCanvasShell({
       {connectorPaths.map((connectorPath) => {
         const isPendingBranchConnector =
           connectorPath.kind === "branch" &&
-          Boolean(connectorPath.branchKey) &&
+          connectorPath.branchKey !== undefined &&
           pendingBranchAnimationKeys.has(connectorPath.branchKey);
         const connectorClassName =
           [
