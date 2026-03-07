@@ -2069,7 +2069,7 @@ export function ChatCanvasShell({
       data-prevent-viewport-jump="true"
     >
       <div className="grid gap-3">
-        <UsageQuotaNotice quotaStatus={quotaStatus} />
+        <UsageQuotaNotice quotaStatus={quotaStatus} showUsageDetails={false} />
         <form
           onSubmit={(event) => {
             event.preventDefault();
