@@ -9,6 +9,7 @@ type ChatPageProps = {
   params: Promise<{ chatId: string }>;
   searchParams?: Promise<{
     prompt?: string;
+    requestId?: string;
     modelProvider?: string;
     modelName?: string;
     modelReasoningEffort?: string;
@@ -36,6 +37,7 @@ export default async function ChatPage({ params, searchParams }: ChatPageProps) 
     <ChatCanvasShell
       chatId={chatId}
       initialPrompt={resolvedSearchParams?.prompt}
+      initialRequestId={resolvedSearchParams?.requestId}
       initialModelProvider={resolvedSearchParams?.modelProvider}
       initialModelName={resolvedSearchParams?.modelName}
       initialModelReasoningEffort={resolvedSearchParams?.modelReasoningEffort}

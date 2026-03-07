@@ -62,7 +62,10 @@ export const enDictionary: { [K in keyof JaDictionary]: string } = {
   "account.logout": "Log out",
 
   "chats.recent": "Recent chats",
+  "chats.searchPlaceholder": "Search chats",
+  "chats.searchNoResults": "No chats matched your search.",
   "chats.showMore": "Show more",
+  "chats.empty": "No chats yet. Start growing your first branch.",
   "chats.updatedAtUnknown": "Updated date unavailable",
   "chats.deleteFailed": "Failed to delete the chat. Please try again later.",
   "chats.deleteAction": "Delete",

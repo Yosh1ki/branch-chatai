@@ -3,6 +3,7 @@ import { PromptCard } from "@/components/chats/prompt-card"
 import { ChatListSection } from "@/components/chats/chat-list-section"
 import { auth, signOut } from "@/auth"
 import prisma from "@/lib/prisma"
+import { randomUUID } from "crypto"
 import { textStyle } from "@/styles/typography"
 import { redirect } from "next/navigation"
 import { AccountMenu } from "@/components/chats/account-menu"
@@ -108,6 +109,7 @@ async function createChatAction(
 
   const params = new URLSearchParams({
     prompt: trimmedPrompt,
+    requestId: randomUUID(),
   })
   if (typeof modelProvider === "string" && isModelProvider(modelProvider)) {
     params.set("modelProvider", modelProvider)

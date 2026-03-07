@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState, type MouseEvent } from "react"
+import { useMemo, useState, type MouseEvent } from "react"
 import Link from "next/link"
 import { MessageSquare, MoreHorizontal, Trash2, X } from "lucide-react"
 import { sortChatsByUpdatedAt } from "@/lib/chat-sort"
@@ -20,32 +20,43 @@ type ChatListProps = {
   initialChats: ChatSummary[]
   sortOrder: SortOrder
   viewMode: ChatViewMode
+  searchQuery: string
 }
 
 const DETAIL_PAGE_SIZE = 12
 const LIST_PAGE_SIZE = 36
 
-export function ChatList({ initialChats, sortOrder, viewMode }: ChatListProps) {
+export function ChatList({ initialChats, sortOrder, viewMode, searchQuery }: ChatListProps) {
   const { locale, t } = useI18n()
   const [chats, setChats] = useState<ChatSummary[]>(initialChats)
   const [visibleCount, setVisibleCount] = useState(DETAIL_PAGE_SIZE)
   const pageSize = viewMode === "list" ? LIST_PAGE_SIZE : DETAIL_PAGE_SIZE
+  const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase()
   const sortedChats = useMemo(() => sortChatsByUpdatedAt(chats, sortOrder), [chats, sortOrder])
-  const visibleChats = useMemo(
-    () => sortedChats.slice(0, visibleCount),
-    [sortedChats, visibleCount]
-  )
+  const filteredChats = useMemo(() => {
+    if (!normalizedSearchQuery) {
+      return sortedChats
+    }
 
-  useEffect(() => {
-    setVisibleCount(pageSize)
-  }, [pageSize])
+    return sortedChats.filter((chat) =>
+      chat.title.toLocaleLowerCase().includes(normalizedSearchQuery)
+    )
+  }, [normalizedSearchQuery, sortedChats])
+  const visibleChats = useMemo(
+    () => filteredChats.slice(0, visibleCount),
+    [filteredChats, visibleCount]
+  )
 
   const handleDeleted = (id: string) => {
     setChats((prev) => prev.filter((chat) => chat.id !== id))
   }
 
-  if (sortedChats.length === 0) {
-    return <p className="text-center text-xl text-main-lite">No any chats. Let&apos;s grow branch!</p>
+  if (chats.length === 0) {
+    return <p className="text-center text-xl text-main-lite">{t("chats.empty")}</p>
+  }
+
+  if (filteredChats.length === 0) {
+    return <p className="text-center text-base text-main-lite">{t("chats.searchNoResults")}</p>
   }
 
   return (
@@ -67,7 +78,7 @@ export function ChatList({ initialChats, sortOrder, viewMode }: ChatListProps) {
           />
         ))}
       </div>
-      {visibleChats.length < sortedChats.length ? (
+      {visibleChats.length < filteredChats.length ? (
         <div className="flex justify-center">
           <button
             type="button"

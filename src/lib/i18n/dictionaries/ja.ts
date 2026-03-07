@@ -60,7 +60,10 @@ export const jaDictionary = {
   "account.logout": "ログアウト",
 
   "chats.recent": "最近のチャット",
+  "chats.searchPlaceholder": "チャットを検索",
+  "chats.searchNoResults": "一致するチャットが見つかりません。",
   "chats.showMore": "さらに表示",
+  "chats.empty": "チャットがまだありません。最初の枝を伸ばしましょう。",
   "chats.updatedAtUnknown": "更新日不明",
   "chats.deleteFailed": "チャットの削除に失敗しました。時間をおいて再度お試しください。",
   "chats.deleteAction": "削除する",

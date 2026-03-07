@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { AssistantCard } from "@/components/AssistantCard";
 import { CanvasControls } from "@/components/CanvasControls";
 import { CanvasViewport } from "@/components/CanvasViewport";
@@ -32,6 +33,7 @@ import {
 type ChatCanvasShellProps = {
   chatId: string;
   initialPrompt?: string;
+  initialRequestId?: string;
   initialModelProvider?: string;
   initialModelName?: string;
   initialModelReasoningEffort?: string;
@@ -85,6 +87,7 @@ const BRANCH_VERTICAL_LEAD_RATIO = 0.4;
 export function ChatCanvasShell({
   chatId,
   initialPrompt,
+  initialRequestId,
   initialModelProvider,
   initialModelName,
   initialModelReasoningEffort,
@@ -93,6 +96,7 @@ export function ChatCanvasShell({
   onLogout,
 }: ChatCanvasShellProps) {
   const { t } = useI18n();
+  const router = useRouter();
   const [state, setState] = useState(createCanvasState());
   const [isVerticalMode, setIsVerticalMode] = useState(false);
   const latestCanvasStateRef = useRef(state);
@@ -148,6 +152,48 @@ export function ChatCanvasShell({
   const pendingBranchFocusKeyRef = useRef<string | null>(null);
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
   const hasAutoSentInitialPromptRef = useRef(false);
+
+  const mergeLoadedMessages = useCallback(
+    (loadedMessages: ChatMessage[], currentMessages: ChatMessage[]) => {
+      const nextMessages = [...loadedMessages];
+      const loadedIds = new Set(
+        loadedMessages
+          .map((message) => message.id)
+          .filter((messageId): messageId is string => typeof messageId === "string")
+      );
+
+      currentMessages.forEach((message) => {
+        if (typeof message.id === "string" && loadedIds.has(message.id)) {
+          return;
+        }
+        nextMessages.push(message);
+      });
+
+      return nextMessages;
+    },
+    []
+  );
+
+  const mergeBranchState = useCallback(
+    (
+      loadedBranchState: Record<string, BranchDraft>,
+      currentBranchState: Record<string, BranchDraft>
+    ) => {
+      const optimisticBranchEntries = Object.entries(currentBranchState).filter(
+        ([, branch]) => !branch.hasSubmitted || branch.reply.isLoading
+      );
+
+      if (!optimisticBranchEntries.length) {
+        return loadedBranchState;
+      }
+
+      return {
+        ...loadedBranchState,
+        ...Object.fromEntries(optimisticBranchEntries),
+      };
+    },
+    []
+  );
 
   const readChatStream = useCallback(
     async (
@@ -725,9 +771,12 @@ export function ChatCanvasShell({
         if (!isActive) return;
         const loadedMessages = (data.messages ?? []) as ChatMessage[];
         const loadedBranches = (data.branches ?? []) as ChatBranch[];
-        setMessages(loadedMessages);
-        setBranches(buildBranchState(loadedMessages, loadedBranches));
-        const latestModel = [...loadedMessages]
+        const mergedMessages = mergeLoadedMessages(loadedMessages, useChatSessionStore.getState().messages);
+        setMessages(mergedMessages);
+        setBranches((currentBranches) =>
+          mergeBranchState(buildBranchState(mergedMessages, loadedBranches), currentBranches)
+        );
+        const latestModel = [...mergedMessages]
           .reverse()
           .find(
             (message) =>
@@ -754,6 +803,8 @@ export function ChatCanvasShell({
   }, [
     chatId,
     buildBranchState,
+    mergeBranchState,
+    mergeLoadedMessages,
     resolveSelectedModelFromMessage,
     setBranches,
     setIsLoading,
@@ -867,7 +918,11 @@ export function ChatCanvasShell({
   }, []);
 
   const handleSend = useCallback(
-    async (overridePrompt?: string, overrideModel?: SelectedModel | null) => {
+    async (
+      overridePrompt?: string,
+      overrideModel?: SelectedModel | null,
+      overrideRequestId?: string
+    ) => {
       const trimmed = (overridePrompt ?? promptText).trim();
       if (!trimmed || isSending) return;
 
@@ -899,6 +954,7 @@ export function ChatCanvasShell({
             modelProvider: requestModel?.provider,
             modelName: requestModel?.name,
             modelReasoningEffort: requestModel?.reasoningEffort ?? null,
+            requestId: overrideRequestId,
             stream: true,
           }),
         });
@@ -992,15 +1048,16 @@ export function ChatCanvasShell({
   );
 
   useEffect(() => {
-    if (isLoading || !initialPrompt || hasAutoSentInitialPromptRef.current) {
+    if (!initialPrompt || hasAutoSentInitialPromptRef.current) {
       return;
     }
     hasAutoSentInitialPromptRef.current = true;
     const timer = window.setTimeout(() => {
-      void handleSend(initialPrompt, initialModelSelection);
+      void handleSend(initialPrompt, initialModelSelection, initialRequestId);
+      router.replace(`/chats/${chatId}`, { scroll: false });
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [handleSend, initialModelSelection, initialPrompt, isLoading]);
+  }, [chatId, handleSend, initialModelSelection, initialPrompt, initialRequestId, router]);
 
   const mainThreadMessages = useMemo(() => {
     const mainUserIds = new Set<string>();
