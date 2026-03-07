@@ -215,7 +215,7 @@ export function LoginPageView({
           <button
             type="button"
             onClick={() => setIsLoginModalOpen(true)}
-            className="rounded-full bg-theme-main px-4 py-2 text-sm text-main transition-[filter] hover:brightness-95"
+            className="inline-flex min-w-24 items-center justify-center rounded-full bg-theme-main px-4 py-2 text-center text-sm leading-none text-main transition-[filter] hover:brightness-95"
           >
             {labels.tryBranch}
           </button>
@@ -261,7 +261,7 @@ export function LoginPageView({
                     setIsMobileMenuOpen(false)
                     setIsLoginModalOpen(true)
                   }}
-                  className="rounded-lg bg-theme-main px-3 py-2 text-left text-sm font-medium text-main transition-[filter] hover:brightness-95"
+                  className="inline-flex w-full items-center justify-center rounded-lg bg-theme-main px-3 py-2 text-center text-sm font-medium leading-none text-main transition-[filter] hover:brightness-95"
                 >
                   {labels.tryBranch}
                 </button>
@@ -466,9 +466,9 @@ export function LoginPageView({
             <ul className="grid grid-cols-2 gap-x-8 gap-y-4">
               {footerItems.map((item) => (
                 <li key={item.label} className="text-sm font-medium text-main-soft sm:text-base">
-                  {item.href ? (
+                  {"href" in item ? (
                     <Link
-                      href={item.href}
+                      href={item.href || "#"}
                       className="transition-colors hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
                     >
                       {item.label}
