@@ -1,7 +1,18 @@
 "use client";
 
 import Image from "next/image";
-import { Eye, EyeOff, X } from "lucide-react";
+import {
+  Coins,
+  Eye,
+  EyeOff,
+  FileText,
+  Gauge,
+  GitBranch,
+  Menu,
+  MessageSquare,
+  Sparkles,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -15,6 +26,8 @@ type LoginPageViewLabels = {
   pricing: string
   free: string
   tryBranch: string
+  tryFreePlan: string
+  tryProPlan: string
   headline: string
   subline1: string
   subline2: string
@@ -55,6 +68,11 @@ type LoginPageViewLabels = {
   closeModal: string
   showPassword: string
   hidePassword: string
+  footerTagline: string
+  footerOrigin: string
+  footerUpdates: string
+  footerFaq: string
+  footerTerms: string
 }
 
 type LoginPageViewProps = {
@@ -67,6 +85,7 @@ export function LoginPageView({
   googleSignInAction,
 }: LoginPageViewProps) {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isPasswordVisible, setIsPasswordVisible] = useState(false)
   const branchHighlights = [
     {
@@ -87,23 +106,57 @@ export function LoginPageView({
       name: labels.free,
       price: labels.freePlanPrice,
       summary: labels.freePlanSummary,
+      ctaLabel: labels.tryFreePlan,
+      iconWrapperClass: "bg-black/5 text-main-soft",
       features: [
-        labels.freePlanFeature1,
-        labels.freePlanFeature2,
-        labels.freePlanFeature3,
+        {
+          label: labels.freePlanFeature1,
+          icon: MessageSquare,
+        },
+        {
+          label: labels.freePlanFeature2,
+          icon: Coins,
+        },
+        {
+          label: labels.freePlanFeature3,
+          icon: GitBranch,
+        },
       ],
     },
     {
       name: labels.proPlanTitle,
       price: labels.proPlanPrice,
       summary: labels.proPlanSummary,
+      ctaLabel: labels.tryProPlan,
+      iconWrapperClass: "bg-theme-main text-main shadow-[0_10px_24px_rgba(183,218,130,0.45)]",
       features: [
-        labels.proPlanFeature1,
-        labels.proPlanFeature2,
-        labels.proPlanFeature3,
-        labels.proPlanFeature4,
+        {
+          label: labels.proPlanFeature1,
+          icon: Gauge,
+        },
+        {
+          label: labels.proPlanFeature2,
+          icon: Sparkles,
+        },
+        {
+          label: labels.proPlanFeature3,
+          icon: FileText,
+        },
+        {
+          label: labels.proPlanFeature4,
+          icon: GitBranch,
+        },
       ],
     },
+  ]
+  const footerItems = [
+    { label: labels.aboutBranch, href: "#branch-overview" },
+    { label: labels.pricing, href: "#pricing-plans" },
+    { label: labels.footerOrigin },
+    { label: labels.footerUpdates },
+    { label: labels.footerFaq },
+    { label: labels.privacyNoticeLink, href: "/privacy" },
+    { label: labels.footerTerms, href: "/terms" },
   ]
 
   useEffect(() => {
@@ -129,14 +182,14 @@ export function LoginPageView({
 
   return (
     <div className="min-h-screen bg-(--color-app-bg) text-main">
-      <header className="flex w-full items-center justify-between gap-6 px-2 py-6">
+      <header className="relative flex w-full items-center justify-between gap-6 px-2 py-6">
         <p
           className="text-left font-title text-3xl tracking-wide text-main md:text-2xl"
           style={textStyle("pacifico")}
         >
           Branch
         </p>
-        <div className="flex items-center gap-4 text-xs text-main-soft sm:gap-6 sm:text-sm">
+        <div className="hidden items-center gap-4 text-xs text-main-soft sm:flex sm:gap-6 sm:text-sm">
           <Link
             href="#branch-overview"
             className="inline-flex items-center transition-colors hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
@@ -157,12 +210,75 @@ export function LoginPageView({
             {labels.tryBranch}
           </button>
         </div>
+        <button
+          type="button"
+          onClick={() => setIsMobileMenuOpen((current) => !current)}
+          aria-expanded={isMobileMenuOpen}
+          aria-label="Open navigation menu"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-(--color-border-soft) text-main transition-colors hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring) sm:hidden"
+        >
+          {isMobileMenuOpen ? (
+            <X className="h-5 w-5" strokeWidth={2.2} />
+          ) : (
+            <Menu className="h-5 w-5" strokeWidth={2.2} />
+          )}
+        </button>
+        {isMobileMenuOpen ? (
+          <div className="absolute right-0 top-full z-20 mt-2 w-[220px] rounded-[14px] border border-(--color-border-soft) bg-(--color-surface) p-3 shadow-(--color-shadow-card) sm:hidden">
+            <nav aria-label="Mobile navigation">
+              <div className="flex flex-col gap-2">
+                <Link
+                  href="#branch-overview"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="rounded-lg px-3 py-2 text-sm text-main transition-colors hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
+                >
+                  {labels.aboutBranch}
+                </Link>
+                <Link
+                  href="#pricing-plans"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="rounded-lg px-3 py-2 text-sm text-main transition-colors hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
+                >
+                  {labels.pricing}
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false)
+                    setIsLoginModalOpen(true)
+                  }}
+                  className="rounded-lg bg-theme-main px-3 py-2 text-left text-sm font-medium text-main transition-[filter] hover:brightness-95"
+                >
+                  {labels.tryBranch}
+                </button>
+              </div>
+            </nav>
+          </div>
+        ) : null}
       </header>
 
       <main className="w-full px-6 py-16 md:py-20">
         <section className="grid gap-10 md:grid-cols-2 md:items-center">
           <div className="space-y-8 text-center">
             <div className="space-y-6">
+              <div className="flex justify-center" aria-hidden="true">
+                <Image
+                  src="/icons/Branch_logo_48px_light.svg"
+                  alt=""
+                  width={104}
+                  height={104}
+                  className="h-24 w-24 dark:hidden sm:h-[104px] sm:w-[104px]"
+                  priority
+                />
+                <Image
+                  src="/icons/Branch_logo_48px_dark.svg"
+                  alt=""
+                  width={104}
+                  height={104}
+                  className="hidden h-24 w-24 dark:block sm:h-[104px] sm:w-[104px]"
+                  priority
+                />
+              </div>
               <h1 className="text-center text-4xl font-semibold leading-tight tracking-tight sm:text-5xl md:text-6xl">
                 {labels.headline}
               </h1>
@@ -205,18 +321,20 @@ export function LoginPageView({
         <section className="mx-auto mt-24 flex w-full max-w-6xl flex-col gap-20">
           <section
             id="branch-overview"
-            className="rounded-[32px] border border-(--color-border-soft) bg-(--color-surface) px-6 py-8 shadow-(--color-shadow-card) sm:px-8 sm:py-10"
+            className="px-2 py-2 sm:px-0"
           >
             <div className="max-w-3xl">
-              <p className="text-sm font-semibold tracking-[0.24em] text-main-soft uppercase">
+              <p className="text-base font-bold text-main-soft sm:text-lg">
                 {labels.aboutBranch}
               </p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+              <h2 className="mt-3 text-xl font-bold leading-relaxed tracking-tight sm:text-2xl">
                 {labels.branchSectionTitle}
               </h2>
-              <p className="mt-4 text-sm leading-7 text-main-soft sm:text-base">
-                {labels.branchSectionDescription}
-              </p>
+              {labels.branchSectionDescription ? (
+                <p className="mt-4 text-sm leading-7 text-main-soft sm:text-base">
+                  {labels.branchSectionDescription}
+                </p>
+              ) : null}
             </div>
             <div className="mt-10 grid gap-4 md:grid-cols-3">
               {branchHighlights.map((highlight) => (
@@ -237,18 +355,22 @@ export function LoginPageView({
 
           <section
             id="pricing-plans"
-            className="rounded-[32px] border border-(--color-border-soft) bg-(--color-surface) px-6 py-8 shadow-(--color-shadow-card) sm:px-8 sm:py-10"
+            className="px-2 py-2 sm:px-0"
           >
-            <div className="max-w-3xl">
-              <p className="text-sm font-semibold tracking-[0.24em] text-main-soft uppercase">
+            <div className="mx-auto max-w-3xl">
+              <p className="text-center text-lg font-bold text-main sm:text-xl">
                 {labels.pricing}
               </p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-                {labels.pricingSectionTitle}
-              </h2>
-              <p className="mt-4 text-sm leading-7 text-main-soft sm:text-base">
-                {labels.pricingSectionDescription}
-              </p>
+              {labels.pricingSectionTitle ? (
+                <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+                  {labels.pricingSectionTitle}
+                </h2>
+              ) : null}
+              {labels.pricingSectionDescription ? (
+                <p className="mt-4 text-sm leading-7 text-main-soft sm:text-base">
+                  {labels.pricingSectionDescription}
+                </p>
+              ) : null}
             </div>
             <div className="mt-10 grid gap-5 md:grid-cols-2">
               {pricingPlans.map((plan) => (
@@ -260,26 +382,34 @@ export function LoginPageView({
                     <p className="text-3xl font-black uppercase text-main">
                       {plan.name}
                     </p>
-                    <p className="mt-3 text-2xl font-semibold text-main">
+                    <p className="mt-2 text-2xl font-semibold text-main">
                       {plan.price}
                     </p>
-                    <p className="mt-3 text-sm leading-7 text-main-soft">
+                    <p className="mt-2 text-sm leading-6 text-main-soft">
                       {plan.summary}
                     </p>
                   </div>
-                  <ul className="mt-6 space-y-3 text-sm leading-6 text-main">
+                  <ul className="mt-4 space-y-2.5 text-sm leading-6 text-main">
                     {plan.features.map((feature) => (
-                      <li key={feature} className="rounded-2xl bg-(--color-app-bg) px-4 py-3">
-                        {feature}
+                      <li
+                        key={feature.label}
+                        className="flex items-start gap-3 rounded-2xl bg-(--color-app-bg) px-4 py-2.5"
+                      >
+                        <span
+                          className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${plan.iconWrapperClass}`}
+                        >
+                          <feature.icon className="h-4 w-4" strokeWidth={2.1} />
+                        </span>
+                        <span>{feature.label}</span>
                       </li>
                     ))}
                   </ul>
                   <button
                     type="button"
                     onClick={() => setIsLoginModalOpen(true)}
-                    className="mt-6 rounded-full bg-theme-main px-5 py-3 text-sm font-semibold text-main transition-[filter] hover:brightness-95"
+                    className="mt-5 rounded-full bg-theme-main px-5 py-3 text-sm font-semibold text-main transition-[filter] hover:brightness-95"
                   >
-                    {labels.tryBranch}
+                    {plan.ctaLabel}
                   </button>
                 </article>
               ))}
@@ -287,6 +417,57 @@ export function LoginPageView({
           </section>
         </section>
       </main>
+
+      <footer className="mt-16 border-t border-(--color-border-soft) px-6 py-12">
+        <div className="mx-auto grid w-full max-w-6xl gap-10 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] md:items-start">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Image
+                src="/icons/Branch_logo_48px_light.svg"
+                alt="Branch"
+                width={48}
+                height={48}
+                className="h-12 w-12 dark:hidden"
+              />
+              <Image
+                src="/icons/Branch_logo_48px_dark.svg"
+                alt="Branch"
+                width={48}
+                height={48}
+                className="hidden h-12 w-12 dark:block"
+              />
+              <span
+                className="font-title text-3xl leading-none tracking-wide text-main"
+                style={textStyle("pacifico")}
+              >
+                Branch
+              </span>
+            </div>
+            <p className="text-sm text-main-soft sm:text-base">
+              {labels.footerTagline}
+            </p>
+          </div>
+
+          <nav aria-label="Footer" className="md:justify-self-end">
+            <ul className="grid grid-cols-2 gap-x-8 gap-y-4">
+              {footerItems.map((item) => (
+                <li key={item.label} className="text-sm font-medium text-main-soft sm:text-base">
+                  {item.href ? (
+                    <Link
+                      href={item.href}
+                      className="transition-colors hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
+                    >
+                      {item.label}
+                    </Link>
+                  ) : (
+                    <span>{item.label}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
+      </footer>
 
       {isLoginModalOpen ? (
         <div

@@ -25,6 +25,8 @@ export default async function LoginPage() {
         pricing: t("login.pricing"),
         free: t("login.free"),
         tryBranch: t("login.tryBranch"),
+        tryFreePlan: t("login.tryFreePlan"),
+        tryProPlan: t("login.tryProPlan"),
         headline: t("login.headline"),
         subline1: t("login.subline1"),
         subline2: t("login.subline2"),
@@ -65,6 +67,11 @@ export default async function LoginPage() {
         closeModal: t("login.closeModal"),
         showPassword: t("login.showPassword"),
         hidePassword: t("login.hidePassword"),
+        footerTagline: t("login.footerTagline"),
+        footerOrigin: t("login.footerOrigin"),
+        footerUpdates: t("login.footerUpdates"),
+        footerFaq: t("login.footerFaq"),
+        footerTerms: t("login.footerTerms"),
       }}
     />
   )
