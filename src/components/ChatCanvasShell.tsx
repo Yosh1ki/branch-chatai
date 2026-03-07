@@ -21,7 +21,13 @@ import {
   type ReasoningEffort,
 } from "@/lib/model-catalog";
 import { serializeMarkdownContent } from "@/lib/rich-text";
-type BranchSide = "left" | "right";
+import {
+  useChatSessionStore,
+  type BranchDraft,
+  type BranchSide,
+  type ChatMessage,
+  type SelectedModel,
+} from "@/stores/chat-session-store";
 
 type ChatCanvasShellProps = {
   chatId: string;
@@ -37,46 +43,11 @@ type ChatCanvasShellProps = {
   onLogout: () => void | Promise<void>;
 };
 
-type ChatMessage = {
-  id?: string;
-  role: string;
-  content: string;
-  parentMessageId?: string | null;
-  branchId?: string | null;
-  modelProvider?: string | null;
-  modelName?: string | null;
-  modelReasoningEffort?: string | null;
-};
-
 type ChatBranch = {
   id: string;
   parentMessageId: string;
   side: BranchSide;
   createdAt?: string;
-};
-
-type BranchReply = {
-  isLoading: boolean;
-  error: string;
-  assistantMessage: ChatMessage | null;
-};
-
-type BranchDraft = {
-  key: string;
-  parentMessageId: string;
-  side: BranchSide;
-  branchId: string | null;
-  text: string;
-  lastUserContent: string;
-  reply: BranchReply;
-  hasSubmitted: boolean;
-  createdAt: number;
-};
-
-type SelectedModel = {
-  provider: ModelProvider;
-  name: string;
-  reasoningEffort?: ReasoningEffort | null;
 };
 
 type IndicatorItem = {
@@ -125,15 +96,24 @@ export function ChatCanvasShell({
   const [state, setState] = useState(createCanvasState());
   const [isVerticalMode, setIsVerticalMode] = useState(false);
   const latestCanvasStateRef = useRef(state);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [selectedModel, setSelectedModel] = useState<SelectedModel | null>(null);
+  const messages = useChatSessionStore((store) => store.messages);
+  const setMessages = useChatSessionStore((store) => store.setMessages);
+  const selectedModel = useChatSessionStore((store) => store.selectedModel);
+  const setSelectedModel = useChatSessionStore((store) => store.setSelectedModel);
   const [promptText, setPromptText] = useState("");
-  const [isSending, setIsSending] = useState(false);
-  const [sendError, setSendError] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
-  const [branches, setBranches] = useState<Record<string, BranchDraft>>({});
+  const isSending = useChatSessionStore((store) => store.isSending);
+  const setIsSending = useChatSessionStore((store) => store.setIsSending);
+  const sendError = useChatSessionStore((store) => store.sendError);
+  const setSendError = useChatSessionStore((store) => store.setSendError);
+  const isLoading = useChatSessionStore((store) => store.isLoading);
+  const setIsLoading = useChatSessionStore((store) => store.setIsLoading);
+  const loadError = useChatSessionStore((store) => store.loadError);
+  const setLoadError = useChatSessionStore((store) => store.setLoadError);
+  const pendingUserId = useChatSessionStore((store) => store.pendingUserId);
+  const setPendingUserId = useChatSessionStore((store) => store.setPendingUserId);
+  const branches = useChatSessionStore((store) => store.branches);
+  const setBranches = useChatSessionStore((store) => store.setBranches);
+  const resetSession = useChatSessionStore((store) => store.resetSession);
   const [expandedBranchCards, setExpandedBranchCards] = useState<Record<string, boolean>>({});
   const [branchVerticalOffsets, setBranchVerticalOffsets] = useState<Record<string, number>>({});
   const [activeIndicatorId, setActiveIndicatorId] = useState<string | null>(null);
@@ -308,7 +288,7 @@ export function ChatCanvasShell({
       },
       text: () => streamedText,
     };
-  }, []);
+  }, [setMessages]);
 
   const setBranchTextareaRef = useCallback(
     (key: string) => (node: HTMLTextAreaElement | null) => {
@@ -450,6 +430,35 @@ export function ChatCanvasShell({
     },
     [createBranchKey]
   );
+
+  const resolveSelectedModelFromMessage = useCallback(
+    (message: ChatMessage | null | undefined): SelectedModel | null => {
+      if (
+        !message?.modelName ||
+        !isModelProvider(message.modelProvider ?? undefined)
+      ) {
+        return null;
+      }
+
+      const reasoningEffort: ReasoningEffort | null = isReasoningEffort(
+        message.modelReasoningEffort ?? undefined
+      )
+        ? (message.modelReasoningEffort as ReasoningEffort)
+        : null;
+
+      return {
+        provider: message.modelProvider as ModelProvider,
+        name: message.modelName,
+        reasoningEffort,
+      };
+    },
+    []
+  );
+
+  useLayoutEffect(() => {
+    resetSession(chatId);
+    hasAutoSentInitialPromptRef.current = false;
+  }, [chatId, resetSession]);
 
   useEffect(() => {
     latestCanvasStateRef.current = state;
@@ -692,17 +701,9 @@ export function ChatCanvasShell({
               typeof message.modelName === "string" &&
               isModelProvider(message.modelProvider ?? undefined)
           );
-        if (latestModel && isModelProvider(latestModel.modelProvider ?? undefined)) {
-          const latestReasoningEffort: ReasoningEffort | null = isReasoningEffort(
-            latestModel.modelReasoningEffort ?? undefined
-          )
-            ? (latestModel.modelReasoningEffort as ReasoningEffort)
-            : null;
-          setSelectedModel({
-            provider: latestModel.modelProvider as ModelProvider,
-            name: latestModel.modelName as string,
-            reasoningEffort: latestReasoningEffort,
-          });
+        const nextSelectedModel = resolveSelectedModelFromMessage(latestModel);
+        if (nextSelectedModel) {
+          setSelectedModel(nextSelectedModel);
         }
         setIsLoading(false);
       } catch (error) {
@@ -717,7 +718,17 @@ export function ChatCanvasShell({
     return () => {
       isActive = false;
     };
-  }, [chatId, buildBranchState, t]);
+  }, [
+    chatId,
+    buildBranchState,
+    resolveSelectedModelFromMessage,
+    setBranches,
+    setIsLoading,
+    setLoadError,
+    setMessages,
+    setSelectedModel,
+    t,
+  ]);
 
   useEffect(() => {
     if (!promptTextareaRef.current) return;
@@ -881,6 +892,11 @@ export function ChatCanvasShell({
           result = { payload: await responseClone.json().catch(() => ({})) };
         }
         const payload = result.payload ?? {};
+        const nextSelectedModel = resolveSelectedModelFromMessage(payload?.assistantMessage);
+
+        if (nextSelectedModel) {
+          setSelectedModel(nextSelectedModel);
+        }
 
         setMessages((prev) => {
           const filtered = prev.filter(
@@ -894,21 +910,6 @@ export function ChatCanvasShell({
           }
           if (payload?.assistantMessage) {
             const assistantMessage = payload.assistantMessage;
-            if (
-              assistantMessage?.modelName &&
-              isModelProvider(assistantMessage.modelProvider ?? undefined)
-            ) {
-              const assistantReasoningEffort: ReasoningEffort | null = isReasoningEffort(
-                assistantMessage.modelReasoningEffort ?? undefined
-              )
-                ? (assistantMessage.modelReasoningEffort as ReasoningEffort)
-                : null;
-              setSelectedModel({
-                provider: assistantMessage.modelProvider as ModelProvider,
-                name: assistantMessage.modelName as string,
-                reasoningEffort: assistantReasoningEffort,
-              });
-            }
             if (!payload?.userMessage && assistantMessage?.parentMessageId == null) {
               nextMessages.push({ ...assistantMessage, parentMessageId: tempId });
             } else {
@@ -942,6 +943,12 @@ export function ChatCanvasShell({
       isSending,
       promptText,
       readChatStream,
+      resolveSelectedModelFromMessage,
+      setIsSending,
+      setMessages,
+      setPendingUserId,
+      setSelectedModel,
+      setSendError,
       selectedModel,
       t,
     ]
@@ -1434,7 +1441,7 @@ export function ChatCanvasShell({
       });
       timerMap.clear();
     };
-  }, []);
+  }, [setBranches]);
 
   const handlePanStateChange = useCallback(
     (isPanning: boolean) => {
@@ -1776,6 +1783,11 @@ export function ChatCanvasShell({
         result = { payload: await responseClone.json().catch(() => ({})) };
       }
       const payload = result.payload ?? {};
+      const nextSelectedModel = resolveSelectedModelFromMessage(payload?.assistantMessage);
+
+      if (nextSelectedModel) {
+        setSelectedModel(nextSelectedModel);
+      }
 
       setMessages((prev) => {
         const filtered = prev.filter(
@@ -1789,21 +1801,6 @@ export function ChatCanvasShell({
         }
         if (payload?.assistantMessage) {
           const assistantMessage = payload.assistantMessage;
-          if (
-            assistantMessage?.modelName &&
-            isModelProvider(assistantMessage.modelProvider ?? undefined)
-          ) {
-            const assistantReasoningEffort: ReasoningEffort | null = isReasoningEffort(
-              assistantMessage.modelReasoningEffort ?? undefined
-            )
-              ? (assistantMessage.modelReasoningEffort as ReasoningEffort)
-              : null;
-            setSelectedModel({
-              provider: assistantMessage.modelProvider as ModelProvider,
-              name: assistantMessage.modelName as string,
-              reasoningEffort: assistantReasoningEffort,
-            });
-          }
           if (!payload?.userMessage && assistantMessage?.parentMessageId == null) {
             additions.push({ ...assistantMessage, parentMessageId: tempId });
           } else {
@@ -1890,7 +1887,7 @@ export function ChatCanvasShell({
       ) as Record<string, BranchDraft>;
       return hasChanges ? next : prev;
     });
-  }, []);
+  }, [setBranches]);
 
   const focusMainPromptInput = useCallback(() => {
     const textarea = promptTextareaRef.current;
