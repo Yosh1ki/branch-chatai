@@ -14,14 +14,14 @@ export function ChatViewModeToggle({ value, onChange }: ChatViewModeToggleProps)
   const { t } = useI18n()
 
   return (
-    <div className="inline-flex items-center gap-1 rounded-full border border-(--color-border-soft) bg-(--color-surface) p-1 shadow-(--color-shadow-soft)">
+    <div className="grid h-9 min-w-[6.5rem] grid-cols-2 gap-1 rounded-full border border-(--color-border-soft) bg-(--color-surface) p-1 shadow-(--color-shadow-soft)">
       <button
         type="button"
         onClick={() => onChange("list")}
         aria-label={t("chats.viewList")}
         title={t("chats.viewList")}
         aria-pressed={value === "list"}
-        className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-main-muted transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring) ${
+        className={`inline-flex h-7 w-full items-center justify-center rounded-full text-main-muted transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring) ${
           value === "list"
             ? "bg-(--color-surface-soft) text-main"
             : "hover:bg-(--color-surface-soft)"
@@ -35,7 +35,7 @@ export function ChatViewModeToggle({ value, onChange }: ChatViewModeToggleProps)
         aria-label={t("chats.viewDetail")}
         title={t("chats.viewDetail")}
         aria-pressed={value === "detail"}
-        className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-main-muted transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring) ${
+        className={`inline-flex h-7 w-full items-center justify-center rounded-full text-main-muted transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring) ${
           value === "detail"
             ? "bg-(--color-surface-soft) text-main"
             : "hover:bg-(--color-surface-soft)"

@@ -45,7 +45,7 @@ export function ChatSortSelect({ value, onChange }: ChatSortSelectProps) {
         onClick={() => setPickerOpen((prev) => !prev)}
         aria-expanded={pickerOpen}
         aria-haspopup="listbox"
-        className="inline-flex items-center gap-2 rounded-full border border-(--color-border-soft)vbg-(--color-surface) py-1.5 text-xs font-semibold text-main shadow-(--color-shadow-soft) transition hover:bg-(--color-surface-soft) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
+        className="inline-flex h-9 min-w-[6.5rem] items-center justify-between gap-2 rounded-full border border-(--color-border-soft) bg-(--color-surface) px-3 text-xs font-semibold text-main shadow-(--color-shadow-soft) transition hover:bg-(--color-surface-soft) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
       >
         {selectedOption.label}
         <ChevronDown className="h-3 w-3" />

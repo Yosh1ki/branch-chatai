@@ -145,6 +145,7 @@ export function ChatCanvasShell({
   const branchConnectorAnimationFramesRef = useRef(new Map<string, number>());
   const branchTextareaRefs = useRef(new Map<string, HTMLTextAreaElement>());
   const branchLayoutFrameRef = useRef<number | null>(null);
+  const pendingBranchFocusKeyRef = useRef<string | null>(null);
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
   const hasAutoSentInitialPromptRef = useRef(false);
 
@@ -458,6 +459,7 @@ export function ChatCanvasShell({
   useLayoutEffect(() => {
     resetSession(chatId);
     hasAutoSentInitialPromptRef.current = false;
+    pendingBranchFocusKeyRef.current = null;
   }, [chatId, resetSession]);
 
   useEffect(() => {
@@ -665,6 +667,37 @@ export function ChatCanvasShell({
   );
 
   useEffect(() => {
+    const pendingBranchFocusKey = pendingBranchFocusKeyRef.current;
+    if (!pendingBranchFocusKey) {
+      return;
+    }
+
+    const branch = branches[pendingBranchFocusKey];
+    if (!branch || branch.hasSubmitted) {
+      pendingBranchFocusKeyRef.current = null;
+      return;
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(branchVerticalOffsets, pendingBranchFocusKey)) {
+      return;
+    }
+
+    const textarea = branchTextareaRefs.current.get(pendingBranchFocusKey);
+    if (!textarea) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      focusTextareaWithoutBrowserScroll(textarea, 0.66);
+      pendingBranchFocusKeyRef.current = null;
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [branchVerticalOffsets, branches, focusTextareaWithoutBrowserScroll]);
+
+  useEffect(() => {
     const visualViewport = window.visualViewport;
     if (!visualViewport) {
       return;
@@ -761,6 +794,9 @@ export function ChatCanvasShell({
       if (existingBranch.hasSubmitted) {
         return;
       }
+      if (pendingBranchFocusKeyRef.current === key) {
+        pendingBranchFocusKeyRef.current = null;
+      }
       setPendingBranchAnimationKeys((prev) => {
         if (!prev.has(key)) {
           return prev;
@@ -789,6 +825,7 @@ export function ChatCanvasShell({
       next.add(key);
       return next;
     });
+    pendingBranchFocusKeyRef.current = key;
     setBranches((prev) => ({
       ...prev,
       [key]: {
