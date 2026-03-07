@@ -3,12 +3,33 @@
 import "dotenv/config";
 import { defineConfig, env } from "prisma/config";
 
+const isPrismaGenerateCommand = process.argv.some((arg) => arg.includes("generate"));
+
+const resolveDatasourceUrl = () => {
+  const configuredUrl =
+    process.env.MIGRATE_DATABASE_URL ??
+    process.env.DATABASE_URL ??
+    process.env.DATABASE_URL_RUNTIME;
+
+  if (configuredUrl) {
+    return configuredUrl;
+  }
+
+  // `prisma generate` only needs a syntactically valid URL so builds can proceed
+  // in environments where the runtime database URL is injected separately.
+  if (isPrismaGenerateCommand) {
+    return "postgresql://placeholder:placeholder@localhost:5432/placeholder";
+  }
+
+  return env("DATABASE_URL");
+};
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env.MIGRATE_DATABASE_URL ?? env("DATABASE_URL"),
+    url: resolveDatasourceUrl(),
   },
 });
