@@ -11,6 +11,33 @@ export const enDictionary: { [K in keyof JaDictionary]: string } = {
   "login.headline": "Keep thinking without interruption",
   "login.subline1": "From one topic, Branch helps you",
   "login.subline2": "grow multiple lines of thought.",
+  "login.branchSectionTitle": "An AI chat built for branching conversations and deeper thinking.",
+  "login.branchSectionDescription":
+    "Branch lets you split new directions into separate branches the moment a conversation expands. You can explore ideas without losing the original thread, making research, organization, and comparison easier in one place.",
+  "login.branchFeature1Title": "Split topics into branches",
+  "login.branchFeature1Description":
+    "Keep the main thread intact while exploring side questions in separate branches. Even if the discussion drifts, you can return to the original line of thought immediately.",
+  "login.branchFeature2Title": "Track multiple ideas clearly",
+  "login.branchFeature2Description":
+    "The conversation stays readable vertically while related branches spread horizontally. You can compare ideas without losing the full picture of the discussion.",
+  "login.branchFeature3Title": "Choose the right AI for the task",
+  "login.branchFeature3Description":
+    "Select ChatGPT, Claude, or Gemini based on what you need. It works for quick questions, structured research, and deeper problem solving.",
+  "login.pricingSectionTitle": "Two plans designed around how you work",
+  "login.pricingSectionDescription":
+    "Start with the free plan to experience Branch, then move to Pro when you need more room for recurring research and heavier thinking work.",
+  "login.freePlanSummary": "A free plan for trying Branch casually before committing to a bigger workflow.",
+  "login.freePlanPrice": "¥0 / month",
+  "login.freePlanFeature1": "Up to 5 messages per day",
+  "login.freePlanFeature2": "Up to 60,000 tokens per month",
+  "login.freePlanFeature3": "Full access to branching",
+  "login.proPlanTitle": "Pro",
+  "login.proPlanSummary": "For people who want to use Branch continuously for research and serious work.",
+  "login.proPlanPrice": "¥2,000 / month",
+  "login.proPlanFeature1": "No message cap",
+  "login.proPlanFeature2": "Up to 150,000 tokens per week",
+  "login.proPlanFeature3": "Up to 650,000 tokens over a rolling 30 days",
+  "login.proPlanFeature4": "Manage billing with Stripe",
   "login.modalWelcome": "Welcome to Branch",
   "login.emailLabel": "Email address",
   "login.emailPlaceholder": "example.com",

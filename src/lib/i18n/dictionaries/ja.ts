@@ -9,6 +9,33 @@ export const jaDictionary = {
   "login.headline": "思考を止めない",
   "login.subline1": "Branchは、1つのテーマから",
   "login.subline2": "複数の思考を育てるAIです。",
+  "login.branchSectionTitle": "会話を枝分かれさせながら、考えを深められるAIチャットです。",
+  "login.branchSectionDescription":
+    "Branchは、話題が広がった瞬間に別の枝として会話を分けられるAIチャットです。元の流れを崩さずに検討を広げられるので、調査、整理、比較検討をひとつの画面で進められます。",
+  "login.branchFeature1Title": "話題ごとに枝を分けられる",
+  "login.branchFeature1Description":
+    "本筋の会話を残したまま、気になった論点だけを別ブランチで掘り下げられます。途中で脱線しても、元の思考の流れにすぐ戻れます。",
+  "login.branchFeature2Title": "複数の思考を見失わない",
+  "login.branchFeature2Description":
+    "縦に読み進めながら横に広がる構造で、関連するアイデアを同時に見渡せます。検討の全体像を保ったまま比較できます。",
+  "login.branchFeature3Title": "用途に合わせてAIを選べる",
+  "login.branchFeature3Description":
+    "ChatGPT、Claude、Gemini を会話に合わせて選択できます。ラフな相談から深い検討まで、目的に応じて使い分けられます。",
+  "login.pricingSectionTitle": "使い方に合わせて選べる2つのプラン",
+  "login.pricingSectionDescription":
+    "まずは無料でBranchの使い心地を試せます。継続的な調査や重たい検討を進めるなら、より多く使えるProプランに切り替えられます。",
+  "login.freePlanSummary": "まずは気軽にBranchを試したい方向けの無料プランです。",
+  "login.freePlanPrice": "¥0 / 月",
+  "login.freePlanFeature1": "1日5メッセージまで利用可能",
+  "login.freePlanFeature2": "月間60,000トークンまで利用可能",
+  "login.freePlanFeature3": "ブランチ機能をそのまま利用可能",
+  "login.proPlanTitle": "Pro",
+  "login.proPlanSummary": "日々の調査や実務でBranchを本格的に使いたい方向けのプランです。",
+  "login.proPlanPrice": "¥2,000 / 月",
+  "login.proPlanFeature1": "メッセージ上限なし",
+  "login.proPlanFeature2": "週150,000トークンまで利用可能",
+  "login.proPlanFeature3": "直近30日で650,000トークンまで利用可能",
+  "login.proPlanFeature4": "Stripeで請求情報を管理可能",
   "login.modalWelcome": "Branchへようこそ",
   "login.emailLabel": "メールアドレス",
   "login.emailPlaceholder": "example.com",
