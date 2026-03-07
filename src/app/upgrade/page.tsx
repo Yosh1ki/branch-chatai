@@ -23,7 +23,7 @@ export default async function UpgradePage() {
   const planType = user?.planType === "pro" ? "pro" : "free"
 
   return (
-    <div className="min-h-screen bg-[var(--color-app-bg)] px-5 py-6 text-main md:px-8">
+    <div className="min-h-screen bg-(--color-app-bg) px-5 py-6 text-main md:px-8">
       <div className="mx-auto w-full max-w-5xl">
         <div className="mb-8">
           <UpgradeBackButton />
@@ -35,7 +35,7 @@ export default async function UpgradePage() {
         </header>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <section className="rounded-3xl border border-[var(--color-border-soft)] bg-[var(--color-surface)] p-6 shadow-[var(--color-shadow-card)]">
+          <section className="rounded-3xl border border-(--color-border-soft) bg-(--color-surface) p-6 shadow-(--color-shadow-card)">
             <p className="text-4xl font-black uppercase leading-none text-main">{t("billing.freePlanName")}</p>
             <p className="mt-2 text-sm text-main-muted">{t("billing.freePlanSubheading")}</p>
             <p className="mt-3 text-3xl font-semibold text-main">
@@ -49,11 +49,11 @@ export default async function UpgradePage() {
             </ul>
           </section>
 
-          <section className="rounded-3xl border border-main bg-[var(--color-surface)] p-6 shadow-[var(--color-shadow-card)] transition-all duration-200 [&:has(.upgrade-cta:hover)]:-translate-y-0.5 [&:has(.upgrade-cta:hover)]:shadow-[0_18px_42px_rgba(20,20,20,0.16)] [&:has(.upgrade-cta:hover)]:ring-2 [&:has(.upgrade-cta:hover)]:ring-[var(--color-focus-ring)]">
+          <section className="rounded-3xl border border-main bg-(--color-surface) p-6 shadow-(--color-shadow-card) transition-all duration-200 [&:has(.upgrade-cta:hover)]:-translate-y-0.5 [&:has(.upgrade-cta:hover)]:shadow-[0_18px_42px_rgba(20,20,20,0.16)] [&:has(.upgrade-cta:hover)]:ring-2 [&:has(.upgrade-cta:hover)]:ring-(--color-focus-ring)">
             <div className="flex items-center justify-between gap-2">
               <p className="text-4xl font-black uppercase leading-none text-main">{t("billing.proPlanName")}</p>
               {planType === "pro" ? (
-                <span className="rounded-full bg-[var(--color-surface-soft)] px-3 py-1 text-xs font-semibold text-main">
+                <span className="rounded-full bg-(--color-surface-soft) px-3 py-1 text-xs font-semibold text-main">
                   {t("billing.currentPlanBadge")}
                 </span>
               ) : null}

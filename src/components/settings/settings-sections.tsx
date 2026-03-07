@@ -15,7 +15,7 @@ export function SettingsSections({ locale, settings }: SettingsSectionsProps) {
 
   return (
     <div className="grid gap-5">
-      <section className="rounded-3xl border border-[var(--color-border-soft)] bg-[var(--color-surface)]/90 p-6 shadow-[var(--color-shadow-card)]">
+      <section className="rounded-3xl border border-(--color-border-soft) bg-(--color-surface)/90 p-6 shadow-(--color-shadow-card)">
         <h2 className="text-xl font-semibold text-main">{t("settings.accountTitle")}</h2>
 
         <div className="mt-4 space-y-3">
@@ -30,12 +30,12 @@ export function SettingsSections({ locale, settings }: SettingsSectionsProps) {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-[var(--color-border-soft)] bg-[var(--color-surface)]/90 p-6 shadow-[var(--color-shadow-card)]">
+      <section className="rounded-3xl border border-(--color-border-soft) bg-(--color-surface)/90 p-6 shadow-(--color-shadow-card)">
         <h2 className="text-xl font-semibold text-main">{t("settings.planTitle")}</h2>
 
         <div className="mt-4 flex items-center justify-between gap-4">
           <span className="text-sm text-main-muted">{t("settings.currentPlan")}</span>
-          <span className="rounded-full bg-[var(--color-surface-soft)] px-3 py-1 text-xs font-bold uppercase tracking-wide text-main">
+          <span className="rounded-full bg-(--color-surface-soft) px-3 py-1 text-xs font-bold uppercase tracking-wide text-main">
             {settings.planType}
           </span>
         </div>
@@ -47,7 +47,7 @@ export function SettingsSections({ locale, settings }: SettingsSectionsProps) {
               {settings.messageCount} / {FREE_PLAN_DAILY_LIMIT}
             </span>
           </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--color-surface-soft)]">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-(--color-surface-soft)">
             <div className="h-full bg-main transition-all" style={{ width: `${settings.usagePercent}%` }} />
           </div>
           <p className="text-xs text-main-muted">
@@ -59,14 +59,14 @@ export function SettingsSections({ locale, settings }: SettingsSectionsProps) {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-[var(--color-border-soft)] bg-[var(--color-surface)]/90 p-6 shadow-[var(--color-shadow-card)]">
+      <section className="rounded-3xl border border-(--color-border-soft) bg-(--color-surface)/90 p-6 shadow-(--color-shadow-card)">
         <h2 className="text-xl font-semibold text-main">{t("settings.themeTitle")}</h2>
         <div className="mt-4">
           <ThemeToggle />
         </div>
       </section>
 
-      <section className="rounded-3xl border border-[var(--color-border-soft)] bg-[var(--color-surface)]/90 p-6 shadow-[var(--color-shadow-card)]">
+      <section className="rounded-3xl border border-(--color-border-soft) bg-(--color-surface)/90 p-6 shadow-(--color-shadow-card)">
         <h2 className="text-xl font-semibold text-main">{t("settings.languageTitle")}</h2>
         <div className="mt-4">
           <LanguageToggle />

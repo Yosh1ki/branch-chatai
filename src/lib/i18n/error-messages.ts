@@ -1,4 +1,4 @@
-import { translate, type TranslationKey } from "./index.ts"
+import { translate, type TranslationKey } from "./index"
 import type { LocaleCode, LocalizedErrorPayload, TranslationParams } from "./types.ts"
 
 const ERROR_MESSAGE_KEYS = {

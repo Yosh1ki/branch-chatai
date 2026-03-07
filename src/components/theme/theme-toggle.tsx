@@ -34,8 +34,8 @@ function ThemeToggleButton({
       className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
         isActive
           ? "bg-theme-main text-main shadow-sm"
-          : "bg-[var(--color-surface-soft)] text-main-muted hover:text-main"
-      } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-60`}
+          : "bg-(--color-surface-soft) text-main-muted hover:text-main"
+      } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring) disabled:cursor-not-allowed disabled:opacity-60`}
     >
       {themePreference === "light" ? labels.light : labels.dark}
     </button>
@@ -87,7 +87,7 @@ export function ThemeToggle() {
 
   return (
     <div className="space-y-3">
-      <div className="inline-flex rounded-full border border-[var(--color-border-soft)] bg-[var(--color-surface)] p-1">
+      <div className="inline-flex rounded-full border border-(--color-border-soft) bg-(--color-surface) p-1">
         <ThemeToggleButton
           themePreference="light"
           selectedThemePreference={themePreference}

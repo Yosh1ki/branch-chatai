@@ -37,7 +37,7 @@ export function UserBubble({ content, errorMessage, isLoading }: UserBubbleProps
         onClick={handleCopy}
         aria-label="Copy user message"
         disabled={!content}
-        className="absolute -bottom-2 right-2 flex h-6 w-6 items-center justify-center rounded-lg border border-[var(--color-border-muted)] bg-[var(--color-surface)] text-main-muted transition-colors duration-150 hover:border-[var(--color-border-soft)] hover:bg-[var(--color-surface-soft)] hover:text-main active:border-[var(--color-border-soft)]"
+        className="absolute -bottom-2 right-2 flex h-6 w-6 items-center justify-center rounded-lg border border-(--color-border-muted) bg-(--color-surface) text-main-muted transition-colors duration-150 hover:border-(--color-border-soft) hover:bg-(--color-surface-soft)r:text-main active:border-(--color-border-soft)"
       >
         {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
       </button>

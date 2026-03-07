@@ -685,7 +685,7 @@ export function AssistantCard({
         </div>
         {isExpandPopupOpen ? (
           <div className="pointer-events-none absolute -left-6 -top-7 z-40 w-[calc(100%+48px)]">
-            <div className="pointer-events-auto rounded-[24px] border border-[#d9c0b1] bg-[#fff8f3]/50 p-2 shadow-[0_28px_90px_rgba(44,23,18,0.30)] ring-1 ring-[#f1ddd0] backdrop-blur-sm">
+            <div className="pointer-events-auto rounded-3xl border border-[#d9c0b1] bg-[#fff8f3]/50 p-2 shadow-[0_28px_90px_rgba(44,23,18,0.30)] ring-1 ring-[#f1ddd0] backdrop-blur-sm">
               <AssistantCard
                 content={content}
                 isLoading={isLoading}

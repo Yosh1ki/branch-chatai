@@ -151,7 +151,7 @@ export function PromptCard({ action, planType }: PromptCardProps) {
         />
         <div className="mb-3 flex flex-wrap items-center justify-center gap-2">
           <span className="text-sm text-main">{t("settings.currentPlan")} :</span>
-          <span className="rounded-full bg-[var(--color-surface-soft)] px-3 py-1 text-xs font-bold uppercase tracking-wide text-main">
+          <span className="rounded-full bg-(--color-surface-soft) px-3 py-1 text-xs font-bold uppercase tracking-wide text-main">
             {currentPlanLabel}
           </span>
           {isFreePlan ? <UpgradeButton /> : null}
@@ -161,7 +161,7 @@ export function PromptCard({ action, planType }: PromptCardProps) {
       <form
         action={formAction}
         onSubmit={handleSubmit}
-        className={`flex items-end gap-4 rounded-[32px] border ${isInputFocused ? "border-[var(--color-border-soft)]" : "border-transparent"} bg-[var(--color-surface)] px-5 py-4 shadow-[var(--color-shadow-input)]`}
+        className={`flex items-end gap-4 rounded-4xl border ${isInputFocused ? "border-(--color-border-soft)" : "border-transparent"} bg-(--color-surface) px-5 py-4 shadow-(--color-shadow-input)`}
       >
         <div className="flex flex-1 flex-col gap-5">
           <textarea
@@ -205,7 +205,7 @@ export function PromptCard({ action, planType }: PromptCardProps) {
                   onMouseLeave={() => setHoveredModelId(null)}
                 >
                   <div
-                    className="w-56 rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-surface)] p-2 shadow-lg"
+                    className="w-56 rounded-2xl border border-(--color-border-soft) bg-(--color-surface) p-2 shadow-lg"
                   >
                     {MODEL_OPTIONS.map((option) => {
                       const isLocked = !isModelOptionAvailableForPlan(option, normalizedPlan)
@@ -226,12 +226,12 @@ export function PromptCard({ action, planType }: PromptCardProps) {
                           className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs transition ${
                             isLocked
                               ? "cursor-not-allowed text-main-muted"
-                              : "text-main hover:bg-[var(--color-surface-soft)]"
+                              : "text-main hover:bg-(--color-surface-soft)"
                           }`}
                         >
                           <span>{option.label}</span>
                           {isLocked ? (
-                            <span className="rounded-full border border-[var(--color-border-soft)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                            <span className="rounded-full border border-(--color-border-soft) px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
                               Pro
                             </span>
                           ) : null}
@@ -241,7 +241,7 @@ export function PromptCard({ action, planType }: PromptCardProps) {
                     })}
                   </div>
                   {hoveredModel ? (
-                    <div className="w-56 rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-surface)] px-3 py-3 text-xs text-main-muted shadow-lg">
+                    <div className="w-56 rounded-2xl border border-(--color-border-soft) bg-(--color-surface) px-3 py-3 text-xs text-main-muted shadow-lg">
                       <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-main">
                         {hoveredModel.label}
                       </p>

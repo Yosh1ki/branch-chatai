@@ -45,7 +45,7 @@ export function ChatSortSelect({ value, onChange }: ChatSortSelectProps) {
         onClick={() => setPickerOpen((prev) => !prev)}
         aria-expanded={pickerOpen}
         aria-haspopup="listbox"
-        className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-soft)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-main shadow-[var(--color-shadow-soft)] transition hover:bg-[var(--color-surface-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]"
+        className="inline-flex items-center gap-2 rounded-full border border-(--color-border-soft)vbg-(--color-surface) py-1.5 text-xs font-semibold text-main shadow-(--color-shadow-soft) transition hover:bg-(--color-surface-soft) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
       >
         {selectedOption.label}
         <ChevronDown className="h-3 w-3" />
@@ -53,7 +53,7 @@ export function ChatSortSelect({ value, onChange }: ChatSortSelectProps) {
       {pickerOpen && (
         <div
           role="listbox"
-          className="absolute left-0 top-[calc(100%+6px)] z-10 w-36 rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-surface)] p-2 shadow-[var(--color-shadow-card)]"
+          className="absolute left-0 top-[calc(100%+6px)] z-10 w-36 rounded-2xl border border-(--color-border-soft) bg-(--color-surface) p-2 shadow-(--color-shadow-card)"
         >
           {sortOptions.map((option) => (
             <button
@@ -65,7 +65,7 @@ export function ChatSortSelect({ value, onChange }: ChatSortSelectProps) {
                 onChange(option.value)
                 setPickerOpen(false)
               }}
-              className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs text-main transition hover:bg-[var(--color-surface-soft)]"
+              className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs text-main transition hover:bg-(--color-surface-soft)"
             >
               {option.label}
               {value === option.value && <Check className="h-3.5 w-3.5 text-main" />}

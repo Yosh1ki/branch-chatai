@@ -171,7 +171,7 @@ const generateOpenAIResponse = async (
 ) => {
   const latestUserInput = [...messagesForLLM].reverse().find((message) => message.role === "user")
   const useWebSearch = shouldUseWebSearchForPrompt(latestUserInput?.content ?? "")
-  const baseParams: Omit<Responses.ResponseCreateParamsBase, "stream" | "tools"> = {
+  const baseParams: Omit<Responses.ResponseCreateParams, "stream" | "tools"> = {
     model,
     input: messagesForLLM,
     instructions: useWebSearch
