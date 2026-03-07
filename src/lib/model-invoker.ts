@@ -176,7 +176,7 @@ const readNumber = (value: unknown) =>
   typeof value === "number" && Number.isFinite(value) ? value : 0
 
 const sumNumbers = (...values: unknown[]) =>
-  values.reduce((sum, value) => sum + readNumber(value), 0)
+  values.reduce<number>((sum, value) => sum + readNumber(value), 0)
 
 const resolveOpenAIUsage = (response: unknown) => {
   const usage = (response as { usage?: Record<string, unknown> } | null)?.usage

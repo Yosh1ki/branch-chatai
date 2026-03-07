@@ -1,29 +1,59 @@
-import { PrismaClient } from '@prisma/client'
-import { Pool } from 'pg'
-import { PrismaPg } from '@prisma/adapter-pg'
+import { PrismaClient } from "@prisma/client"
+import { PrismaPg } from "@prisma/adapter-pg"
+import { Pool } from "pg"
 
-const connectionString = process.env.DATABASE_URL_RUNTIME ?? process.env.DATABASE_URL
+const resolveConnectionString = () =>
+  process.env.DATABASE_URL_RUNTIME ?? process.env.DATABASE_URL ?? null
 
-if (!connectionString) {
-  throw new Error('DATABASE_URL_RUNTIME or DATABASE_URL must be set')
-}
+export const hasDatabaseConnectionConfig = () => resolveConnectionString() !== null
 
-const pool = new Pool({ 
-  connectionString,
-  ssl: { rejectUnauthorized: false } 
-})
-const adapter = new PrismaPg(pool)
+let prismaClientInstance: PrismaClient | null = null
 
-const prismaClientSingleton = () => {
+const createPrismaClient = () => {
+  const connectionString = resolveConnectionString()
+
+  if (!connectionString) {
+    throw new Error("DATABASE_URL_RUNTIME or DATABASE_URL must be set")
+  }
+
+  const pool = new Pool({
+    connectionString,
+    ssl: { rejectUnauthorized: false },
+  })
+  const adapter = new PrismaPg(pool)
+
   return new PrismaClient({ adapter })
 }
 
-declare global {
-  var prismaGlobal: undefined | ReturnType<typeof prismaClientSingleton>
+const getPrismaClient = () => {
+  if (prismaClientInstance) {
+    return prismaClientInstance
+  }
+
+  if (globalThis.prismaGlobal) {
+    prismaClientInstance = globalThis.prismaGlobal
+    return prismaClientInstance
+  }
+
+  prismaClientInstance = createPrismaClient()
+
+  if (process.env.NODE_ENV !== "production") {
+    globalThis.prismaGlobal = prismaClientInstance
+  }
+
+  return prismaClientInstance
 }
 
-const prisma = globalThis.prismaGlobal ?? prismaClientSingleton()
+declare global {
+  var prismaGlobal: PrismaClient | undefined
+}
+
+const prisma = new Proxy({} as PrismaClient, {
+  get(_target, property, receiver) {
+    const client = getPrismaClient()
+    const value = Reflect.get(client, property, receiver)
+    return typeof value === "function" ? value.bind(client) : value
+  },
+}) as PrismaClient
 
 export default prisma
-
-if (process.env.NODE_ENV !== 'production') globalThis.prismaGlobal = prisma

@@ -51,7 +51,7 @@ export const validateDailyLimitWindow = (window: DailyLimitWindow): DailyLimitWi
 
 const extractDatePart = (
   parts: Intl.DateTimeFormatPart[],
-  type: "year" | "month" | "day" | "hour" | "minute"
+  type: "year" | "month" | "day" | "hour" | "minute" | "second"
 ) => {
   const value = parts.find((part) => part.type === type)?.value
   if (!value) {

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist_Mono, Inter, Pacifico } from "next/font/google";
 import { cookies } from "next/headers";
 import { auth } from "@/auth";
-import prisma from "@/lib/prisma";
+import prisma, { hasDatabaseConnectionConfig } from "@/lib/prisma";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { I18nProvider } from "@/components/i18n/i18n-provider";
 import {
@@ -37,12 +37,17 @@ export const metadata: Metadata = {
 };
 
 const resolveInitialThemePreference = async (): Promise<ThemePreference> => {
-  const session = await auth()
   const cookieStore = await cookies()
   const cookieThemePreference = parseThemePreference(
     cookieStore.get(THEME_PREFERENCE_COOKIE_KEY)?.value,
     DEFAULT_THEME_PREFERENCE
   )
+
+  if (!hasDatabaseConnectionConfig()) {
+    return cookieThemePreference
+  }
+
+  const session = await auth()
 
   if (!session?.user?.id) {
     return cookieThemePreference

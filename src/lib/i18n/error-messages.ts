@@ -1,5 +1,5 @@
-import { translate, type TranslationKey } from "./index.ts"
-import type { LocaleCode, LocalizedErrorPayload, TranslationParams } from "./types.ts"
+import { translate, type TranslationKey } from "./index"
+import type { LocaleCode, LocalizedErrorPayload, TranslationParams } from "./types"
 
 const ERROR_MESSAGE_KEYS = {
   dailyLimitReached: "errors.dailyLimitReached",
