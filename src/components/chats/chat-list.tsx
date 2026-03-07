@@ -146,13 +146,22 @@ function ChatCard({ chat, onDeleted, locale, viewMode }: ChatCardProps) {
     }
   }
 
+  const menuButtonClassName =
+    viewMode === "detail"
+      ? "rounded-md p-2 text-main-muted transition hover:bg-(--color-surface-soft)"
+      : `rounded-md p-1 text-main-muted transition-[opacity,background-color,color] hover:bg-(--color-surface-soft) hover:text-main ${
+          menuOpen
+            ? "pointer-events-auto opacity-100"
+            : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
+        }`
+
   return (
     <>
       <Link
         href={`/chats/${chat.id}`}
-        className={`group relative block transition ${
+        className={`group relative block transition-colors ${
           viewMode === "detail"
-            ? "rounded-3xl border border-(--color-border-muted) bg-(--color-surface) p-6 shadow-(--color-shadow-card) hover:-translate-y-1"
+            ? "rounded-3xl border border-(--color-border-muted) bg-(--color-surface) p-6 shadow-(--color-shadow-card) hover:bg-(--color-surface-soft)"
             : "border-b border-(--color-border-muted) px-4 py-3 last:border-b-0 hover:bg-(--color-surface-soft)"
         }`}
       >
@@ -167,7 +176,7 @@ function ChatCard({ chat, onDeleted, locale, viewMode }: ChatCardProps) {
                 type="button"
                 aria-label="Open chat actions"
                 onClick={toggleMenu}
-                className="rounded-md p-2 text-main-muted transition hover:bg-(--color-surface-soft)"
+                className={menuButtonClassName}
               >
                 <MoreHorizontal className="h-5 w-5" aria-hidden />
               </button>
@@ -188,7 +197,29 @@ function ChatCard({ chat, onDeleted, locale, viewMode }: ChatCardProps) {
         ) : (
           <div className="flex items-center justify-between gap-3">
             <p className="truncate text-sm font-semibold text-main">{chat.title}</p>
-            <p className="shrink-0 text-xs text-main-muted tabular-nums">{updatedAtLabel}</p>
+            <div className="relative flex shrink-0 items-center gap-1.5" onMouseLeave={() => setMenuOpen(false)}>
+              <p className="text-xs text-main-muted tabular-nums">{updatedAtLabel}</p>
+              <button
+                type="button"
+                aria-label="Open chat actions"
+                onClick={toggleMenu}
+                className={menuButtonClassName}
+              >
+                <MoreHorizontal className="h-4 w-4" aria-hidden />
+              </button>
+              {menuOpen && (
+                <div className="absolute right-0 top-[calc(100%+4px)] z-20 w-40 rounded-2xl border border-(--color-border-soft) bg-(--color-surface) p-2 shadow-(--color-shadow-card)">
+                  <button
+                    type="button"
+                    onClick={openConfirm}
+                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-[#e56b6f] transition hover:bg-(--color-surface-soft)"
+                  >
+                    <Trash2 className="h-4 w-4 text-[#e56b6f]" />
+                    {t("chats.deleteAction")}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

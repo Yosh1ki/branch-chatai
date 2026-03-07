@@ -28,7 +28,7 @@ export default async function LoginPage() {
                             <svg
                                 aria-hidden="true"
                                 viewBox="0 0 20 20"
-                                className="h-3 w-3 transition-transform group-hover:translate-y-0.5"
+                                className="h-3 w-3 transition-colors"
                                 fill="currentColor"
                             >
                                 <path
@@ -69,7 +69,7 @@ export default async function LoginPage() {
                             <svg
                                 aria-hidden="true"
                                 viewBox="0 0 20 20"
-                                className="h-3 w-3 transition-transform group-hover:translate-y-0.5"
+                                className="h-3 w-3 transition-colors"
                                 fill="currentColor"
                             >
                                 <path
@@ -102,7 +102,7 @@ export default async function LoginPage() {
                     </div>
                     <button
                         type="button"
-                        className="rounded-full bg-theme-main px-4 py-2 text-sm text-main transition-transform hover:-translate-y-0.5"
+                        className="rounded-full bg-theme-main px-4 py-2 text-sm text-main transition-[filter] hover:brightness-95"
                     >
                         {t("login.tryBranch")}
                     </button>
@@ -132,7 +132,7 @@ export default async function LoginPage() {
                         <button
                             type="submit"
                             aria-label="Sign in with Google"
-                            className="rounded-full transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82]"
+                            className="rounded-full transition-[filter] duration-200 hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82]"
                         >
                             <Image
                                 src="/icons/signin_light.svg"

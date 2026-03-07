@@ -65,7 +65,7 @@ export function AccountMenu({ settingsContent, user, onLogout }: AccountMenuProp
           aria-label="Open account menu"
           aria-expanded={open}
           onClick={() => setOpen((prev) => !prev)}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-(--color-border-soft) bg-(--color-surface) text-main shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
+          className="flex h-10 w-10 items-center justify-center rounded-lg border border-(--color-border-soft) bg-(--color-surface) text-main shadow-sm transition-colors hover:bg-(--color-surface-soft) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
         >
           <Menu className="h-5 w-5" />
         </button>
@@ -89,7 +89,7 @@ export function AccountMenu({ settingsContent, user, onLogout }: AccountMenuProp
                   setIsSettingsOpen(true)
                   setOpen(false)
                 }}
-                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
+                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-main transition-colors hover:bg-(--color-surface-soft) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
               >
                 <Settings className="h-4 w-4" />
                 {t("account.settings")}
@@ -98,7 +98,7 @@ export function AccountMenu({ settingsContent, user, onLogout }: AccountMenuProp
               <form action={onLogout}>
                 <button
                   type="submit"
-                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
+                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-main transition-colors hover:bg-(--color-surface-soft) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
                 >
                   <LogOut className="h-4 w-4" />
                   {t("account.logout")}
@@ -132,7 +132,7 @@ export function AccountMenu({ settingsContent, user, onLogout }: AccountMenuProp
                     type="button"
                     onClick={() => setIsSettingsOpen(false)}
                     aria-label={t("settings.close")}
-                    className="rounded-full border border-(--color-border-soft) bg-(--color-surface) p-2 text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
+                    className="rounded-full border border-(--color-border-soft) bg-(--color-surface) p-2 text-main transition-colors hover:bg-(--color-surface-soft) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
                   >
                     <X className="h-4 w-4" />
                   </button>

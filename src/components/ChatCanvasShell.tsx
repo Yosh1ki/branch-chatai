@@ -1984,7 +1984,7 @@ export function ChatCanvasShell({
           type="submit"
           aria-label="Send prompt"
           disabled={!promptText.trim() || isSending}
-          className="flex h-11 w-11 self-end items-center justify-center rounded-lg bg-theme-main text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82] disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex h-11 w-11 self-end items-center justify-center rounded-lg bg-theme-main text-main transition-[filter] hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82] disabled:cursor-not-allowed disabled:opacity-60"
         >
           <ArrowRight className="h-5 w-5" />
         </button>
@@ -2401,7 +2401,7 @@ export function ChatCanvasShell({
                                       type="submit"
                                       aria-label="Send branch prompt"
                                       disabled={!branch.text.trim() || branch.reply.isLoading}
-                                      className="flex h-10 w-10 items-center justify-center rounded-lg bg-theme-main text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82] disabled:cursor-not-allowed disabled:opacity-60"
+                                      className="flex h-10 w-10 items-center justify-center rounded-lg bg-theme-main text-main transition-[filter] hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82] disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                       <ArrowRight className="h-4 w-4" />
                                     </button>

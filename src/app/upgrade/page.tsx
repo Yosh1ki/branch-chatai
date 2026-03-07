@@ -49,7 +49,7 @@ export default async function UpgradePage() {
             </ul>
           </section>
 
-          <section className="rounded-3xl border border-main bg-(--color-surface) p-6 shadow-(--color-shadow-card) transition-all duration-200 [&:has(.upgrade-cta:hover)]:-translate-y-0.5 [&:has(.upgrade-cta:hover)]:shadow-[0_18px_42px_rgba(20,20,20,0.16)] [&:has(.upgrade-cta:hover)]:ring-2 [&:has(.upgrade-cta:hover)]:ring-(--color-focus-ring)">
+          <section className="rounded-3xl border border-main bg-(--color-surface) p-6 shadow-(--color-shadow-card) transition-[box-shadow,border-color] duration-200 [&:has(.upgrade-cta:hover)]:border-(--color-focus-ring) [&:has(.upgrade-cta:hover)]:shadow-[0_18px_42px_rgba(20,20,20,0.16)] [&:has(.upgrade-cta:hover)]:ring-2 [&:has(.upgrade-cta:hover)]:ring-(--color-focus-ring)">
             <div className="flex items-center justify-between gap-2">
               <p className="text-4xl font-black uppercase leading-none text-main">{t("billing.proPlanName")}</p>
               {planType === "pro" ? (

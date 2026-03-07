@@ -35,7 +35,7 @@ export default async function SettingsPage() {
         <div>
           <Link
             href="/chats"
-            className="inline-flex items-center gap-2 rounded-full border border-(--color-border-soft) bg-(--color-surface) px-4 py-2 text-sm font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
+            className="inline-flex items-center gap-2 rounded-full border border-(--color-border-soft) bg-(--color-surface) px-4 py-2 text-sm font-semibold text-main transition-colors hover:bg-(--color-surface-soft) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
           >
             <ArrowLeft className="h-4 w-4" />
             {t("settings.backToChats")}

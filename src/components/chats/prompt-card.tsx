@@ -193,7 +193,7 @@ export function PromptCard({ action, planType }: PromptCardProps) {
                   return next
                 })
               }
-              className="inline-flex items-center gap-2 rounded-full bg-theme-main px-3 py-1.5 text-xs font-semibold text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b7da82]"
+              className="inline-flex items-center gap-2 rounded-full bg-theme-main px-3 py-1.5 text-xs font-semibold text-main transition-[filter] hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b7da82]"
             >
               {model.label}
               <ChevronDown className="h-3 w-3" />
@@ -267,7 +267,7 @@ export function PromptCard({ action, planType }: PromptCardProps) {
           type="submit"
           aria-label="Start a new chat"
           disabled={!prompt.trim()}
-          className="flex h-11 w-11 items-center justify-center rounded-lg bg-theme-main text-main transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82]"
+          className="flex h-11 w-11 items-center justify-center rounded-lg bg-theme-main text-main transition-[filter] hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82]"
         >
           <ArrowRight className="h-5 w-5" />
         </button>

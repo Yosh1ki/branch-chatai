@@ -511,7 +511,6 @@
   border: 1px solid var(--color-border-soft);
   background: color-mix(in srgb, var(--color-surface) 86%, transparent);
   transition:
-    transform 140ms ease,
     border-color 140ms ease,
     background-color 140ms ease;
 }
@@ -521,7 +520,7 @@
 }
 
 .branch-indicator-button:active {
-  transform: scale(0.96);
+  background: color-mix(in srgb, var(--color-surface-soft) 92%, transparent);
 }
 
 .branch-indicator-button:focus-visible {
