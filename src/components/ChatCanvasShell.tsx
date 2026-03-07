@@ -2080,7 +2080,7 @@ export function ChatCanvasShell({
         isVerticalMode={isVerticalMode}
         onToggleVerticalMode={handleToggleVerticalMode}
       />
-      <div className="fixed left-0 right-0 top-0 z-40 bg-(--color-app-bg)/80 backdrop-blur">
+      <div className="fixed left-0 right-0 top-0 z-40">
         <div className="mx-auto w-full px-0">
           <ChatHeader
             settingsContent={settingsContent}
