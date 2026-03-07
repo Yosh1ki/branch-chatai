@@ -63,6 +63,22 @@ export const jaDictionary = {
   "settings.name": "名前",
   "settings.email": "メールアドレス",
   "settings.unset": "未設定",
+  "settings.deleteAccountTitle": "アカウント削除",
+  "settings.deleteAccountDescription":
+    "アカウントを削除すると、チャット履歴、利用状況、認証情報を含む関連データにアクセスできなくなります。",
+  "settings.deleteAccountWarning": "この操作は取り消せません。実行前に内容を確認してください。",
+  "settings.deleteAccountAction": "アカウントを削除",
+  "settings.deleteAccountConfirmTitle": "アカウントを削除しますか？",
+  "settings.deleteAccountConfirmDescription":
+    "削除を実行すると、関連データは元に戻せません。完了後は再度ログインが必要です。",
+  "settings.deleteAccountCancel": "キャンセル",
+  "settings.deleteAccountConfirmAction": "削除する",
+  "settings.deleteAccountDeleting": "削除中...",
+  "settings.deleteAccountFailed": "アカウントの削除に失敗しました。時間をおいて再度お試しください。",
+  "settings.deleteAccountDisabled":
+    "開発用認証が有効な環境ではアカウント削除を実行できません。",
+  "settings.deleteAccountSessionExpired":
+    "セッションを確認できませんでした。再度ログインしてください。",
   "settings.planTitle": "プランと利用状況",
   "settings.currentPlan": "現在のプラン",
   "settings.todayMessages": "本日のメッセージ数",
@@ -77,6 +93,7 @@ export const jaDictionary = {
   "settings.rolling30DayDescription": "直近30日間の累計利用量で判定します。",
   "settings.themeTitle": "表示テーマ",
   "settings.languageTitle": "表示言語",
+  "settings.legalTitle": "法務・サポート",
   "settings.close": "設定を閉じる",
 
   "billing.upgrade": "アップグレード",

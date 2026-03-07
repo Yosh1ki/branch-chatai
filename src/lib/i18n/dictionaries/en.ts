@@ -65,6 +65,22 @@ export const enDictionary: { [K in keyof JaDictionary]: string } = {
   "settings.name": "Name",
   "settings.email": "Email",
   "settings.unset": "Not set",
+  "settings.deleteAccountTitle": "Delete account",
+  "settings.deleteAccountDescription":
+    "Deleting your account removes access to related data, including chat history, usage data, and authentication records.",
+  "settings.deleteAccountWarning": "This action cannot be undone. Review the details before continuing.",
+  "settings.deleteAccountAction": "Delete account",
+  "settings.deleteAccountConfirmTitle": "Delete your account?",
+  "settings.deleteAccountConfirmDescription":
+    "Once deletion starts, the related data cannot be restored. You will need to sign in again to use Branch later.",
+  "settings.deleteAccountCancel": "Cancel",
+  "settings.deleteAccountConfirmAction": "Delete",
+  "settings.deleteAccountDeleting": "Deleting...",
+  "settings.deleteAccountFailed": "Failed to delete the account. Please try again later.",
+  "settings.deleteAccountDisabled":
+    "Account deletion is unavailable while development auth bypass is enabled.",
+  "settings.deleteAccountSessionExpired":
+    "Your session could not be verified. Please sign in again.",
   "settings.planTitle": "Plan and usage",
   "settings.currentPlan": "Current plan",
   "settings.todayMessages": "Messages today",
@@ -79,6 +95,7 @@ export const enDictionary: { [K in keyof JaDictionary]: string } = {
   "settings.rolling30DayDescription": "Measured as a rolling total across the last 30 days.",
   "settings.themeTitle": "Theme",
   "settings.languageTitle": "Language",
+  "settings.legalTitle": "Legal and support",
   "settings.close": "Close settings",
 
   "billing.upgrade": "Upgrade",

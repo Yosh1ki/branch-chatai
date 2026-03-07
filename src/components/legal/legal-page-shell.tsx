@@ -7,6 +7,11 @@ type LegalSection = {
   paragraphs: string[]
 }
 
+type LegalDetailItem = {
+  label: string
+  value: string | string[]
+}
+
 type LegalPageShellProps = {
   backHref: string
   backLabel: string
@@ -14,6 +19,7 @@ type LegalPageShellProps = {
   title: string
   updatedAt: string
   intro: string
+  detailItems?: LegalDetailItem[]
   sections: LegalSection[]
   footerLinks: Array<{
     href: string
@@ -28,6 +34,7 @@ export function LegalPageShell({
   title,
   updatedAt,
   intro,
+  detailItems,
   sections,
   footerLinks,
 }: LegalPageShellProps) {
@@ -58,6 +65,28 @@ export function LegalPageShell({
           <p className="mt-4 text-sm leading-7 text-main-soft sm:text-base">
             {intro}
           </p>
+
+          {detailItems?.length ? (
+            <dl className="mt-8 space-y-4 rounded-[24px] border border-(--color-border-muted) bg-(--color-app-bg) p-5 sm:p-6">
+              {detailItems.map((item) => {
+                const values = Array.isArray(item.value) ? item.value : [item.value]
+
+                return (
+                  <div
+                    key={item.label}
+                    className="grid gap-2 border-b border-(--color-border-muted) pb-4 last:border-b-0 last:pb-0 sm:grid-cols-[180px_minmax(0,1fr)]"
+                  >
+                    <dt className="text-sm font-semibold text-main">{item.label}</dt>
+                    <dd className="space-y-1 text-sm leading-7 text-main-soft sm:text-base">
+                      {values.map((value) => (
+                        <p key={value}>{value}</p>
+                      ))}
+                    </dd>
+                  </div>
+                )
+              })}
+            </dl>
+          ) : null}
 
           <div className="mt-8 space-y-8">
             {sections.map((section) => (

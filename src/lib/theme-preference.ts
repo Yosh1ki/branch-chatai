@@ -5,6 +5,7 @@ export type ThemePreference = (typeof THEME_PREFERENCES)[number]
 export const DEFAULT_THEME_PREFERENCE: ThemePreference = "light"
 
 export const THEME_PREFERENCE_STORAGE_KEY = "branch.theme"
+export const THEME_PREFERENCE_COOKIE_KEY = "themePreference"
 
 export const isThemePreference = (value: unknown): value is ThemePreference => {
   return typeof value === "string" && THEME_PREFERENCES.includes(value as ThemePreference)

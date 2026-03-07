@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Inter, Pacifico } from "next/font/google";
+import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { I18nProvider } from "@/components/i18n/i18n-provider";
 import {
   DEFAULT_THEME_PREFERENCE,
+  THEME_PREFERENCE_COOKIE_KEY,
   getStoredThemePreference,
+  parseThemePreference,
   type ThemePreference,
 } from "@/lib/theme-preference";
 import { resolveRequestLocale } from "@/lib/i18n/locale";
@@ -35,15 +38,21 @@ export const metadata: Metadata = {
 
 const resolveInitialThemePreference = async (): Promise<ThemePreference> => {
   const session = await auth()
+  const cookieStore = await cookies()
+  const cookieThemePreference = parseThemePreference(
+    cookieStore.get(THEME_PREFERENCE_COOKIE_KEY)?.value,
+    DEFAULT_THEME_PREFERENCE
+  )
+
   if (!session?.user?.id) {
-    return DEFAULT_THEME_PREFERENCE
+    return cookieThemePreference
   }
 
   try {
     return await getStoredThemePreference(prisma, session.user.id)
   } catch (error) {
     console.error("Failed to resolve initial theme preference:", error)
-    return DEFAULT_THEME_PREFERENCE
+    return cookieThemePreference
   }
 }
 

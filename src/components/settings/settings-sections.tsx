@@ -1,6 +1,10 @@
+import Link from "next/link"
+
 import { LanguageToggle } from "@/components/i18n/language-toggle"
+import { DeleteAccountSection } from "@/components/settings/delete-account-section"
 import { ThemeToggle } from "@/components/theme/theme-toggle"
 import { createTranslator } from "@/lib/i18n"
+import { createLegalFooterLinks } from "@/lib/legal-links"
 import type { LocaleCode } from "@/lib/i18n/types"
 import type { SettingsViewData } from "@/lib/settings-view"
 import {
@@ -17,6 +21,7 @@ type SettingsSectionsProps = {
 export function SettingsSections({ locale, settings }: SettingsSectionsProps) {
   const t = createTranslator(locale)
   const numberFormatter = new Intl.NumberFormat(locale === "ja" ? "ja-JP" : "en-US")
+  const legalLinks = createLegalFooterLinks(locale).filter((link) => link.href !== "/login")
   const resetTimeLabel = `${String(DAILY_LIMIT_RESET_HOUR).padStart(2, "0")}:${String(
     DAILY_LIMIT_RESET_MINUTE
   ).padStart(2, "0")}`
@@ -137,6 +142,23 @@ export function SettingsSections({ locale, settings }: SettingsSectionsProps) {
           <LanguageToggle />
         </div>
       </section>
+
+      <section className="rounded-3xl border border-(--color-border-soft) bg-(--color-surface)/90 p-6 shadow-(--color-shadow-card)">
+        <h2 className="text-xl font-semibold text-main">{t("settings.legalTitle")}</h2>
+        <div className="mt-4 flex flex-wrap gap-3">
+          {legalLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="rounded-full border border-(--color-border-soft) bg-(--color-app-bg) px-4 py-2 text-sm font-semibold text-main transition-colors hover:bg-(--color-surface-soft) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
+            >
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <DeleteAccountSection />
     </div>
   )
 }

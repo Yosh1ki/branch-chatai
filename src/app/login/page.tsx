@@ -16,6 +16,7 @@ export default async function LoginPage() {
 
   return (
     <LoginPageView
+      locale={locale}
       googleSignInAction={googleSignInAction}
       labels={{
         aboutBranch: t("login.aboutBranch"),

@@ -16,6 +16,10 @@ import {
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { LanguageToggle } from "@/components/i18n/language-toggle";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { createLegalFooterLinks } from "@/lib/legal-links";
+import type { LegalLocale } from "@/lib/legal-profile";
 import { textStyle } from "@/styles/typography";
 
 type LoginPageViewLabels = {
@@ -76,11 +80,13 @@ type LoginPageViewLabels = {
 }
 
 type LoginPageViewProps = {
+  locale: LegalLocale
   labels: LoginPageViewLabels
   googleSignInAction: () => Promise<void>
 }
 
 export function LoginPageView({
+  locale,
   labels,
   googleSignInAction,
 }: LoginPageViewProps) {
@@ -128,7 +134,7 @@ export function LoginPageView({
       price: labels.proPlanPrice,
       summary: labels.proPlanSummary,
       ctaLabel: labels.tryProPlan,
-      iconWrapperClass: "bg-theme-main text-main shadow-[0_10px_24px_rgba(183,218,130,0.45)]",
+      iconWrapperClass: "bg-theme-main text-main",
       features: [
         {
           label: labels.proPlanFeature1,
@@ -149,14 +155,14 @@ export function LoginPageView({
       ],
     },
   ]
+  const legalLinks = createLegalFooterLinks(locale).filter((item) => item.href !== "/login")
   const footerItems = [
     { label: labels.aboutBranch, href: "#branch-overview" },
     { label: labels.pricing, href: "#pricing-plans" },
     { label: labels.footerOrigin },
     { label: labels.footerUpdates },
     { label: labels.footerFaq },
-    { label: labels.privacyNoticeLink, href: "/privacy" },
-    { label: labels.footerTerms, href: "/terms" },
+    ...legalLinks,
   ]
 
   useEffect(() => {
@@ -190,6 +196,10 @@ export function LoginPageView({
           Branch
         </p>
         <div className="hidden items-center gap-4 text-xs text-main-soft sm:flex sm:gap-6 sm:text-sm">
+          <div className="flex items-center gap-2">
+            <LanguageToggle compact />
+            <ThemeToggle compact />
+          </div>
           <Link
             href="#branch-overview"
             className="inline-flex items-center transition-colors hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
@@ -227,6 +237,10 @@ export function LoginPageView({
           <div className="absolute right-0 top-full z-20 mt-2 w-[220px] rounded-[14px] border border-(--color-border-soft) bg-(--color-surface) p-3 shadow-(--color-shadow-card) sm:hidden">
             <nav aria-label="Mobile navigation">
               <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap gap-2 px-3 py-1">
+                  <LanguageToggle compact />
+                  <ThemeToggle compact />
+                </div>
                 <Link
                   href="#branch-overview"
                   onClick={() => setIsMobileMenuOpen(false)}
@@ -615,19 +629,17 @@ export function LoginPageView({
                 </p>
 
                 <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs text-main-muted">
-                  <Link
-                    href="/terms"
-                    className="underline underline-offset-4 transition-colors hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
-                  >
-                    利用規約
-                  </Link>
-                  <span>·</span>
-                  <Link
-                    href="/contact"
-                    className="underline underline-offset-4 transition-colors hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
-                  >
-                    お問い合わせ
-                  </Link>
+                  {legalLinks.map((item, index) => (
+                    <div key={item.href} className="contents">
+                      {index > 0 ? <span>·</span> : null}
+                      <Link
+                        href={item.href}
+                        className="underline underline-offset-4 transition-colors hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
+                      >
+                        {item.label}
+                      </Link>
+                    </div>
+                  ))}
                 </div>
 
                 <p className="mt-4 text-center text-[11px] text-main-muted">

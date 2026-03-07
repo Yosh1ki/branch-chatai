@@ -1,4 +1,3 @@
-import { auth } from "@/auth"
 import { NextResponse } from "next/server"
 import { SUPPORTED_LOCALES, type LocaleCode } from "@/lib/i18n/types"
 
@@ -9,11 +8,6 @@ const isLocaleCode = (value: unknown): value is LocaleCode =>
   (SUPPORTED_LOCALES as readonly string[]).includes(value)
 
 export async function POST(request: Request) {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
   let body: { locale?: unknown } = {}
   try {
     body = await request.json()

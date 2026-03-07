@@ -1,4 +1,5 @@
 import { LegalPageShell } from "@/components/legal/legal-page-shell"
+import { createLegalFooterLinks } from "@/lib/legal-links"
 import { resolveRequestLocale } from "@/lib/i18n/locale"
 
 const jaContent = {
@@ -58,11 +59,6 @@ const jaContent = {
         "本規約を変更する場合、運営者は合理的な方法で周知し、変更後に利用が継続されたときは改定内容に同意したものとみなします。",
       ],
     },
-  ],
-  footerLinks: [
-    { href: "/privacy", label: "プライバシーポリシー" },
-    { href: "/contact", label: "お問い合わせ" },
-    { href: "/login", label: "ログインに戻る" },
   ],
 }
 
@@ -124,11 +120,6 @@ const enContent = {
       ],
     },
   ],
-  footerLinks: [
-    { href: "/privacy", label: "Privacy Policy" },
-    { href: "/contact", label: "Contact" },
-    { href: "/login", label: "Back to login" },
-  ],
 }
 
 export default async function TermsPage() {
@@ -144,7 +135,7 @@ export default async function TermsPage() {
       updatedAt={content.updatedAt}
       intro={content.intro}
       sections={content.sections}
-      footerLinks={content.footerLinks}
+      footerLinks={createLegalFooterLinks(locale)}
     />
   )
 }
