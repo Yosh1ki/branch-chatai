@@ -14,13 +14,18 @@ import { buildConversationHistory } from "@/lib/conversation-history"
 import { summarizeHistory } from "@/lib/history-summarizer"
 import { evaluateFastGate } from "@/lib/safety-filter"
 import { runModerationCheck } from "@/lib/moderation-client"
-import { assertWithinDailyLimit, incrementDailyUsage } from "@/lib/usage-limiter"
+import { assertWithinUsageLimits, recordUsageEvent } from "@/lib/usage-limiter"
 import { invokeWithFallback } from "@/lib/model-invoker"
 import type { ChatGraphState } from "@/lib/chat-graph-state"
 import { generateChatTitle } from "@/lib/title-generator"
 import { serializeMarkdownContent } from "@/lib/rich-text"
 import { buildDevAssistantResponse } from "@/lib/dev-assistant-response"
 import { fallbackChatTitle, inferChatTitleLocale } from "@/lib/chat-title"
+import {
+  createEmptyUsageTokenTotals,
+  type UsageQuotaStatus,
+  type UsageTokenTotals,
+} from "@/lib/usage-quota"
 
 type ChatRecord = Awaited<ReturnType<typeof prisma.chat.create>>
 type MessageRecord = Awaited<ReturnType<typeof prisma.message.create>>
@@ -30,11 +35,12 @@ type GraphState = ChatGraphState & {
   chatRecord?: ChatRecord
   branchIdResolved?: string | null
   planType?: UserPlanType
-  usageDay?: Date
   userMessage?: MessageRecord
   assistantMessage?: MessageRecord
   createdChat?: boolean
   idempotentHit?: boolean
+  quotaStatus?: UsageQuotaStatus
+  tokenUsage?: UsageTokenTotals
 }
 
 const ChatGraphAnnotation = Annotation.Root({
@@ -60,11 +66,12 @@ const ChatGraphAnnotation = Annotation.Root({
   chatRecord: Annotation<ChatRecord | undefined>(),
   branchIdResolved: Annotation<string | null | undefined>(),
   planType: Annotation<UserPlanType | undefined>(),
-  usageDay: Annotation<Date | undefined>(),
   userMessage: Annotation<MessageRecord | undefined>(),
   assistantMessage: Annotation<MessageRecord | undefined>(),
   createdChat: Annotation<boolean | undefined>(),
   idempotentHit: Annotation<boolean | undefined>(),
+  quotaStatus: Annotation<UsageQuotaStatus | undefined>(),
+  tokenUsage: Annotation<UsageTokenTotals | undefined>(),
   errors: Annotation<Array<{ step: string; message: string }> | undefined>({
     reducer: (prev, next) => next ?? prev ?? [],
   }),
@@ -188,10 +195,10 @@ const validateNode = async (state: GraphState) => {
 }
 
 const usageNode = async (state: GraphState) => {
-  const usageDay = await assertWithinDailyLimit(state.userId, state.planType)
+  const quotaStatus = await assertWithinUsageLimits(state.userId, state.planType)
   return {
     ...state,
-    usageDay: usageDay ?? undefined,
+    quotaStatus: quotaStatus ?? undefined,
   }
 }
 
@@ -273,8 +280,11 @@ const modelNode = async (state: GraphState) => {
   const useDevResponse = process.env.USE_DEV_ASSISTANT_RESPONSE === "true"
   const devResponse = useDevResponse ? buildDevAssistantResponse() : null
   const streamCallback = state.onToken ?? getTokenCallback(state.requestId)
-  const assistantText = devResponse
-    ? devResponse.text
+  const invocationResult = devResponse
+    ? {
+        text: devResponse.text,
+        usage: createEmptyUsageTokenTotals(),
+      }
     : await invokeWithFallback(
         {
           provider: state.modelProvider ?? "openai",
@@ -285,6 +295,7 @@ const modelNode = async (state: GraphState) => {
         memorySummaryJson,
         streamCallback
       )
+  const assistantText = invocationResult.text
   const assistantContent = devResponse
     ? devResponse.content
     : serializeMarkdownContent(assistantText)
@@ -293,6 +304,7 @@ const modelNode = async (state: GraphState) => {
     ...state,
     assistantText,
     assistantContent,
+    tokenUsage: invocationResult.usage,
   }
 }
 
@@ -425,11 +437,11 @@ const persistNode = async (state: GraphState) => {
     },
   })
 
-  if (state.planType === "free") {
-    await incrementDailyUsage(state.userId, state.planType, {
-      usageDay: state.usageDay ?? undefined,
-    })
-  }
+  const quotaStatus = await recordUsageEvent(
+    state.userId,
+    state.planType,
+    state.tokenUsage ?? createEmptyUsageTokenTotals()
+  )
 
   return {
     ...state,
@@ -438,6 +450,7 @@ const persistNode = async (state: GraphState) => {
     branchIdResolved,
     userMessage,
     assistantMessage,
+    quotaStatus,
   }
 }
 

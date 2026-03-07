@@ -9,6 +9,7 @@ import { CanvasControls } from "@/components/CanvasControls";
 import { CanvasViewport } from "@/components/CanvasViewport";
 import { ChatHeader } from "@/components/ChatHeader";
 import { DisableCanvasNavigation } from "@/components/DisableCanvasNavigation";
+import { UsageQuotaNotice } from "@/components/usage/usage-quota-notice";
 import { UserBubble } from "@/components/UserBubble";
 import { useI18n } from "@/components/i18n/i18n-provider";
 import { createCanvasState } from "@/lib/canvas-state";
@@ -29,6 +30,8 @@ import {
   type ChatMessage,
   type SelectedModel,
 } from "@/stores/chat-session-store";
+import { getUsageLimitErrorMessageKey } from "@/lib/usage-quota-messages";
+import type { UsageQuotaStatus } from "@/lib/usage-quota";
 
 type ChatCanvasShellProps = {
   chatId: string;
@@ -37,6 +40,7 @@ type ChatCanvasShellProps = {
   initialModelProvider?: string;
   initialModelName?: string;
   initialModelReasoningEffort?: string;
+  initialQuotaStatus: UsageQuotaStatus;
   settingsContent: ReactNode;
   user: {
     name?: string | null;
@@ -91,6 +95,7 @@ export function ChatCanvasShell({
   initialModelProvider,
   initialModelName,
   initialModelReasoningEffort,
+  initialQuotaStatus,
   settingsContent,
   user,
   onLogout,
@@ -105,6 +110,7 @@ export function ChatCanvasShell({
   const selectedModel = useChatSessionStore((store) => store.selectedModel);
   const setSelectedModel = useChatSessionStore((store) => store.setSelectedModel);
   const [promptText, setPromptText] = useState("");
+  const [quotaStatus, setQuotaStatus] = useState(initialQuotaStatus);
   const isSending = useChatSessionStore((store) => store.isSending);
   const setIsSending = useChatSessionStore((store) => store.setIsSending);
   const sendError = useChatSessionStore((store) => store.sendError);
@@ -199,7 +205,13 @@ export function ChatCanvasShell({
     async (
       response: Response,
       onDelta: (text: string) => void
-    ): Promise<{ payload?: { userMessage?: ChatMessage; assistantMessage?: ChatMessage } }> => {
+    ): Promise<{
+      payload?: {
+        assistantMessage?: ChatMessage;
+        quotaStatus?: UsageQuotaStatus;
+        userMessage?: ChatMessage;
+      };
+    }> => {
       if (!response.body) {
         return {};
       }
@@ -246,10 +258,21 @@ export function ChatCanvasShell({
               typeof parsed.error === "string" && parsed.error.length > 0
                 ? parsed.error
                 : t("chat.sendFailed");
-            throw new Error(message);
+            throw Object.assign(new Error(message), {
+              code: typeof parsed.code === "string" ? parsed.code : undefined,
+              details: parsed.details,
+            });
           }
           if (parsed?.type === "final") {
-            return { payload: parsed.payload as { userMessage?: ChatMessage; assistantMessage?: ChatMessage } | undefined };
+            return {
+              payload: parsed.payload as
+                | {
+                    assistantMessage?: ChatMessage;
+                    quotaStatus?: UsageQuotaStatus;
+                    userMessage?: ChatMessage;
+                  }
+                | undefined,
+            };
           }
         }
       }
@@ -278,10 +301,21 @@ export function ChatCanvasShell({
               typeof parsed.error === "string" && parsed.error.length > 0
                 ? parsed.error
                 : t("chat.sendFailed");
-            throw new Error(message);
+            throw Object.assign(new Error(message), {
+              code: typeof parsed.code === "string" ? parsed.code : undefined,
+              details: parsed.details,
+            });
           }
           if (parsed?.type === "final") {
-            return { payload: parsed.payload as { userMessage?: ChatMessage; assistantMessage?: ChatMessage } | undefined };
+            return {
+              payload: parsed.payload as
+                | {
+                    assistantMessage?: ChatMessage;
+                    quotaStatus?: UsageQuotaStatus;
+                    userMessage?: ChatMessage;
+                  }
+                | undefined,
+            };
           }
         }
       }
@@ -289,6 +323,20 @@ export function ChatCanvasShell({
     },
     [t]
   );
+
+  const resolveApiErrorMessage = useCallback(
+    (payload: { error?: unknown; code?: unknown }) => {
+      const messageKey =
+        typeof payload.code === "string" ? getUsageLimitErrorMessageKey(payload.code) : null;
+      if (messageKey) {
+        return t(messageKey);
+      }
+      return typeof payload.error === "string" ? payload.error : t("chat.sendFailed");
+    },
+    [t]
+  );
+
+  const isUsageBlocked = quotaStatus.isBlocked;
 
   const getNextTempId = useCallback((prefix: string) => {
     tempIdRef.current += 1;
@@ -924,7 +972,7 @@ export function ChatCanvasShell({
       overrideRequestId?: string
     ) => {
       const trimmed = (overridePrompt ?? promptText).trim();
-      if (!trimmed || isSending) return;
+      if (!trimmed || isSending || isUsageBlocked) return;
 
       setIsSending(true);
       setSendError("");
@@ -961,10 +1009,11 @@ export function ChatCanvasShell({
 
         if (!response.ok) {
           const payload = await response.json().catch(() => ({}));
-          const errorMessage =
-            typeof payload?.error === "string"
-              ? payload.error
-              : t("chat.sendFailed");
+          const quotaDetails = payload?.details?.quotaStatus;
+          if (quotaDetails) {
+            setQuotaStatus(quotaDetails);
+          }
+          const errorMessage = resolveApiErrorMessage(payload);
           setMessages((prev) =>
             prev.filter((message) => message.id !== tempId && message.id !== tempAssistantId)
           );
@@ -985,6 +1034,9 @@ export function ChatCanvasShell({
           result = { payload: await responseClone.json().catch(() => ({})) };
         }
         const payload = result.payload ?? {};
+        if (payload?.quotaStatus) {
+          setQuotaStatus(payload.quotaStatus);
+        }
         const nextSelectedModel = resolveSelectedModelFromMessage(payload?.assistantMessage);
 
         if (nextSelectedModel) {
@@ -1019,6 +1071,11 @@ export function ChatCanvasShell({
         setPendingUserId(null);
         setIsSending(false);
       } catch (error) {
+        const quotaDetails = (error as { details?: { quotaStatus?: UsageQuotaStatus } })?.details
+          ?.quotaStatus;
+        if (quotaDetails) {
+          setQuotaStatus(quotaDetails);
+        }
         const errorMessage =
           error instanceof Error && error.message ? error.message : t("chat.sendFailed");
         setMessages((prev) =>
@@ -1043,6 +1100,9 @@ export function ChatCanvasShell({
       setSelectedModel,
       setSendError,
       selectedModel,
+      isUsageBlocked,
+      resolveApiErrorMessage,
+      setQuotaStatus,
       t,
     ]
   );
@@ -1739,6 +1799,9 @@ export function ChatCanvasShell({
   }, [findNearestIndicator, focusNodeHorizontally, isVerticalMode]);
 
   const handleBranchSend = async (branchKey: string) => {
+    if (isUsageBlocked) {
+      return;
+    }
     const branch = branches[branchKey];
     if (!branch) return;
     const trimmed = branch.text.trim();
@@ -1803,10 +1866,11 @@ export function ChatCanvasShell({
 
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        const errorMessage =
-          typeof payload?.error === "string"
-            ? payload.error
-            : t("chat.sendFailed");
+        const quotaDetails = payload?.details?.quotaStatus;
+        if (quotaDetails) {
+          setQuotaStatus(quotaDetails);
+        }
+        const errorMessage = resolveApiErrorMessage(payload);
         setMessages((prev) =>
           prev.filter((message) => message.id !== tempId && message.id !== tempAssistantId)
         );
@@ -1877,6 +1941,9 @@ export function ChatCanvasShell({
         result = { payload: await responseClone.json().catch(() => ({})) };
       }
       const payload = result.payload ?? {};
+      if (payload?.quotaStatus) {
+        setQuotaStatus(payload.quotaStatus);
+      }
       const nextSelectedModel = resolveSelectedModelFromMessage(payload?.assistantMessage);
 
       if (nextSelectedModel) {
@@ -1935,6 +2002,11 @@ export function ChatCanvasShell({
         };
       });
     } catch (error) {
+      const quotaDetails = (error as { details?: { quotaStatus?: UsageQuotaStatus } })?.details
+        ?.quotaStatus;
+      if (quotaDetails) {
+        setQuotaStatus(quotaDetails);
+      }
       const errorMessage =
         error instanceof Error && error.message ? error.message : t("chat.sendFailed");
       setMessages((prev) =>
@@ -1996,56 +2068,60 @@ export function ChatCanvasShell({
       className="relative z-0 w-full max-w-3xl"
       data-prevent-viewport-jump="true"
     >
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          handleSend();
-        }}
-        className="flex w-full items-start gap-3"
-      >
-        <textarea
-          ref={promptTextareaRef}
-          value={promptText}
-          onPointerDown={(event) => {
-            focusTextareaWithoutBrowserScroll(event.currentTarget, 0.72);
+      <div className="grid gap-3">
+        <UsageQuotaNotice quotaStatus={quotaStatus} />
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            handleSend();
           }}
-          onChange={(event) => {
-            closeOpenBranchesForAssistant(latestAssistantId);
-            const nextValue = event.currentTarget.value;
-            setPromptText(nextValue);
-            resizeTextarea(event.currentTarget);
-          }}
-          onFocus={(event) => {
-            closeOpenBranchesForAssistant(latestAssistantId);
-            handleTextareaFocus(event.currentTarget, 0.72);
-          }}
-          onBlur={(event) => {
-            handleTextareaBlur(event.currentTarget);
-          }}
-          onKeyDown={(event) => {
-            if (event.nativeEvent.isComposing) return;
-            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-              if (!promptText.trim() || isSending) {
-                event.preventDefault();
-                return;
-              }
-              event.preventDefault();
-              handleSend();
-            }
-          }}
-          placeholder={t("prompt.placeholder")}
-          rows={1}
-          className="w-full resize-none rounded-xl border border-(--color-border-muted) bg-(--color-surface) px-4 py-3 text-base leading-6 text-main shadow-(--color-shadow-soft) transition-[height] duration-150 ease-out focus:border-(--color-border-soft) focus:outline-none"
-        />
-        <button
-          type="submit"
-          aria-label="Send prompt"
-          disabled={!promptText.trim() || isSending}
-          className="flex h-11 w-11 self-end items-center justify-center rounded-lg bg-theme-main text-main transition-[filter] hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82] disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex w-full items-start gap-3"
         >
-          <ArrowRight className="h-5 w-5" />
-        </button>
-      </form>
+          <textarea
+            ref={promptTextareaRef}
+            value={promptText}
+            onPointerDown={(event) => {
+              focusTextareaWithoutBrowserScroll(event.currentTarget, 0.72);
+            }}
+            onChange={(event) => {
+              closeOpenBranchesForAssistant(latestAssistantId);
+              const nextValue = event.currentTarget.value;
+              setPromptText(nextValue);
+              resizeTextarea(event.currentTarget);
+            }}
+            onFocus={(event) => {
+              closeOpenBranchesForAssistant(latestAssistantId);
+              handleTextareaFocus(event.currentTarget, 0.72);
+            }}
+            onBlur={(event) => {
+              handleTextareaBlur(event.currentTarget);
+            }}
+            onKeyDown={(event) => {
+              if (event.nativeEvent.isComposing) return;
+              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                if (!promptText.trim() || isSending || isUsageBlocked) {
+                  event.preventDefault();
+                  return;
+                }
+                event.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder={t("prompt.placeholder")}
+            rows={1}
+            disabled={isUsageBlocked}
+            className="w-full resize-none rounded-xl border border-(--color-border-muted) bg-(--color-surface) px-4 py-3 text-base leading-6 text-main shadow-(--color-shadow-soft) transition-[height] duration-150 ease-out focus:border-(--color-border-soft) focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+          />
+          <button
+            type="submit"
+            aria-label="Send prompt"
+            disabled={!promptText.trim() || isSending || isUsageBlocked}
+            className="flex h-11 w-11 self-end items-center justify-center rounded-lg bg-theme-main text-main transition-[filter] hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <ArrowRight className="h-5 w-5" />
+          </button>
+        </form>
+      </div>
       <button
         type="button"
         aria-label="Focus prompt input"
@@ -2442,7 +2518,11 @@ export function ChatCanvasShell({
                                           event.key === "Enter" &&
                                           (event.metaKey || event.ctrlKey)
                                         ) {
-                                          if (!branch.text.trim() || branch.reply.isLoading) {
+                                          if (
+                                            !branch.text.trim() ||
+                                            branch.reply.isLoading ||
+                                            isUsageBlocked
+                                          ) {
                                             event.preventDefault();
                                             return;
                                           }
@@ -2452,12 +2532,17 @@ export function ChatCanvasShell({
                                       }}
                                       placeholder={t("prompt.placeholder")}
                                       rows={1}
-                                      className="w-full resize-none rounded-xl border border-(--color-border-muted) bg-(--color-surface) px-4 py-2 text-sm leading-5 text-main shadow-(--color-shadow-soft) transition-[height] duration-150 ease-out focus:border-(--color-border-soft) focus:outline-none"
+                                      disabled={isUsageBlocked}
+                                      className="w-full resize-none rounded-xl border border-(--color-border-muted) bg-(--color-surface) px-4 py-2 text-sm leading-5 text-main shadow-(--color-shadow-soft) transition-[height] duration-150 ease-out focus:border-(--color-border-soft) focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
                                     />
                                     <button
                                       type="submit"
                                       aria-label="Send branch prompt"
-                                      disabled={!branch.text.trim() || branch.reply.isLoading}
+                                      disabled={
+                                        !branch.text.trim() ||
+                                        branch.reply.isLoading ||
+                                        isUsageBlocked
+                                      }
                                       className="flex h-10 w-10 items-center justify-center rounded-lg bg-theme-main text-main transition-[filter] hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82] disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                       <ArrowRight className="h-4 w-4" />

@@ -41,6 +41,7 @@ export default async function ChatPage({ params, searchParams }: ChatPageProps) 
       initialModelProvider={resolvedSearchParams?.modelProvider}
       initialModelName={resolvedSearchParams?.modelName}
       initialModelReasoningEffort={resolvedSearchParams?.modelReasoningEffort}
+      initialQuotaStatus={settings.quotaStatus}
       user={session.user}
       onLogout={logoutAction}
       settingsContent={<SettingsSections locale={locale} settings={settings} />}

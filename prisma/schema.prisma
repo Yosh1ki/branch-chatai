@@ -40,6 +40,7 @@ model User {
   
   chats Chat[]
   usageStats    UsageStat[]
+  usageEvents   UsageEvent[]
 
   @@map("users")
 }
@@ -153,6 +154,25 @@ model UsageStat {
 
   @@unique([userId, date])
   @@map("usage_stats")
+}
+
+model UsageEvent {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  planType     PlanType @map("plan_type")
+  usageDay     DateTime @db.Date @map("usage_day")
+  occurredAt   DateTime @map("occurred_at")
+  messageCount Int      @default(1) @map("message_count")
+  inputTokens  Int      @default(0) @map("input_tokens")
+  outputTokens Int      @default(0) @map("output_tokens")
+  totalTokens  Int      @default(0) @map("total_tokens")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, planType, usageDay])
+  @@index([userId, planType, occurredAt])
+  @@map("usage_events")
 }
 
 model StripeWebhookEvent {

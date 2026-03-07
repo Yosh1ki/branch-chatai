@@ -1,14 +1,19 @@
+import { GoogleGenAI } from "@google/genai"
 import OpenAI from "openai"
 import type { Responses } from "openai/resources/responses/responses"
-import { GoogleGenAI } from "@google/genai"
 import { ChatActionError } from "@/lib/chat-errors"
-import { getOpenAIClient } from "@/lib/openai-client"
 import type { ModelProvider, ReasoningEffort } from "@/lib/model-catalog"
+import { getOpenAIClient } from "@/lib/openai-client"
 import {
   appendSourcesSection,
   extractWebSourcesFromResponse,
   shouldUseWebSearchForPrompt,
 } from "@/lib/openai-web-search"
+import {
+  createEmptyTokenTotals,
+  sanitizeTokenTotals,
+  type UsageTokenTotals,
+} from "@/lib/usage-quota"
 
 const SYSTEM_PROMPT = "You are a helpful AI assistant."
 const MAX_OUTPUT_TOKENS = 6000
@@ -17,6 +22,11 @@ type ResolvedModel = {
   provider: ModelProvider
   name: string
   reasoningEffort?: ReasoningEffort | null
+}
+
+export type ModelInvocationResult = {
+  text: string
+  usage: UsageTokenTotals
 }
 
 const isRetryableError = (error: unknown) => {
@@ -162,13 +172,58 @@ const shouldFallbackToWebSearchPreview = (error: unknown) => {
   return message.includes("web_search") && !message.includes("web_search_preview")
 }
 
+const readNumber = (value: unknown) =>
+  typeof value === "number" && Number.isFinite(value) ? value : 0
+
+const sumNumbers = (...values: unknown[]) =>
+  values.reduce((sum, value) => sum + readNumber(value), 0)
+
+const resolveOpenAIUsage = (response: unknown) => {
+  const usage = (response as { usage?: Record<string, unknown> } | null)?.usage
+  return sanitizeTokenTotals({
+    inputTokens: readNumber(usage?.input_tokens),
+    outputTokens: readNumber(usage?.output_tokens),
+    totalTokens: readNumber(usage?.total_tokens),
+  })
+}
+
+const resolveAnthropicUsage = (usage: Record<string, unknown> | undefined, outputTokens = 0) =>
+  sanitizeTokenTotals({
+    inputTokens: sumNumbers(
+      usage?.input_tokens,
+      usage?.cache_creation_input_tokens,
+      usage?.cache_read_input_tokens
+    ),
+    outputTokens,
+    totalTokens: sumNumbers(
+      usage?.input_tokens,
+      usage?.cache_creation_input_tokens,
+      usage?.cache_read_input_tokens,
+      outputTokens
+    ),
+  })
+
+const resolveGeminiUsage = (usage: Record<string, unknown> | undefined) =>
+  sanitizeTokenTotals({
+    inputTokens: sumNumbers(usage?.promptTokenCount, usage?.cachedContentTokenCount),
+    outputTokens: sumNumbers(usage?.candidatesTokenCount, usage?.thoughtsTokenCount),
+    totalTokens:
+      readNumber(usage?.totalTokenCount) ||
+      sumNumbers(
+        usage?.promptTokenCount,
+        usage?.cachedContentTokenCount,
+        usage?.candidatesTokenCount,
+        usage?.thoughtsTokenCount
+      ),
+  })
+
 const generateOpenAIResponse = async (
   model: string,
   messagesForLLM: Array<{ role: "user" | "assistant"; content: string }>,
   systemPrompt: string,
   reasoningEffort?: ReasoningEffort | null,
   onToken?: (token: string) => void | Promise<void>
-) => {
+): Promise<ModelInvocationResult> => {
   const latestUserInput = [...messagesForLLM].reverse().find((message) => message.role === "user")
   const useWebSearch = shouldUseWebSearchForPrompt(latestUserInput?.content ?? "")
   const baseParams: Omit<Responses.ResponseCreateParams, "stream" | "tools"> = {
@@ -215,9 +270,12 @@ const generateOpenAIResponse = async (
   if (!onToken) {
     const response = await withWebSearchToolFallback(createNonStreaming)
     const rawText = response.output_text?.trim() ?? ""
-    return useWebSearch
-      ? appendSourcesSection(rawText, extractWebSourcesFromResponse(response))
-      : rawText
+    return {
+      text: useWebSearch
+        ? appendSourcesSection(rawText, extractWebSourcesFromResponse(response))
+        : rawText,
+      usage: resolveOpenAIUsage(response),
+    }
   }
 
   const stream = await withWebSearchToolFallback(createStreaming)
@@ -245,16 +303,17 @@ const generateOpenAIResponse = async (
     : rawText
 
   const streamedTextNormalized = streamedText.trim()
-  if (finalText && finalText !== streamedTextNormalized) {
-    if (finalText.startsWith(streamedTextNormalized)) {
-      const tail = finalText.slice(streamedTextNormalized.length)
-      if (tail) {
-        await onToken(tail)
-      }
+  if (finalText && finalText !== streamedTextNormalized && finalText.startsWith(streamedTextNormalized)) {
+    const tail = finalText.slice(streamedTextNormalized.length)
+    if (tail) {
+      await onToken(tail)
     }
   }
 
-  return finalText
+  return {
+    text: finalText,
+    usage: resolveOpenAIUsage(completedResponse),
+  }
 }
 
 const generateAnthropicResponse = async (
@@ -262,7 +321,7 @@ const generateAnthropicResponse = async (
   messagesForLLM: Array<{ role: "user" | "assistant"; content: string }>,
   systemPrompt: string,
   onToken?: (token: string) => void | Promise<void>
-) => {
+): Promise<ModelInvocationResult> => {
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -287,6 +346,9 @@ const generateAnthropicResponse = async (
   }
 
   let text = ""
+  let latestInputUsage: Record<string, unknown> | undefined
+  let outputTokens = 0
+
   await readSseStream(response, async (_eventName, data) => {
     if (!data || data === "[DONE]") {
       return
@@ -296,11 +358,23 @@ const generateAnthropicResponse = async (
       type?: string
       delta?: { text?: string }
       error?: { message?: string }
+      message?: { usage?: Record<string, unknown> }
+      usage?: Record<string, unknown>
     }
 
     if (parsed?.type === "error") {
       const message = parsed.error?.message || "Anthropic API stream error"
       throw new ChatActionError(message, response.status || 502)
+    }
+
+    if (parsed?.type === "message_start") {
+      latestInputUsage = parsed.message?.usage
+      return
+    }
+
+    if (parsed?.type === "message_delta") {
+      outputTokens = Math.max(outputTokens, readNumber(parsed.usage?.output_tokens))
+      return
     }
 
     if (parsed?.type !== "content_block_delta") {
@@ -317,7 +391,10 @@ const generateAnthropicResponse = async (
     }
   })
 
-  return text
+  return {
+    text,
+    usage: resolveAnthropicUsage(latestInputUsage, outputTokens),
+  }
 }
 
 const generateGeminiResponse = async (
@@ -325,7 +402,7 @@ const generateGeminiResponse = async (
   messagesForLLM: Array<{ role: "user" | "assistant"; content: string }>,
   systemPrompt: string,
   onToken?: (token: string) => void | Promise<void>
-) => {
+): Promise<ModelInvocationResult> => {
   const requestModel = normalizeGeminiModelName(model)
   const candidateModels = Array.from(
     new Set([requestModel, ...getGeminiFallbackModels(requestModel)])
@@ -349,7 +426,11 @@ const generateGeminiResponse = async (
       })
 
       let text = ""
+      let latestUsage = createEmptyTokenTotals()
       for await (const chunk of stream) {
+        latestUsage = resolveGeminiUsage(
+          (chunk as { usageMetadata?: Record<string, unknown> }).usageMetadata
+        )
         const token = chunk.text ?? ""
         if (!token) {
           continue
@@ -361,7 +442,10 @@ const generateGeminiResponse = async (
       }
 
       if (text) {
-        return text
+        return {
+          text,
+          usage: latestUsage,
+        }
       }
 
       const fallbackResponse = await getGeminiClient().models.generateContent({
@@ -379,7 +463,12 @@ const generateGeminiResponse = async (
       if (onToken && fallbackText) {
         await onToken(fallbackText)
       }
-      return fallbackText
+      return {
+        text: fallbackText,
+        usage: resolveGeminiUsage(
+          (fallbackResponse as { usageMetadata?: Record<string, unknown> }).usageMetadata
+        ),
+      }
     } catch (error) {
       const message = (error as { message?: string })?.message
       const status = (error as { status?: number; code?: number })?.status
@@ -426,7 +515,7 @@ export const invokeWithFallback = async (
   messagesForLLM: Array<{ role: "user" | "assistant"; content: string }>,
   memorySummaryJson?: string,
   onToken?: (token: string) => void | Promise<void>
-) => {
+): Promise<ModelInvocationResult> => {
   const systemPrompt = memorySummaryJson
     ? `${SYSTEM_PROMPT}\n\nMemory summary JSON:\n${memorySummaryJson}`
     : SYSTEM_PROMPT

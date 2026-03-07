@@ -1,10 +1,14 @@
-import { translate, type TranslationKey } from "./index"
+import { translate, type TranslationKey } from "./index.ts"
 import type { LocaleCode, LocalizedErrorPayload, TranslationParams } from "./types.ts"
 
 const ERROR_MESSAGE_KEYS = {
   dailyLimitReached: "errors.dailyLimitReached",
   fetchResponseFailed: "errors.fetchResponseFailed",
+  freeDailyMessageLimitReached: "errors.freeDailyMessageLimitReached",
+  freeMonthlyTokenLimitReached: "errors.freeMonthlyTokenLimitReached",
   networkFailed: "errors.networkFailed",
+  proRolling30DayTokenLimitReached: "errors.proRolling30DayTokenLimitReached",
+  proWeeklyTokenLimitReached: "errors.proWeeklyTokenLimitReached",
   sendFailed: "chat.sendFailed",
   loadFailed: "chat.loadFailed",
   themeSaveFailed: "errors.themeSaveFailed",

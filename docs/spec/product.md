@@ -15,4 +15,4 @@ Branch is a mind-map style multi-branching AI chat application for the web. It s
 -   Users can branch any assistant response, show playful prompts when branching, and collapse messages that only display their auto-generated inline titles.
 -   The chat remains vertically readable while exposing the full tree through side branches plus a minimap that highlights the current location and supports jumping anywhere in the chat.
 -   Each chat automatically receives a language-aware title, and message-level inline titles are generated for collapsed views.
--   Users can sign in with Google OAuth, choose between ChatGPT, Claude, and Gemini per chat, and upgrade from the Free plan (10 messages/day, all models) to the Pro plan (unlimited, Stripe billing).
+-   Users can sign in with Google OAuth, choose between ChatGPT, Claude, and Gemini per chat, and upgrade from the Free plan (5 messages/day, 60,000 tokens/month) to the Pro plan (150,000 tokens/week and 650,000 rolling 30-day tokens, Stripe billing).

@@ -2,6 +2,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import {
   resolveDailyLimitUsageDay,
+  resolveUsagePeriodContextFromNow,
   resolveUsageDayFromNow,
   validateDailyLimitWindow,
 } from "../src/lib/usage-day.ts"
@@ -76,4 +77,16 @@ test("resolveDailyLimitUsageDay uses database now as source time", async () => {
   assert.equal(result.timeZone, "Asia/Tokyo")
   assert.equal(result.resetHour, 0)
   assert.equal(result.resetMinute, 0)
+})
+
+test("resolveUsagePeriodContextFromNow aligns weekly resets to Monday in Asia/Tokyo", () => {
+  const result = resolveUsagePeriodContextFromNow(new Date("2026-03-05T12:00:00.000Z"), {
+    timeZone: "Asia/Tokyo",
+    resetHour: 0,
+    resetMinute: 0,
+  })
+
+  assert.equal(toDateKey(result.usageDay), "2026-03-05")
+  assert.equal(result.weekStartAt.toISOString(), "2026-03-01T15:00:00.000Z")
+  assert.equal(result.nextWeeklyResetAt.toISOString(), "2026-03-08T15:00:00.000Z")
 })

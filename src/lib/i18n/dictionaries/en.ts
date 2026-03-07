@@ -22,6 +22,14 @@ export const enDictionary: { [K in keyof JaDictionary]: string } = {
   "settings.currentPlan": "Current plan",
   "settings.todayMessages": "Messages today",
   "settings.dailyReset": "Resets daily at {{resetTime}} ({{timeZone}}).",
+  "settings.dailyMessagesLabel": "Messages today",
+  "settings.monthlyTokensLabel": "Tokens this month",
+  "settings.weeklyTokensLabel": "Tokens this week",
+  "settings.rolling30DaysTokensLabel": "Tokens in the last 30 days",
+  "settings.dailyMessageReset": "Messages reset daily at {{resetTime}} ({{timeZone}}).",
+  "settings.monthlyTokenReset": "Tokens reset on day 1 at {{resetTime}} ({{timeZone}}).",
+  "settings.weeklyTokenReset": "Tokens reset every Monday at {{resetTime}} ({{timeZone}}).",
+  "settings.rolling30DayDescription": "Measured as a rolling total across the last 30 days.",
   "settings.themeTitle": "Theme",
   "settings.languageTitle": "Language",
   "settings.close": "Close settings",
@@ -36,7 +44,7 @@ export const enDictionary: { [K in keyof JaDictionary]: string } = {
   "billing.freePlanSubheading": "Try Branch",
   "billing.freePlanPriceAmount": "¥0",
   "billing.freePlanPriceSuffix": "/ month",
-  "billing.freeFeatureUsage": "Up to 10 messages per day",
+  "billing.freeFeatureUsage": "5 messages per day / 60,000 tokens per month",
   "billing.freeFeatureModels": "Included models: GPT-5.2 / Claude Sonnet 4.5 / Gemini 2.5 Flash",
   "billing.freeFeatureBranching": "Branching enabled",
   "billing.proPlanName": "PRO",
@@ -46,7 +54,7 @@ export const enDictionary: { [K in keyof JaDictionary]: string } = {
   "billing.proHighlight": "Keep momentum when the work gets deeper.",
   "billing.proHighlightSub":
     "Unlock GPT-5.2 Thinking, Claude Opus 4.5, and Gemini 2.5 Pro, and get access to more messages.",
-  "billing.proFeatureUsage": "More messages available",
+  "billing.proFeatureUsage": "150,000 tokens per week / 650,000 rolling 30-day tokens",
   "billing.proFeatureModels": "Access to all models",
   "billing.proFeatureBranching": "Branching enabled",
   "billing.proFeatureBilling": "Manage billing in Stripe",
@@ -76,6 +84,23 @@ export const enDictionary: { [K in keyof JaDictionary]: string } = {
   "chats.delete": "Delete",
   "chats.dailyLimitReached":
     "You have reached the free plan daily limit ({{limit}}). Please try again tomorrow.",
+  "chats.freeRemainingMessages": "Remaining messages today: {{remaining}} / {{limit}}",
+  "chats.freeRemainingTokens": "Remaining tokens this month: {{remaining}} / {{limit}}",
+  "chats.freeWarningMessageLast": "You have 1 free message remaining today",
+  "chats.freeWarningToken80": "Your free monthly token balance is running low",
+  "chats.freeWarningToken95": "You have very little free monthly token balance left",
+  "chats.freeBlockedMessage": "You cannot send messages because you reached today's message limit",
+  "chats.freeBlockedToken": "You cannot send messages because you reached this month's free token limit",
+  "chats.freeUpsell": "Upgrade to PRO for higher usage limits",
+  "chats.proWarningWeekly80": "You are approaching this week's usage limit",
+  "chats.proWarningWeekly95": "You have very little of this week's available usage left",
+  "chats.proBlockedWeekly": "You cannot send messages because you reached this week's usage limit",
+  "chats.proBlockedWeeklySub": "You can use it again after the next reset ({{hours}} hours left)",
+  "chats.proWarningRolling80": "You are approaching the rolling 30-day usage limit",
+  "chats.proWarningRolling95": "You have very little rolling 30-day usage left",
+  "chats.proBlockedRolling":
+    "You cannot send messages because you reached the rolling 30-day usage limit",
+  "chats.proBlockedRollingSub": "Please wait until your rolling 30-day usage drops back below the cap",
   "chats.viewMode": "View mode",
   "chats.viewList": "List",
   "chats.viewDetail": "Detail",
@@ -146,6 +171,14 @@ export const enDictionary: { [K in keyof JaDictionary]: string } = {
   "errors.localeSaveFailed": "Failed to save language. Please try again.",
   "errors.dailyLimitReached":
     "You have reached the free plan daily limit ({{limit}}). Please try again tomorrow.",
+  "errors.freeDailyMessageLimitReached":
+    "You cannot send messages because you reached today's message limit",
+  "errors.freeMonthlyTokenLimitReached":
+    "You cannot send messages because you reached this month's free token limit",
+  "errors.proWeeklyTokenLimitReached":
+    "You cannot send messages because you reached this week's usage limit",
+  "errors.proRolling30DayTokenLimitReached":
+    "You cannot send messages because you reached the rolling 30-day usage limit",
 
   "richText.fallbackPlainText": "Unable to format content, showing plain text instead.",
 }

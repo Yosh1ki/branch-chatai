@@ -3,7 +3,11 @@ import { ThemeToggle } from "@/components/theme/theme-toggle"
 import { createTranslator } from "@/lib/i18n"
 import type { LocaleCode } from "@/lib/i18n/types"
 import type { SettingsViewData } from "@/lib/settings-view"
-import { DAILY_LIMIT_TIME_ZONE, FREE_PLAN_DAILY_LIMIT } from "@/lib/usage-limits"
+import {
+  DAILY_LIMIT_RESET_HOUR,
+  DAILY_LIMIT_RESET_MINUTE,
+  DAILY_LIMIT_TIME_ZONE,
+} from "@/lib/usage-limits"
 
 type SettingsSectionsProps = {
   locale: LocaleCode
@@ -12,6 +16,10 @@ type SettingsSectionsProps = {
 
 export function SettingsSections({ locale, settings }: SettingsSectionsProps) {
   const t = createTranslator(locale)
+  const numberFormatter = new Intl.NumberFormat(locale === "ja" ? "ja-JP" : "en-US")
+  const resetTimeLabel = `${String(DAILY_LIMIT_RESET_HOUR).padStart(2, "0")}:${String(
+    DAILY_LIMIT_RESET_MINUTE
+  ).padStart(2, "0")}`
 
   return (
     <div className="grid gap-5">
@@ -41,21 +49,78 @@ export function SettingsSections({ locale, settings }: SettingsSectionsProps) {
         </div>
 
         <div className="mt-4 space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-main-muted">{t("settings.todayMessages")}</span>
-            <span className="font-semibold text-main">
-              {settings.messageCount} / {FREE_PLAN_DAILY_LIMIT}
-            </span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-(--color-surface-soft)">
-            <div className="h-full bg-main transition-all" style={{ width: `${settings.usagePercent}%` }} />
-          </div>
-          <p className="text-xs text-main-muted">
-            {t("settings.dailyReset", {
-              resetTime: settings.resetTimeLabel,
-              timeZone: DAILY_LIMIT_TIME_ZONE,
-            })}
-          </p>
+          {settings.planType === "free" && settings.quotaStatus.dailyMessages ? (
+            <>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-main-muted">{t("settings.dailyMessagesLabel")}</span>
+                <span className="font-semibold text-main">
+                  {numberFormatter.format(settings.quotaStatus.dailyMessages.used)} /{" "}
+                  {numberFormatter.format(settings.quotaStatus.dailyMessages.limit)}
+                </span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-(--color-surface-soft)">
+                <div
+                  className="h-full bg-main transition-all"
+                  style={{
+                    width: `${Math.round(settings.quotaStatus.dailyMessages.percentUsed * 100)}%`,
+                  }}
+                />
+              </div>
+            </>
+          ) : null}
+          {settings.planType === "free" && settings.quotaStatus.monthlyTokens ? (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-main-muted">{t("settings.monthlyTokensLabel")}</span>
+              <span className="font-semibold text-main">
+                {numberFormatter.format(settings.quotaStatus.monthlyTokens.used)} /{" "}
+                {numberFormatter.format(settings.quotaStatus.monthlyTokens.limit)}
+              </span>
+            </div>
+          ) : null}
+          {settings.planType === "pro" && settings.quotaStatus.weeklyTokens ? (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-main-muted">{t("settings.weeklyTokensLabel")}</span>
+              <span className="font-semibold text-main">
+                {numberFormatter.format(settings.quotaStatus.weeklyTokens.used)} /{" "}
+                {numberFormatter.format(settings.quotaStatus.weeklyTokens.limit)}
+              </span>
+            </div>
+          ) : null}
+          {settings.planType === "pro" && settings.quotaStatus.rolling30DayTokens ? (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-main-muted">{t("settings.rolling30DaysTokensLabel")}</span>
+              <span className="font-semibold text-main">
+                {numberFormatter.format(settings.quotaStatus.rolling30DayTokens.used)} /{" "}
+                {numberFormatter.format(settings.quotaStatus.rolling30DayTokens.limit)}
+              </span>
+            </div>
+          ) : null}
+          {settings.planType === "free" ? (
+            <>
+              <p className="text-xs text-main-muted">
+                {t("settings.dailyMessageReset", {
+                  resetTime: resetTimeLabel,
+                  timeZone: DAILY_LIMIT_TIME_ZONE,
+                })}
+              </p>
+              <p className="text-xs text-main-muted">
+                {t("settings.monthlyTokenReset", {
+                  resetTime: resetTimeLabel,
+                  timeZone: DAILY_LIMIT_TIME_ZONE,
+                })}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-main-muted">
+                {t("settings.weeklyTokenReset", {
+                  resetTime: resetTimeLabel,
+                  timeZone: DAILY_LIMIT_TIME_ZONE,
+                })}
+              </p>
+              <p className="text-xs text-main-muted">{t("settings.rolling30DayDescription")}</p>
+            </>
+          )}
         </div>
       </section>
 

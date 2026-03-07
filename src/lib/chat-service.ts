@@ -2,6 +2,7 @@ import type { Chat, Message } from "@prisma/client"
 import { runChatGraph } from "@/lib/chat-request-graph"
 import { ChatActionError } from "@/lib/chat-errors"
 import type { ModelProvider, ReasoningEffort } from "@/lib/model-catalog"
+import type { UsageQuotaStatus } from "@/lib/usage-quota"
 
 type SendChatMessageArgs = {
   userId: string
@@ -21,6 +22,7 @@ type SendChatMessageResult = {
   chat: Chat
   userMessage: Message
   assistantMessage: Message
+  quotaStatus?: UsageQuotaStatus
 }
 
 export async function sendChatMessage({
@@ -59,6 +61,7 @@ export async function sendChatMessage({
     chat: result.chatRecord,
     userMessage: result.userMessage,
     assistantMessage: result.assistantMessage,
+    quotaStatus: result.quotaStatus,
   }
 }
 

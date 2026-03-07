@@ -1,6 +1,6 @@
-import { enDictionary } from "./dictionaries/en"
-import { jaDictionary, type TranslationKey } from "./dictionaries/ja"
-import { DEFAULT_LOCALE, type LocaleCode, type TranslationParams } from "./types"
+import { enDictionary } from "./dictionaries/en.ts"
+import { jaDictionary, type TranslationKey } from "./dictionaries/ja.ts"
+import { DEFAULT_LOCALE, type LocaleCode, type TranslationParams } from "./types.ts"
 
 type TranslateOptions = {
   locale?: LocaleCode

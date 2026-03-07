@@ -9,6 +9,15 @@ export type DailyLimitUsageDay = DailyLimitWindow & {
   usageDay: Date
 }
 
+export type UsagePeriodContext = DailyLimitUsageDay & {
+  monthStartAt: Date
+  nextDailyResetAt: Date
+  nextMonthlyResetAt: Date
+  nextWeeklyResetAt: Date
+  rolling30DaysStartAt: Date
+  weekStartAt: Date
+}
+
 type QueryRawClient = {
   $queryRaw: (query: TemplateStringsArray, ...values: unknown[]) => Promise<Array<{ db_now: unknown }>>
 }
@@ -59,6 +68,7 @@ const getWindowDateParts = (now: Date, timeZone: string) => {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
     hourCycle: "h23",
   })
   const parts = formatter.formatToParts(now)
@@ -69,8 +79,72 @@ const getWindowDateParts = (now: Date, timeZone: string) => {
     day: extractDatePart(parts, "day"),
     hour: extractDatePart(parts, "hour"),
     minute: extractDatePart(parts, "minute"),
+    second: extractDatePart(parts, "second"),
   }
 }
+
+const addUtcDays = (value: Date, days: number) =>
+  new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate() + days))
+
+const getTimeZoneOffsetMilliseconds = (value: Date, timeZone: string) => {
+  const parts = getWindowDateParts(value, timeZone)
+  const asUtc = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second
+  )
+  return asUtc - value.getTime()
+}
+
+const toUtcDateTime = (
+  value: {
+    year: number
+    month: number
+    day: number
+    hour?: number
+    minute?: number
+    second?: number
+  },
+  timeZone: string
+) => {
+  const utcGuess = new Date(
+    Date.UTC(
+      value.year,
+      value.month - 1,
+      value.day,
+      value.hour ?? 0,
+      value.minute ?? 0,
+      value.second ?? 0
+    )
+  )
+  const offsetMilliseconds = getTimeZoneOffsetMilliseconds(utcGuess, timeZone)
+  return new Date(utcGuess.getTime() - offsetMilliseconds)
+}
+
+const getDatePartsFromUsageDay = (usageDay: Date) => ({
+  year: usageDay.getUTCFullYear(),
+  month: usageDay.getUTCMonth() + 1,
+  day: usageDay.getUTCDate(),
+})
+
+export const resolveWeekStartUsageDay = (usageDay: Date, weekStartsOn = 1) => {
+  const offset = (usageDay.getUTCDay() - weekStartsOn + 7) % 7
+  return addUtcDays(usageDay, -offset)
+}
+
+export const resolveMonthStartUsageDay = (usageDay: Date) =>
+  new Date(Date.UTC(usageDay.getUTCFullYear(), usageDay.getUTCMonth(), 1))
+
+export const resolveRolling30DaysStartAt = (sourceNow: Date) =>
+  new Date(sourceNow.getTime() - 30 * 24 * 60 * 60 * 1000)
+
+const hoursUntil = (target: Date, sourceNow: Date) =>
+  Math.max(0, Math.ceil((target.getTime() - sourceNow.getTime()) / (60 * 60 * 1000)))
+
+export const getHoursUntil = hoursUntil
 
 export const resolveUsageDayFromNow = (
   now: Date,
@@ -137,4 +211,59 @@ export const resolveDailyLimitUsageDay = async ({
     sourceNow,
     usageDay,
   }
+}
+
+export const resolveUsagePeriodContextFromNow = (
+  now: Date,
+  window: DailyLimitWindow = DEFAULT_DAILY_LIMIT_WINDOW,
+  weekStartsOn = 1
+): UsagePeriodContext => {
+  const validatedWindow = validateDailyLimitWindow(window)
+  const usageDay = resolveUsageDayFromNow(now, validatedWindow)
+  const nextUsageDay = addUtcDays(usageDay, 1)
+  const weekStartUsageDay = resolveWeekStartUsageDay(usageDay, weekStartsOn)
+  const nextWeekStartUsageDay = addUtcDays(weekStartUsageDay, 7)
+  const monthStartUsageDay = resolveMonthStartUsageDay(usageDay)
+  const nextMonthStartUsageDay = new Date(
+    Date.UTC(monthStartUsageDay.getUTCFullYear(), monthStartUsageDay.getUTCMonth() + 1, 1)
+  )
+
+  return {
+    ...validatedWindow,
+    monthStartAt: toUtcDateTime(getDatePartsFromUsageDay(monthStartUsageDay), validatedWindow.timeZone),
+    nextDailyResetAt: toUtcDateTime(
+      {
+        ...getDatePartsFromUsageDay(nextUsageDay),
+        hour: validatedWindow.resetHour,
+        minute: validatedWindow.resetMinute,
+      },
+      validatedWindow.timeZone
+    ),
+    nextMonthlyResetAt: toUtcDateTime(
+      getDatePartsFromUsageDay(nextMonthStartUsageDay),
+      validatedWindow.timeZone
+    ),
+    nextWeeklyResetAt: toUtcDateTime(
+      getDatePartsFromUsageDay(nextWeekStartUsageDay),
+      validatedWindow.timeZone
+    ),
+    rolling30DaysStartAt: resolveRolling30DaysStartAt(now),
+    sourceNow: now,
+    usageDay,
+    weekStartAt: toUtcDateTime(getDatePartsFromUsageDay(weekStartUsageDay), validatedWindow.timeZone),
+  }
+}
+
+type ResolveUsagePeriodContextOptions = ResolveDailyLimitUsageDayOptions & {
+  weekStartsOn?: number
+}
+
+export const resolveUsagePeriodContext = async ({
+  prismaClient,
+  weekStartsOn = 1,
+  window = DEFAULT_DAILY_LIMIT_WINDOW,
+}: ResolveUsagePeriodContextOptions = {}): Promise<UsagePeriodContext> => {
+  const validatedWindow = validateDailyLimitWindow(window)
+  const sourceNow = await fetchDatabaseNow(prismaClient ?? (await loadDefaultPrismaClient()))
+  return resolveUsagePeriodContextFromNow(sourceNow, validatedWindow, weekStartsOn)
 }

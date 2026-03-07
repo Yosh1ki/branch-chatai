@@ -91,16 +91,20 @@ const buildStreamResponse = ({
           const err = error;
           let errorMessage = "Internal Server Error";
           let status = 500;
+          let code;
+          let details;
 
           if (ChatActionError && error instanceof ChatActionError) {
             errorMessage = error.message;
             status = error.status;
+            code = error.code;
+            details = error.details;
           } else if (err?.code === "insufficient_quota") {
             errorMessage = "OpenAI API quota exceeded. Please check your billing details.";
             status = 429;
           }
 
-          emit({ type: "error", error: errorMessage, status });
+          emit({ type: "error", error: errorMessage, status, code, details });
         } finally {
           unregisterTokenCallback(requestId);
           close();
@@ -171,7 +175,14 @@ export const createChatHandler = ({ auth, sendChatMessage, ChatActionError }) =>
       const err = error;
 
       if (ChatActionError && error instanceof ChatActionError) {
-        return NextResponse.json({ error: error.message }, { status: error.status });
+        return NextResponse.json(
+          {
+            error: error.message,
+            code: error.code,
+            details: error.details,
+          },
+          { status: error.status }
+        );
       }
 
       if (err?.code === "insufficient_quota") {

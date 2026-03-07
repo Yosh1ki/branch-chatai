@@ -9,14 +9,15 @@ import { redirect } from "next/navigation"
 import { AccountMenu } from "@/components/chats/account-menu"
 import { isModelProvider, isReasoningEffort } from "@/lib/model-catalog"
 import { Prisma } from "@prisma/client"
-import { assertWithinDailyLimit } from "@/lib/usage-limiter"
+import { assertWithinUsageLimits } from "@/lib/usage-limiter"
 import { ChatActionError } from "@/lib/chat-errors"
-import { FREE_PLAN_DAILY_LIMIT } from "@/lib/usage-limits"
 import { resolveErrorMessage } from "@/lib/i18n/error-messages"
+import { translate } from "@/lib/i18n"
 import { resolveRequestLocale } from "@/lib/i18n/locale"
 import { getSettingsViewData } from "@/lib/settings-view"
 import { SettingsSections } from "@/components/settings/settings-sections"
 import { fallbackChatTitle, inferChatTitleLocale } from "@/lib/chat-title"
+import { getUsageLimitErrorMessageKey } from "@/lib/usage-quota-messages"
 
 async function getChats(userId: string) {
   const chats = await prisma.chat.findMany({
@@ -85,14 +86,14 @@ async function createChatAction(
   })
 
   try {
-    await assertWithinDailyLimit(session.user.id, user?.planType)
+    await assertWithinUsageLimits(session.user.id, user?.planType)
   } catch (error) {
     if (error instanceof ChatActionError && error.status === 429) {
+      const errorCode = getUsageLimitErrorMessageKey(error.code)
       return {
-        error: resolveErrorMessage("dailyLimitReached", {
-          locale,
-          params: { limit: FREE_PLAN_DAILY_LIMIT },
-        }).message,
+        error: errorCode
+          ? translate(errorCode, { locale })
+          : resolveErrorMessage("sendFailed", { locale }).message,
       }
     }
     throw error
@@ -160,7 +161,11 @@ export default async function ChatsPage() {
       </header>
 
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 pb-12">
-        <PromptCard action={createChatAction} planType={settings.planType} />
+        <PromptCard
+          action={createChatAction}
+          planType={settings.planType}
+          quotaStatus={settings.quotaStatus}
+        />
         <ChatListSection
           initialChats={chats.map((chat) => ({
             id: chat.id,

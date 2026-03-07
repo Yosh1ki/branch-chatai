@@ -1,0 +1,96 @@
+"use client"
+
+import { UpgradeButton } from "@/components/billing/upgrade-button"
+import { useI18n } from "@/components/i18n/i18n-provider"
+import {
+  getFreeWarningMessageKey,
+  getPrimaryProUsageWindow,
+  getProWarningMessageKey,
+} from "@/lib/usage-quota-messages"
+import type { UsageQuotaStatus } from "@/lib/usage-quota"
+
+type UsageQuotaNoticeProps = {
+  quotaStatus: UsageQuotaStatus
+  showUsageDetails?: boolean
+}
+
+export function UsageQuotaNotice({
+  quotaStatus,
+  showUsageDetails = true,
+}: UsageQuotaNoticeProps) {
+  const { locale, t } = useI18n()
+  const numberFormatter = new Intl.NumberFormat(locale === "ja" ? "ja-JP" : "en-US")
+
+  if (quotaStatus.planType === "free") {
+    const warningMessageKey = getFreeWarningMessageKey(quotaStatus)
+    const dailyMessages = quotaStatus.dailyMessages
+    const monthlyTokens = quotaStatus.monthlyTokens
+
+    if (!dailyMessages || !monthlyTokens) {
+      return null
+    }
+
+    return (
+      <div className="grid gap-3 rounded-3xl bg-[color-mix(in_srgb,#f59e0b_10%,transparent)] p-4 text-[#b45309]">
+        {showUsageDetails ? (
+          <div className="grid gap-1 text-sm font-medium text-inherit">
+            <p>
+              {t("chats.freeRemainingMessages", {
+                limit: numberFormatter.format(dailyMessages.limit),
+                remaining: numberFormatter.format(dailyMessages.remaining),
+              })}
+            </p>
+            <p>
+              {t("chats.freeRemainingTokens", {
+                limit: numberFormatter.format(monthlyTokens.limit),
+                remaining: numberFormatter.format(monthlyTokens.remaining),
+              })}
+            </p>
+          </div>
+        ) : null}
+        {warningMessageKey ? (
+          <p className="text-sm font-semibold text-inherit">{t(warningMessageKey)}</p>
+        ) : null}
+        {quotaStatus.isBlocked ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm font-medium text-inherit">{t("chats.freeUpsell")}</p>
+            <UpgradeButton />
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
+  const warningMessageKey = getProWarningMessageKey(quotaStatus)
+  if (!warningMessageKey) {
+    return null
+  }
+
+  const primaryWindow = getPrimaryProUsageWindow(quotaStatus)
+  const showWeeklySubtext = quotaStatus.blockReason === "pro_weekly_tokens"
+  const showRollingSubtext = quotaStatus.blockReason === "pro_rolling_30_day_tokens"
+  const hours = quotaStatus.weeklyTokens?.hoursUntilReset ?? 0
+
+  return (
+    <div className="grid gap-2 rounded-3xl border border-[color-mix(in_srgb,var(--color-border-soft)_45%,#d97706_55%)] bg-[color-mix(in_srgb,#f59e0b_8%,transparent)] p-4 text-[#b45309]">
+      <p className="text-sm font-semibold text-inherit">{t(warningMessageKey)}</p>
+      {showWeeklySubtext ? (
+        <p className="text-sm font-medium text-[#c2410c]">
+          {t("chats.proBlockedWeeklySub", { hours: numberFormatter.format(hours) })}
+        </p>
+      ) : null}
+      {showRollingSubtext ? (
+        <p className="text-sm font-medium text-[#c2410c]">{t("chats.proBlockedRollingSub")}</p>
+      ) : null}
+      {showUsageDetails &&
+      !quotaStatus.isBlocked &&
+      primaryWindow === "weekly" &&
+      quotaStatus.weeklyTokens ? (
+        <p className="text-sm font-medium text-[#c2410c]">
+          {numberFormatter.format(quotaStatus.weeklyTokens.remaining)} /{" "}
+          {numberFormatter.format(quotaStatus.weeklyTokens.limit)}
+        </p>
+      ) : null}
+    </div>
+  )
+}

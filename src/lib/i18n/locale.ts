@@ -1,5 +1,5 @@
 import { cookies, headers } from "next/headers.js"
-import { DEFAULT_LOCALE, SUPPORTED_LOCALES, type LocaleCode } from "./types"
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES, type LocaleCode } from "./types.ts"
 
 type ResolveLocaleInput = {
   queryLang?: string | null

@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
-import { assertWithinDailyLimit, incrementDailyUsage } from "@/lib/usage-limiter";
+import { assertWithinUsageLimits, recordUsageEvent } from "@/lib/usage-limiter";
 import { ChatActionError } from "@/lib/chat-errors";
 import { NextResponse } from "next/server";
 
@@ -94,7 +94,7 @@ export async function POST(req: Request) {
       select: { planType: true },
     });
 
-    const usageDay = await assertWithinDailyLimit(session.user.id, user?.planType);
+    await assertWithinUsageLimits(session.user.id, user?.planType);
 
     // 2. Create Message
     const message = await prisma.message.create({
@@ -125,15 +125,24 @@ export async function POST(req: Request) {
     }
 
     // 4. Update Usage Stats
-    await incrementDailyUsage(session.user.id, user?.planType, {
-      usageDay: usageDay ?? undefined,
+    await recordUsageEvent(session.user.id, user?.planType, {
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
     });
 
     return NextResponse.json(message);
   } catch (error) {
     console.error("Error creating message:", error);
     if (error instanceof ChatActionError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return NextResponse.json(
+        {
+          error: error.message,
+          code: error.code,
+          details: error.details,
+        },
+        { status: error.status }
+      );
     }
     return NextResponse.json(
       { error: "Failed to create message" },

@@ -20,6 +20,8 @@ import {
   type ModelOption,
 } from "@/lib/model-catalog"
 import { useI18n } from "@/components/i18n/i18n-provider"
+import { UsageQuotaNotice } from "@/components/usage/usage-quota-notice"
+import type { UsageQuotaStatus } from "@/lib/usage-quota"
 
 type PromptCardActionState = {
   error?: string
@@ -28,12 +30,14 @@ type PromptCardActionState = {
 type PromptCardProps = {
   action: (state: PromptCardActionState, formData: FormData) => Promise<PromptCardActionState>
   planType: string | null | undefined
+  quotaStatus: UsageQuotaStatus
 }
 
-export function PromptCard({ action, planType }: PromptCardProps) {
+export function PromptCard({ action, planType, quotaStatus }: PromptCardProps) {
   const { t } = useI18n()
   const normalizedPlan = normalizePlanTier(planType)
   const isFreePlan = normalizedPlan === "free"
+  const isBlocked = quotaStatus.isBlocked
   const currentPlanLabel = normalizedPlan
   const taglines = useMemo(
     () => [
@@ -83,7 +87,7 @@ export function PromptCard({ action, planType }: PromptCardProps) {
   }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    if (!prompt.trim()) {
+    if (!prompt.trim() || isBlocked) {
       event.preventDefault()
     }
   }
@@ -93,7 +97,7 @@ export function PromptCard({ action, planType }: PromptCardProps) {
       return
     }
     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-      if (!prompt.trim()) {
+      if (!prompt.trim() || isBlocked) {
         event.preventDefault()
         return
       }
@@ -158,59 +162,60 @@ export function PromptCard({ action, planType }: PromptCardProps) {
         </div>
         <p className="text-center text-xl font-semibold text-main md:text-2xl">{tagline}</p>
       </div>
-      <form
-        action={formAction}
-        onSubmit={handleSubmit}
-        className={`flex items-end gap-4 rounded-4xl border ${isInputFocused ? "border-(--color-border-soft)" : "border-transparent"} bg-(--color-surface) px-5 py-4 shadow-(--color-shadow-input)`}
-      >
-        <div className="flex flex-1 flex-col gap-5">
-          <textarea
-            ref={textareaRef}
-            name="prompt"
-            placeholder={t("prompt.placeholder")}
-            rows={1}
-            value={prompt}
-            onInput={(event) => handleTextareaInput(event.currentTarget.value)}
-            onKeyDown={handleKeyDown}
-            onFocus={() => setIsInputFocused(true)}
-            onBlur={() => setIsInputFocused(false)}
-            className="w-full resize-none bg-transparent text-lg font-normal text-main placeholder:text-main-muted focus:outline-none"
-          />
-          <div className="relative" ref={pickerRef}>
-            <input type="hidden" name="modelProvider" value={model.provider} />
-            <input type="hidden" name="modelName" value={model.model} />
-            <input
-              type="hidden"
-              name="modelReasoningEffort"
-              value={model.reasoningEffort ?? ""}
+      <div className="grid gap-4">
+        <UsageQuotaNotice quotaStatus={quotaStatus} showUsageDetails={false} />
+        <form
+          action={formAction}
+          onSubmit={handleSubmit}
+          className={`flex items-end gap-4 rounded-4xl border ${isInputFocused ? "border-(--color-border-soft)" : "border-transparent"} bg-(--color-surface) px-5 py-4 shadow-(--color-shadow-input)`}
+        >
+          <div className="flex flex-1 flex-col gap-5">
+            <textarea
+              ref={textareaRef}
+              name="prompt"
+              placeholder={t("prompt.placeholder")}
+              rows={1}
+              value={prompt}
+              onInput={(event) => handleTextareaInput(event.currentTarget.value)}
+              onKeyDown={handleKeyDown}
+              onFocus={() => setIsInputFocused(true)}
+              onBlur={() => setIsInputFocused(false)}
+              disabled={isBlocked}
+              className="w-full resize-none bg-transparent text-lg font-normal text-main placeholder:text-main-muted focus:outline-none"
             />
-            <button
-              type="button"
-              onClick={() =>
-                setPickerOpen((prev) => {
-                  const next = !prev
-                  setHoveredModelId(null)
-                  return next
-                })
-              }
-              className="inline-flex items-center gap-2 rounded-full bg-theme-main px-3 py-1.5 text-xs font-semibold text-main transition-[filter] hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b7da82]"
-            >
-              {model.label}
-              <ChevronDown className="h-3 w-3" />
-            </button>
-            {pickerOpen && (
-              <div className="absolute left-0 top-[calc(100%+6px)] z-10">
-                <div
-                  className="flex flex-col gap-0 md:flex-row"
-                  onMouseLeave={() => setHoveredModelId(null)}
-                >
+            <div className="relative" ref={pickerRef}>
+              <input type="hidden" name="modelProvider" value={model.provider} />
+              <input type="hidden" name="modelName" value={model.model} />
+              <input
+                type="hidden"
+                name="modelReasoningEffort"
+                value={model.reasoningEffort ?? ""}
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  setPickerOpen((prev) => {
+                    const next = !prev
+                    setHoveredModelId(null)
+                    return next
+                  })
+                }
+                className="inline-flex items-center gap-2 rounded-full bg-theme-main px-3 py-1.5 text-xs font-semibold text-main transition-[filter] hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b7da82]"
+              >
+                {model.label}
+                <ChevronDown className="h-3 w-3" />
+              </button>
+              {pickerOpen && (
+                <div className="absolute left-0 top-[calc(100%+6px)] z-10">
                   <div
-                    className="w-56 rounded-2xl border border-(--color-border-soft) bg-(--color-surface) p-2 shadow-lg"
+                    className="flex flex-col gap-0 md:flex-row"
+                    onMouseLeave={() => setHoveredModelId(null)}
                   >
-                    {MODEL_OPTIONS.map((option) => {
-                      const isLocked = !isModelOptionAvailableForPlan(option, normalizedPlan)
-                      return (
-                        <button
+                    <div className="w-56 rounded-2xl border border-(--color-border-soft) bg-(--color-surface) p-2 shadow-lg">
+                      {MODEL_OPTIONS.map((option) => {
+                        const isLocked = !isModelOptionAvailableForPlan(option, normalizedPlan)
+                        return (
+                          <button
                           key={option.id}
                           type="button"
                           onMouseEnter={() => setHoveredModelId(option.id)}
@@ -236,42 +241,43 @@ export function PromptCard({ action, planType }: PromptCardProps) {
                             </span>
                           ) : null}
                           {model.id === option.id && <Check className="h-3.5 w-3.5 text-main" />}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  {hoveredModel ? (
-                    <div className="w-56 rounded-2xl border border-(--color-border-soft) bg-(--color-surface) px-3 py-3 text-xs text-main-muted shadow-lg">
-                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-main">
-                        {hoveredModel.label}
-                      </p>
-                      <p>{getModelDescription(hoveredModel.id)}</p>
-                      {hoveredModelLocked ? (
-                        <div className="mt-3">
-                          <UpgradeButton />
-                        </div>
-                      ) : null}
+                          </button>
+                        )
+                      })}
                     </div>
-                  ) : null}
+                    {hoveredModel ? (
+                      <div className="w-56 rounded-2xl border border-(--color-border-soft) bg-(--color-surface) px-3 py-3 text-xs text-main-muted shadow-lg">
+                        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-main">
+                          {hoveredModel.label}
+                        </p>
+                        <p>{getModelDescription(hoveredModel.id)}</p>
+                        {hoveredModelLocked ? (
+                          <div className="mt-3">
+                            <UpgradeButton />
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+            {state.error ? (
+              <p className="text-sm text-red-500" role="status">
+                {state.error}
+              </p>
+            ) : null}
           </div>
-          {state.error ? (
-            <p className="text-sm text-red-500" role="status">
-              {state.error}
-            </p>
-          ) : null}
-        </div>
-        <button
-          type="submit"
-          aria-label="Start a new chat"
-          disabled={!prompt.trim()}
-          className="flex h-11 w-11 items-center justify-center rounded-lg bg-theme-main text-main transition-[filter] hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82]"
-        >
-          <ArrowRight className="h-5 w-5" />
-        </button>
-      </form>
+          <button
+            type="submit"
+            aria-label="Start a new chat"
+            disabled={!prompt.trim() || isBlocked}
+            className="flex h-11 w-11 items-center justify-center rounded-lg bg-theme-main text-main transition-[filter] hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <ArrowRight className="h-5 w-5" />
+          </button>
+        </form>
+      </div>
     </div>
   )
 }
