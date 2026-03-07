@@ -1,4 +1,4 @@
-import type { JaDictionary } from "./ja.ts"
+import type { JaDictionary } from "./ja"
 
 export const enDictionary: { [K in keyof JaDictionary]: string } = {
   "login.aboutBranch": "What is Branch?",

@@ -260,7 +260,7 @@ export const assertWithinUsageLimits = async (
 
 export const recordUsageEvent = async (
   userId: string,
-  planType?: string | null,
+  planType: string | null | undefined,
   usage: Partial<UsageTokenTotals> | null | undefined,
   options: UsageLimitOptions = {}
 ) => {

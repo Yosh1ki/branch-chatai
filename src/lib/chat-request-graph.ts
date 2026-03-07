@@ -22,7 +22,7 @@ import { serializeMarkdownContent } from "@/lib/rich-text"
 import { buildDevAssistantResponse } from "@/lib/dev-assistant-response"
 import { fallbackChatTitle, inferChatTitleLocale } from "@/lib/chat-title"
 import {
-  createEmptyUsageTokenTotals,
+  createEmptyTokenTotals,
   type UsageQuotaStatus,
   type UsageTokenTotals,
 } from "@/lib/usage-quota"
@@ -283,7 +283,7 @@ const modelNode = async (state: GraphState) => {
   const invocationResult = devResponse
     ? {
         text: devResponse.text,
-        usage: createEmptyUsageTokenTotals(),
+        usage: createEmptyTokenTotals(),
       }
     : await invokeWithFallback(
         {
@@ -440,7 +440,7 @@ const persistNode = async (state: GraphState) => {
   const quotaStatus = await recordUsageEvent(
     state.userId,
     state.planType,
-    state.tokenUsage ?? createEmptyUsageTokenTotals()
+    state.tokenUsage ?? createEmptyTokenTotals()
   )
 
   return {
