@@ -136,7 +136,7 @@ export function PromptCard({ action, planType }: PromptCardProps) {
     <div className="w-full">
       <div className="my-6 flex flex-col items-center">
         <Image
-          src="/icons/Branch-logo.svg"
+          src="/icons/Branch_logo_48px_light.svg"
           alt="Branch logo"
           width={160}
           height={160}
