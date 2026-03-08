@@ -158,18 +158,22 @@ export function CanvasViewport({
     [applyState]
   );
 
-  const isSelectableTarget = (target: EventTarget | null) => {
+  const isInteractiveTarget = (target: EventTarget | null) => {
     if (!(target instanceof HTMLElement)) return false;
     if (target.closest("[data-allow-selection='true']")) return true;
     if (target.isContentEditable) return true;
-    const tag = target.tagName;
-    return tag === "INPUT" || tag === "TEXTAREA";
+    return Boolean(
+      target.closest(
+        "button,input,textarea,select,a,label,summary,[role='button'],[data-prevent-canvas-drag='true']"
+      )
+    );
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     const behavior = getPointerDragBehavior({
       isMetaPressed: event.metaKey,
-      isSelectableTarget: isSelectableTarget(event.target),
+      isInteractiveTarget: isInteractiveTarget(event.target),
+      pointerType: event.pointerType,
     });
 
     if (!behavior.allowDrag) {

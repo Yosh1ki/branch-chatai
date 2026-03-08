@@ -74,6 +74,13 @@ const buildStreamResponse = ({
               emit({ type: "delta", text: token });
             },
           });
+          if (typeof sendChatMessage.afterSend === "function") {
+            void Promise.resolve()
+              .then(() => sendChatMessage.afterSend(result, args))
+              .catch((error) => {
+                console.error("Post-response chat task failed:", error);
+              });
+          }
 
           if (!emittedDelta) {
             const assistantText = extractPlainText(result.assistantMessage?.content);
@@ -123,6 +130,18 @@ const buildStreamResponse = ({
 };
 
 export const createChatHandler = ({ auth, sendChatMessage, ChatActionError }) => {
+  const runAfterResponse = (result, args) => {
+    if (typeof sendChatMessage.afterSend !== "function") {
+      return;
+    }
+
+    void Promise.resolve()
+      .then(() => sendChatMessage.afterSend(result, args))
+      .catch((error) => {
+        console.error("Post-response chat task failed:", error);
+      });
+  };
+
   const POST = async (req) => {
     const session = await auth();
     if (!session?.user?.id) {
@@ -168,6 +187,7 @@ export const createChatHandler = ({ auth, sendChatMessage, ChatActionError }) =>
 
     try {
       const result = await sendChatMessage(args);
+      runAfterResponse(result, args);
 
       return NextResponse.json(result);
     } catch (error) {

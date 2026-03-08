@@ -52,7 +52,7 @@ export default async function CommercialTransactionsPage() {
           {
             label: "How to cancel",
             value:
-              "You can cancel from the settings screen through the Stripe Billing Portal before the next renewal date.",
+              "You can cancel from the settings modal through the Stripe Billing Portal before the next renewal date.",
           },
           {
             label: "Returns / refunds",
@@ -129,7 +129,7 @@ export default async function CommercialTransactionsPage() {
         {
           label: "解約方法",
           value:
-            "次回更新日前までに、設定画面から Stripe Billing Portal を開いて解約手続きを行ってください。",
+            "次回更新日前までに、設定モーダルから Stripe Billing Portal を開いて解約手続きを行ってください。",
         },
         {
           label: "返品・返金",

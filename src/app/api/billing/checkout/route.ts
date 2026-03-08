@@ -5,6 +5,7 @@ import {
   StripeApiError,
   createStripeCheckoutSession,
   ensureStripeCustomer,
+  normalizeBillingReturnPath,
   resolveAppBaseUrl,
 } from "@/lib/stripe-billing";
 import { NextResponse } from "next/server";
@@ -16,6 +17,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const payload = (await request.json().catch(() => ({}))) as { returnPath?: unknown };
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -53,13 +55,18 @@ export async function POST(request: Request) {
     }
 
     const baseUrl = resolveAppBaseUrl(request);
-    const successUrl = new URL("/settings?billing=success", baseUrl).toString();
-    const cancelUrl = new URL("/settings?billing=cancel", baseUrl).toString();
+    const returnPath = normalizeBillingReturnPath(payload.returnPath);
+    const successUrl = new URL(returnPath, baseUrl);
+    successUrl.searchParams.set("settings", "open");
+    successUrl.searchParams.set("billing", "success");
+    const cancelUrl = new URL(returnPath, baseUrl);
+    cancelUrl.searchParams.set("settings", "open");
+    cancelUrl.searchParams.set("billing", "cancel");
 
     const checkoutUrl = await createStripeCheckoutSession({
       customerId,
-      successUrl,
-      cancelUrl,
+      successUrl: successUrl.toString(),
+      cancelUrl: cancelUrl.toString(),
       userId: user.id,
     });
 

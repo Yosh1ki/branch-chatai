@@ -19,8 +19,22 @@ export async function GET(req: Request) {
       orderBy: {
         updatedAt: "desc",
       },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        languageCode: true,
+        rootMessageId: true,
+        createdAt: true,
+        updatedAt: true,
         messages: {
+          select: {
+            id: true,
+            role: true,
+            content: true,
+            parentMessageId: true,
+            branchId: true,
+            createdAt: true,
+          },
           orderBy: {
             createdAt: "asc",
           },

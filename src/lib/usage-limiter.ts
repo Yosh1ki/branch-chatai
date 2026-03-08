@@ -5,10 +5,12 @@ import prisma from "@/lib/prisma"
 import { ChatActionError } from "@/lib/chat-errors"
 import { resolveUsagePeriodContext, type UsagePeriodContext } from "@/lib/usage-day"
 import {
+  applyQuotaBypassFlags,
   createEmptyTokenTotals,
   createFreeQuotaStatus,
   createProQuotaStatus,
   normalizePlanType,
+  sanitizeQuotaStatusForClient,
   sanitizeTokenTotals,
   type UsageLimitReason,
   type UsageQuotaStatus,
@@ -18,6 +20,7 @@ import { DAILY_LIMIT_TIME_ZONE, WEEKLY_LIMIT_RESET_DAY } from "@/lib/usage-limit
 
 type UsageLimitOptions = {
   periodContext?: UsagePeriodContext
+  skipQuotaStatus?: boolean
 }
 
 type UsageAggregateRow = {
@@ -28,7 +31,7 @@ type UsageAggregateRow = {
 }
 
 const createQuotaStatusDetails = (quotaStatus: UsageQuotaStatus) => ({
-  quotaStatus,
+  quotaStatus: sanitizeQuotaStatusForClient(quotaStatus),
   timeZone: DAILY_LIMIT_TIME_ZONE,
 })
 
@@ -246,11 +249,10 @@ export const assertWithinUsageLimits = async (
   options: UsageLimitOptions = {}
 ) => {
   const disableDailyLimit = process.env.DISABLE_DAILY_LIMIT === "true"
-  if (disableDailyLimit) {
-    return null
-  }
-
-  const quotaStatus = await getUsageQuotaStatus(userId, planType, options)
+  const quotaStatus = applyQuotaBypassFlags(
+    await getUsageQuotaStatus(userId, planType, options),
+    { disableDailyLimit }
+  )
   if (quotaStatus.blockReason) {
     throw buildLimitError(quotaStatus.blockReason, quotaStatus)
   }
@@ -319,6 +321,10 @@ export const recordUsageEvent = async (
         },
       })
     }
+  }
+
+  if (options.skipQuotaStatus) {
+    return null
   }
 
   return getUsageQuotaStatus(userId, normalizedPlanType, { periodContext })

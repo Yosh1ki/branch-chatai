@@ -2,7 +2,10 @@ import type { Chat, Message } from "@prisma/client"
 import { runChatGraph } from "@/lib/chat-request-graph"
 import { ChatActionError } from "@/lib/chat-errors"
 import type { ModelProvider, ReasoningEffort } from "@/lib/model-catalog"
-import type { UsageQuotaStatus } from "@/lib/usage-quota"
+import { sanitizeQuotaStatusForClient, type UsageQuotaStatus } from "@/lib/usage-quota"
+import prisma from "@/lib/prisma"
+import { inferChatTitleLocale } from "@/lib/chat-title"
+import { generateChatTitle } from "@/lib/title-generator"
 
 type SendChatMessageArgs = {
   userId: string
@@ -23,6 +26,8 @@ type SendChatMessageResult = {
   userMessage: Message
   assistantMessage: Message
   quotaStatus?: UsageQuotaStatus
+  createdChat?: boolean
+  idempotentHit?: boolean
 }
 
 export async function sendChatMessage({
@@ -61,8 +66,39 @@ export async function sendChatMessage({
     chat: result.chatRecord,
     userMessage: result.userMessage,
     assistantMessage: result.assistantMessage,
-    quotaStatus: result.quotaStatus,
+    quotaStatus: result.quotaStatus
+      ? sanitizeQuotaStatusForClient(result.quotaStatus)
+      : undefined,
+    createdChat: result.createdChat,
+    idempotentHit: result.idempotentHit,
   }
+}
+
+export async function updateChatTitleAfterSend({
+  chatId,
+  content,
+  createdChat,
+  idempotentHit,
+}: {
+  chatId: string
+  content: string
+  createdChat?: boolean
+  idempotentHit?: boolean
+}) {
+  if (!createdChat || idempotentHit) {
+    return
+  }
+
+  const titleLocale = inferChatTitleLocale(content)
+  const title = await generateChatTitle(content, { locale: titleLocale })
+
+  await prisma.chat.update({
+    where: { id: chatId },
+    data: {
+      title,
+      languageCode: titleLocale,
+    },
+  })
 }
 
 export { ChatActionError }

@@ -7,14 +7,11 @@ import {
   USAGE_WARNING_THRESHOLD_HIGH,
   USAGE_WARNING_THRESHOLD_LOW,
 } from "@/lib/usage-limits"
+import { applyQuotaBypassFlagsToStatus, type UsageLimitReason } from "@/lib/usage-quota-core"
+
+export type { UsageLimitReason } from "@/lib/usage-quota-core"
 
 export type UsageWarningLevel = "none" | "80" | "95"
-
-export type UsageLimitReason =
-  | "free_daily_messages"
-  | "free_monthly_tokens"
-  | "pro_weekly_tokens"
-  | "pro_rolling_30_day_tokens"
 
 export type UsageTokenTotals = {
   inputTokens: number
@@ -42,6 +39,11 @@ export type UsageQuotaStatus = {
   sourceNow: string
   weeklyTokens: UsageQuotaWindow | null
 }
+
+type FreeDailyQuotaWindow = NonNullable<UsageQuotaStatus["dailyMessages"]>
+type FreeMonthlyQuotaWindow = NonNullable<UsageQuotaStatus["monthlyTokens"]>
+type ProWeeklyQuotaWindow = NonNullable<UsageQuotaStatus["weeklyTokens"]>
+type ProRollingQuotaWindow = NonNullable<UsageQuotaStatus["rolling30DayTokens"]>
 
 const clampRemaining = (limit: number, used: number) => Math.max(limit - used, 0)
 
@@ -103,6 +105,26 @@ export const sanitizeTokenTotals = (usage?: Partial<UsageTokenTotals> | null): U
     outputTokens,
     totalTokens,
   }
+}
+
+const resolveHoursUntilReset = (window: {
+  hoursUntilReset: number | null
+  nextResetAt: string | null
+}) => {
+  if (typeof window.hoursUntilReset === "number") {
+    return window.hoursUntilReset
+  }
+
+  if (!window.nextResetAt) {
+    return 0
+  }
+
+  const resetAt = new Date(window.nextResetAt)
+  if (Number.isNaN(resetAt.getTime())) {
+    return 0
+  }
+
+  return Math.max(0, Math.ceil((resetAt.getTime() - Date.now()) / (60 * 60 * 1000)))
 }
 
 export const createFreeQuotaStatus = ({
@@ -191,4 +213,69 @@ export const createProQuotaStatus = ({
     sourceNow,
     weeklyTokens,
   }
+}
+
+export const applyQuotaBypassFlags = (
+  quotaStatus: UsageQuotaStatus,
+  options: { disableDailyLimit?: boolean } = {}
+): UsageQuotaStatus => applyQuotaBypassFlagsToStatus(quotaStatus, options)
+
+export const sanitizeQuotaStatusForClient = (
+  quotaStatus: UsageQuotaStatus
+): UsageQuotaStatus => {
+  if (quotaStatus.planType !== "pro") {
+    return quotaStatus
+  }
+
+  return {
+    ...quotaStatus,
+    blockReason:
+      quotaStatus.blockReason === "pro_rolling_30_day_tokens" ? null : quotaStatus.blockReason,
+    rolling30DayTokens: null,
+  }
+}
+
+export const applyUsageToQuotaStatus = (
+  quotaStatus: UsageQuotaStatus | null | undefined,
+  usage?: Partial<UsageTokenTotals> | null
+): UsageQuotaStatus | undefined => {
+  if (!quotaStatus) {
+    return undefined
+  }
+
+  const tokenTotals = sanitizeTokenTotals(usage)
+
+  if (quotaStatus.planType === "free") {
+    const dailyMessages = quotaStatus.dailyMessages as FreeDailyQuotaWindow | null
+    const monthlyTokens = quotaStatus.monthlyTokens as FreeMonthlyQuotaWindow | null
+
+    if (!dailyMessages || !monthlyTokens) {
+      return quotaStatus
+    }
+
+    return createFreeQuotaStatus({
+      dailyMessagesUsed: dailyMessages.used + 1,
+      hoursUntilDailyReset: resolveHoursUntilReset(dailyMessages),
+      hoursUntilMonthlyReset: resolveHoursUntilReset(monthlyTokens),
+      monthlyTokensUsed: monthlyTokens.used + tokenTotals.totalTokens,
+      nextDailyResetAt: dailyMessages.nextResetAt ?? quotaStatus.sourceNow,
+      nextMonthlyResetAt: monthlyTokens.nextResetAt ?? quotaStatus.sourceNow,
+      sourceNow: new Date().toISOString(),
+    })
+  }
+
+  const weeklyTokens = quotaStatus.weeklyTokens as ProWeeklyQuotaWindow | null
+  const rolling30DayTokens = quotaStatus.rolling30DayTokens as ProRollingQuotaWindow | null
+
+  if (!weeklyTokens || !rolling30DayTokens) {
+    return quotaStatus
+  }
+
+  return createProQuotaStatus({
+    hoursUntilWeeklyReset: resolveHoursUntilReset(weeklyTokens),
+    nextWeeklyResetAt: weeklyTokens.nextResetAt ?? quotaStatus.sourceNow,
+    rolling30DayTokensUsed: rolling30DayTokens.used + tokenTotals.totalTokens,
+    sourceNow: new Date().toISOString(),
+    weeklyTokensUsed: weeklyTokens.used + tokenTotals.totalTokens,
+  })
 }

@@ -40,7 +40,7 @@ type ChatCanvasShellProps = {
   initialModelProvider?: string;
   initialModelName?: string;
   initialModelReasoningEffort?: string;
-  initialQuotaStatus: UsageQuotaStatus;
+  initialQuotaStatus: UsageQuotaStatus | null;
   settingsContent: ReactNode;
   user: {
     name?: string | null;
@@ -110,7 +110,7 @@ export function ChatCanvasShell({
   const selectedModel = useChatSessionStore((store) => store.selectedModel);
   const setSelectedModel = useChatSessionStore((store) => store.setSelectedModel);
   const [promptText, setPromptText] = useState("");
-  const [quotaStatus, setQuotaStatus] = useState(initialQuotaStatus);
+  const [quotaStatus, setQuotaStatus] = useState<UsageQuotaStatus | null>(initialQuotaStatus);
   const isSending = useChatSessionStore((store) => store.isSending);
   const setIsSending = useChatSessionStore((store) => store.setIsSending);
   const sendError = useChatSessionStore((store) => store.sendError);
@@ -158,6 +158,27 @@ export function ChatCanvasShell({
   const pendingBranchFocusKeyRef = useRef<string | null>(null);
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
   const hasAutoSentInitialPromptRef = useRef(false);
+  const [isTouchCanvasDevice, setIsTouchCanvasDevice] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(pointer: coarse)");
+    const updateTouchCapability = () => {
+      setIsTouchCanvasDevice(mediaQuery.matches || navigator.maxTouchPoints > 0);
+    };
+
+    updateTouchCapability();
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", updateTouchCapability);
+      return () => {
+        mediaQuery.removeEventListener("change", updateTouchCapability);
+      };
+    }
+
+    mediaQuery.addListener(updateTouchCapability);
+    return () => {
+      mediaQuery.removeListener(updateTouchCapability);
+    };
+  }, []);
 
   const mergeLoadedMessages = useCallback(
     (loadedMessages: ChatMessage[], currentMessages: ChatMessage[]) => {
@@ -336,7 +357,7 @@ export function ChatCanvasShell({
     [t]
   );
 
-  const isUsageBlocked = quotaStatus.isBlocked;
+  const isUsageBlocked = quotaStatus?.isBlocked ?? false;
 
   const getNextTempId = useCallback((prefix: string) => {
     tempIdRef.current += 1;
@@ -684,19 +705,50 @@ export function ChatCanvasShell({
         availableTop + 40,
         visualViewportTop + visibleViewportHeight - bottomSafePaddingPx
       );
+      const currentState = latestCanvasStateRef.current;
+
+      if (isTouchCanvasDevice) {
+        const horizontalPaddingPx = 16;
+        const verticalPaddingPx = 12;
+        const availableLeft = viewportRect.left + horizontalPaddingPx;
+        const availableRight = viewportRect.right - horizontalPaddingPx;
+        const boundedTop = availableTop + verticalPaddingPx;
+        const boundedBottom = availableBottom - verticalPaddingPx;
+        let deltaX = 0;
+        let deltaY = 0;
+
+        if (elementRect.left < availableLeft) {
+          deltaX = availableLeft - elementRect.left;
+        } else if (elementRect.right > availableRight) {
+          deltaX = availableRight - elementRect.right;
+        }
+
+        if (elementRect.top < boundedTop) {
+          deltaY = boundedTop - elementRect.top;
+        } else if (elementRect.bottom > boundedBottom) {
+          deltaY = boundedBottom - elementRect.bottom;
+        }
+
+        if (deltaX === 0 && deltaY === 0) {
+          return;
+        }
+
+        animateCanvasOffset(currentState.offsetX + deltaX, currentState.offsetY + deltaY);
+        return;
+      }
+
       const viewportCenterX = viewportRect.left + viewportRect.width / 2;
       const viewportTargetY =
         availableTop + (availableBottom - availableTop) * safeTargetViewportYRatio;
       const elementCenterX = elementRect.left + elementRect.width / 2;
       const elementCenterY = elementRect.top + elementRect.height / 2;
-      const currentState = latestCanvasStateRef.current;
 
       animateCanvasOffset(
         currentState.offsetX + (viewportCenterX - elementCenterX),
         currentState.offsetY + (viewportTargetY - elementCenterY)
       );
     },
-    [animateCanvasOffset]
+    [animateCanvasOffset, isTouchCanvasDevice]
   );
 
   const alignFocusedTextareaToViewport = useCallback(() => {
@@ -755,9 +807,11 @@ export function ChatCanvasShell({
   const focusTextareaWithoutBrowserScroll = useCallback(
     (textarea: HTMLTextAreaElement, targetViewportYRatio = 0.58) => {
       textarea.focus({ preventScroll: true });
-      handleTextareaFocus(textarea, targetViewportYRatio);
+      if (!isTouchCanvasDevice) {
+        handleTextareaFocus(textarea, targetViewportYRatio);
+      }
     },
-    [handleTextareaFocus]
+    [handleTextareaFocus, isTouchCanvasDevice]
   );
 
   useEffect(() => {
@@ -792,6 +846,9 @@ export function ChatCanvasShell({
   }, [branchVerticalOffsets, branches, focusTextareaWithoutBrowserScroll]);
 
   useEffect(() => {
+    if (!isTouchCanvasDevice) {
+      return;
+    }
     const visualViewport = window.visualViewport;
     if (!visualViewport) {
       return;
@@ -805,7 +862,7 @@ export function ChatCanvasShell({
       visualViewport.removeEventListener("resize", handleViewportChange);
       visualViewport.removeEventListener("scroll", handleViewportChange);
     };
-  }, [scheduleFocusedTextareaAlignment]);
+  }, [isTouchCanvasDevice, scheduleFocusedTextareaAlignment]);
 
   useEffect(() => {
     let isActive = true;
@@ -868,6 +925,37 @@ export function ChatCanvasShell({
     textarea.style.height = "auto";
     textarea.style.height = `${textarea.scrollHeight}px`;
   }, [promptText]);
+
+  useEffect(() => {
+    if (quotaStatus) {
+      return;
+    }
+
+    let isActive = true;
+
+    const loadQuotaStatus = async () => {
+      try {
+        const response = await fetch("/api/settings", { cache: "no-store" });
+        const payload = (await response.json().catch(() => ({}))) as {
+          quotaStatus?: UsageQuotaStatus;
+        };
+
+        if (!response.ok || !payload?.quotaStatus || !isActive) {
+          return;
+        }
+
+        setQuotaStatus(payload.quotaStatus);
+      } catch (error) {
+        console.error("Failed to load quota status:", error);
+      }
+    };
+
+    void loadQuotaStatus();
+
+    return () => {
+      isActive = false;
+    };
+  }, [quotaStatus]);
 
   const initialModelSelection = useMemo(() => {
     if (
@@ -2069,7 +2157,7 @@ export function ChatCanvasShell({
       data-prevent-viewport-jump="true"
     >
       <div className="grid gap-3">
-        <UsageQuotaNotice quotaStatus={quotaStatus} showUsageDetails={false} />
+        {quotaStatus ? <UsageQuotaNotice quotaStatus={quotaStatus} showUsageDetails={false} /> : null}
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -2127,19 +2215,21 @@ export function ChatCanvasShell({
           </button>
         </form>
       </div>
-      <button
-        type="button"
-        aria-label="Focus prompt input"
-        onPointerDown={(event) => {
-          event.stopPropagation();
-          focusMainPromptInput();
-        }}
-        onClick={(event) => {
-          event.stopPropagation();
-          focusMainPromptInput();
-        }}
-        className="absolute left-0 right-0 top-full z-0 h-100 translate-y-2 rounded-2xl bg-transparent"
-      />
+      {!isTouchCanvasDevice ? (
+        <button
+          type="button"
+          aria-label="Focus prompt input"
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            focusMainPromptInput();
+          }}
+          onClick={(event) => {
+            event.stopPropagation();
+            focusMainPromptInput();
+          }}
+          className="absolute left-0 right-0 top-full z-0 h-100 translate-y-2 rounded-2xl bg-transparent"
+        />
+      ) : null}
     </div>
   );
 
@@ -2538,7 +2628,7 @@ export function ChatCanvasShell({
                                       placeholder={t("prompt.placeholder")}
                                       rows={1}
                                       disabled={isUsageBlocked}
-                                      className="w-full resize-none rounded-xl border border-(--color-border-muted) bg-(--color-surface) px-4 py-2 text-sm leading-5 text-main shadow-(--color-shadow-soft) transition-[height] duration-150 ease-out focus:border-(--color-border-soft) focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                                      className="w-full resize-none rounded-xl border border-(--color-border-muted) bg-(--color-surface) px-4 py-2 text-base leading-6 text-main shadow-(--color-shadow-soft) transition-[height] duration-150 ease-out focus:border-(--color-border-soft) focus:outline-none sm:text-sm sm:leading-5 disabled:cursor-not-allowed disabled:opacity-60"
                                     />
                                     <button
                                       type="submit"
