@@ -4,10 +4,12 @@ import Image from "next/image";
 import {
   Eye,
   EyeOff,
+  LoaderCircle,
   Menu,
   X,
 } from "lucide-react";
 import Link from "next/link";
+import { useFormStatus } from "react-dom";
 import { useEffect, useState } from "react";
 
 import { LanguageToggle } from "@/components/i18n/language-toggle";
@@ -272,28 +274,7 @@ export function LoginPageView({
               </p>
             </div>
             <form action={googleSignInAction} className="pt-2 text-center">
-              <button
-                type="submit"
-                aria-label="Sign in with Google"
-                className="rounded-full transition-[filter] duration-200 hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82]"
-              >
-                <Image
-                  src="/icons/signin_light.svg"
-                  alt="Sign in with Google"
-                  width={175}
-                  height={40}
-                  className="dark:hidden"
-                  priority
-                />
-                <Image
-                  src="/icons/singin_dark.svg"
-                  alt="Sign in with Google"
-                  width={175}
-                  height={40}
-                  className="hidden dark:block"
-                  priority
-                />
-              </button>
+              <GoogleSignInSubmitButton className="rounded-full transition-[filter] duration-200 hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82]" />
             </form>
           </div>
           <div className="flex items-center justify-center" aria-hidden="true">
@@ -564,26 +545,10 @@ export function LoginPageView({
                 </p>
 
                 <form action={googleSignInAction} className="mt-2">
-                  <button
-                    type="submit"
-                    aria-label="Sign in with Google"
+                  <GoogleSignInSubmitButton
                     className="rounded-full transition-[filter] duration-200 hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82]"
-                  >
-                    <Image
-                      src="/icons/signin_light.svg"
-                      alt="Sign in with Google"
-                      width={175}
-                      height={40}
-                      className="h-auto w-[175px] dark:hidden"
-                    />
-                    <Image
-                      src="/icons/singin_dark.svg"
-                      alt="Sign in with Google"
-                      width={175}
-                      height={40}
-                      className="hidden h-auto w-[175px] dark:block"
-                    />
-                  </button>
+                    imageClassName="h-auto w-[175px]"
+                  />
                 </form>
 
                 <p
@@ -627,5 +592,53 @@ export function LoginPageView({
         </div>
       ) : null}
     </div>
+  )
+}
+
+type GoogleSignInSubmitButtonProps = {
+  className: string
+  imageClassName?: string
+}
+
+function GoogleSignInSubmitButton({
+  className,
+  imageClassName,
+}: GoogleSignInSubmitButtonProps) {
+  const { pending } = useFormStatus()
+
+  return (
+    <button
+      type="submit"
+      aria-label="Sign in with Google"
+      aria-busy={pending}
+      disabled={pending}
+      className={`${className} disabled:cursor-not-allowed disabled:opacity-80`}
+    >
+      <span className="relative inline-flex items-center justify-center">
+        <span className={pending ? "opacity-0" : "opacity-100"}>
+          <Image
+            src="/icons/signin_light.svg"
+            alt="Sign in with Google"
+            width={175}
+            height={40}
+            className={imageClassName ? `${imageClassName} dark:hidden` : "dark:hidden"}
+            priority
+          />
+          <Image
+            src="/icons/singin_dark.svg"
+            alt="Sign in with Google"
+            width={175}
+            height={40}
+            className={imageClassName ? `${imageClassName} hidden dark:block` : "hidden dark:block"}
+            priority
+          />
+        </span>
+        {pending ? (
+          <span className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
+            <LoaderCircle className="h-5 w-5 animate-spin motion-reduce:animate-none" />
+          </span>
+        ) : null}
+      </span>
+    </button>
   )
 }

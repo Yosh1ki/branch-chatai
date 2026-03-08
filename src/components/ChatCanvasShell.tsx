@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, Plus } from "lucide-react";
+import { ArrowRight, LoaderCircle, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AssistantCard } from "@/components/AssistantCard";
 import { CanvasControls } from "@/components/CanvasControls";
@@ -2115,10 +2115,15 @@ export function ChatCanvasShell({
           <button
             type="submit"
             aria-label="Send prompt"
+            aria-busy={isSending}
             disabled={!promptText.trim() || isSending || isUsageBlocked}
             className="flex h-11 w-11 self-end items-center justify-center rounded-lg bg-theme-main text-main transition-[filter] hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <ArrowRight className="h-5 w-5" />
+            {isSending ? (
+              <LoaderCircle className="h-5 w-5 animate-spin motion-reduce:animate-none" />
+            ) : (
+              <ArrowRight className="h-5 w-5" />
+            )}
           </button>
         </form>
       </div>
@@ -2538,6 +2543,7 @@ export function ChatCanvasShell({
                                     <button
                                       type="submit"
                                       aria-label="Send branch prompt"
+                                      aria-busy={branch.reply.isLoading}
                                       disabled={
                                         !branch.text.trim() ||
                                         branch.reply.isLoading ||
@@ -2545,7 +2551,11 @@ export function ChatCanvasShell({
                                       }
                                       className="flex h-10 w-10 items-center justify-center rounded-lg bg-theme-main text-main transition-[filter] hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82] disabled:cursor-not-allowed disabled:opacity-60"
                                     >
-                                      <ArrowRight className="h-4 w-4" />
+                                      {branch.reply.isLoading ? (
+                                        <LoaderCircle className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+                                      ) : (
+                                        <ArrowRight className="h-4 w-4" />
+                                      )}
                                     </button>
                                   </form>
                                 ) : null}
