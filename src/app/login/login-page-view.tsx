@@ -2,15 +2,9 @@
 
 import Image from "next/image";
 import {
-  Coins,
   Eye,
   EyeOff,
-  FileText,
-  Gauge,
-  GitBranch,
   Menu,
-  MessageSquare,
-  Sparkles,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -20,6 +14,7 @@ import { LanguageToggle } from "@/components/i18n/language-toggle";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { createLegalFooterLinks } from "@/lib/legal-links";
 import type { LegalLocale } from "@/lib/legal-profile";
+import { getLoginPricingPlans } from "@/lib/pricing-plans";
 import { textStyle } from "@/styles/typography";
 
 type LoginPageViewLabels = {
@@ -107,54 +102,28 @@ export function LoginPageView({
       description: labels.branchFeature3Description,
     },
   ]
-  const pricingPlans = [
-    {
-      name: labels.free,
-      price: labels.freePlanPrice,
-      summary: labels.freePlanSummary,
-      ctaLabel: labels.tryFreePlan,
-      iconWrapperClass: "bg-black/5 text-main-soft",
-      features: [
-        {
-          label: labels.freePlanFeature1,
-          icon: MessageSquare,
-        },
-        {
-          label: labels.freePlanFeature2,
-          icon: Coins,
-        },
-        {
-          label: labels.freePlanFeature3,
-          icon: GitBranch,
-        },
-      ],
-    },
-    {
-      name: labels.proPlanTitle,
-      price: labels.proPlanPrice,
-      summary: labels.proPlanSummary,
-      ctaLabel: labels.tryProPlan,
-      iconWrapperClass: "bg-theme-main text-main",
-      features: [
-        {
-          label: labels.proPlanFeature1,
-          icon: Gauge,
-        },
-        {
-          label: labels.proPlanFeature2,
-          icon: Sparkles,
-        },
-        {
-          label: labels.proPlanFeature3,
-          icon: FileText,
-        },
-        {
-          label: labels.proPlanFeature4,
-          icon: GitBranch,
-        },
-      ],
-    },
-  ]
+  const pricingPlans = getLoginPricingPlans((key) => {
+    const labelMap = {
+      "login.free": labels.free,
+      "login.freePlanPrice": labels.freePlanPrice,
+      "login.freePlanSummary": labels.freePlanSummary,
+      "login.freePlanFeature1": labels.freePlanFeature1,
+      "login.freePlanFeature2": labels.freePlanFeature2,
+      "login.freePlanFeature3": labels.freePlanFeature3,
+      "login.proPlanTitle": labels.proPlanTitle,
+      "login.proPlanPrice": labels.proPlanPrice,
+      "login.proPlanSummary": labels.proPlanSummary,
+      "login.proPlanFeature1": labels.proPlanFeature1,
+      "login.proPlanFeature2": labels.proPlanFeature2,
+      "login.proPlanFeature3": labels.proPlanFeature3,
+      "login.proPlanFeature4": labels.proPlanFeature4,
+    } as const
+
+    return labelMap[key]
+  }).map((plan) => ({
+    ...plan,
+    ctaLabel: plan.id === "free" ? labels.tryFreePlan : labels.tryProPlan,
+  }))
   const legalLinks = createLegalFooterLinks(locale).filter((item) => item.href !== "/login")
   const footerItems = [
     { label: labels.aboutBranch, href: "#branch-overview" },
