@@ -24,7 +24,8 @@ export default async function ChatPage({ params, searchParams }: ChatPageProps) 
     redirect("/login");
   }
 
-  const { quotaStatus } = await getUserQuotaStatus(session.user.id);
+  const userId = session.user.id;
+  const { quotaStatus } = await getUserQuotaStatus(userId);
   const { chatId } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
 

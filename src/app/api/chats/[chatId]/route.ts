@@ -14,18 +14,20 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const userId = session.user.id;
+
   try {
     const chat = await measureChatTiming(
       "chat_detail_query",
       {
         chatId,
-        userId: session.user.id,
+        userId,
       },
       () =>
         prisma.chat.findFirst({
           where: {
             id: chatId,
-            userId: session.user.id,
+            userId,
             isArchived: false,
           },
           select: {
@@ -100,11 +102,13 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const userId = session.user.id;
+
   try {
     const chat = await prisma.chat.findFirst({
       where: {
         id: chatId,
-        userId: session.user.id,
+        userId,
       },
       select: { id: true },
     });

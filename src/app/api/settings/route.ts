@@ -9,8 +9,10 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  const userId = session.user.id;
+
   try {
-    const settings = await getSettingsViewData(session.user.id)
+    const settings = await getSettingsViewData(userId)
     return NextResponse.json(settings)
   } catch (error) {
     console.error("Failed to load settings:", error)

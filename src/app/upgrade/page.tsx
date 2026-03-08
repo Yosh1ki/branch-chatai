@@ -16,8 +16,10 @@ export default async function UpgradePage() {
     redirect("/login")
   }
 
+  const userId = session.user.id;
+
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: userId },
     select: { planType: true },
   })
 

@@ -10,10 +10,12 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const userId = session.user.id;
+
   try {
     const chats = await prisma.chat.findMany({
       where: {
-        userId: session.user.id,
+        userId,
         isArchived: false,
       },
       orderBy: {
@@ -60,13 +62,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const userId = session.user.id;
+
   try {
     const body = await req.json();
     const { title, languageCode } = body;
 
     const chat = await prisma.chat.create({
       data: {
-        userId: session.user.id,
+        userId,
         title: title || "New Chat",
         languageCode: languageCode || "en",
       },

@@ -79,7 +79,9 @@ const getGeminiClient = () => {
   if (!geminiClient) {
     geminiClient = new GoogleGenAI({
       apiKey: getGeminiApiKey(),
-      baseURL: GEMINI_API_BASE_URL,
+      httpOptions: {
+        baseUrl: GEMINI_API_BASE_URL,
+      },
     })
   }
   return geminiClient

@@ -70,6 +70,8 @@ async function createChatAction(
     redirect("/login")
   }
 
+  const userId = session.user.id;
+
   const prompt = formData.get("prompt")
   const modelProvider = formData.get("modelProvider")
   const modelName = formData.get("modelName")
@@ -84,11 +86,11 @@ async function createChatAction(
   const user = await measureChatTiming(
     "create_chat_load_user",
     {
-      userId: session.user.id,
+      userId,
     },
     () =>
       prisma.user.findUnique({
-        where: { id: session.user.id },
+        where: { id: userId },
         select: { planType: true },
       })
   )
@@ -98,9 +100,9 @@ async function createChatAction(
       "create_chat_quota_check",
       {
         planType: user?.planType ?? "free",
-        userId: session.user.id,
+        userId,
       },
-      () => assertWithinUsageLimits(session.user.id, user?.planType)
+      () => assertWithinUsageLimits(userId, user?.planType)
     )
   } catch (error) {
     if (error instanceof ChatActionError && error.status === 429) {
@@ -118,12 +120,12 @@ async function createChatAction(
     "create_chat_insert",
     {
       locale: titleLocale,
-      userId: session.user.id,
+      userId,
     },
     () =>
       prisma.chat.create({
         data: {
-          userId: session.user.id,
+          userId,
           title: fallbackChatTitle(titleLocale),
           languageCode: titleLocale,
         },
@@ -161,9 +163,11 @@ export default async function ChatsPage() {
     redirect("/login")
   }
 
+  const userId = session.user.id;
+
   const [chats, settings] = await Promise.all([
-    getChats(session.user.id),
-    getSettingsViewData(session.user.id),
+    getChats(userId),
+    getSettingsViewData(userId),
   ])
 
   return (
