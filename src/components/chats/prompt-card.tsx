@@ -11,7 +11,8 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from "react"
-import { ArrowRight, Check, ChevronDown } from "lucide-react"
+import { useFormStatus } from "react-dom"
+import { ArrowRight, Check, ChevronDown, LoaderCircle } from "lucide-react"
 import { UpgradeButton } from "@/components/billing/upgrade-button"
 import {
   MODEL_OPTIONS,
@@ -268,16 +269,35 @@ export function PromptCard({ action, planType, quotaStatus }: PromptCardProps) {
               </p>
             ) : null}
           </div>
-          <button
-            type="submit"
-            aria-label="Start a new chat"
+          <StartChatSubmitButton
             disabled={!prompt.trim() || isBlocked}
-            className="flex h-11 w-11 items-center justify-center rounded-lg bg-theme-main text-main transition-[filter] hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <ArrowRight className="h-5 w-5" />
-          </button>
+          />
         </form>
       </div>
     </div>
+  )
+}
+
+type StartChatSubmitButtonProps = {
+  disabled: boolean
+}
+
+function StartChatSubmitButton({ disabled }: StartChatSubmitButtonProps) {
+  const { pending } = useFormStatus()
+
+  return (
+    <button
+      type="submit"
+      aria-label="Start a new chat"
+      aria-busy={pending}
+      disabled={disabled || pending}
+      className="flex h-11 w-11 items-center justify-center rounded-lg bg-theme-main text-main transition-[filter] hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82] disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {pending ? (
+        <LoaderCircle className="h-5 w-5 animate-spin motion-reduce:animate-none" />
+      ) : (
+        <ArrowRight className="h-5 w-5" />
+      )}
+    </button>
   )
 }

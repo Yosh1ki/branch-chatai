@@ -30,9 +30,17 @@ export function UsageQuotaNotice({
       return null
     }
 
+    const shouldShowUsageDetails = showUsageDetails
+    const shouldShowWarning = warningMessageKey !== null
+    const shouldShowUpgrade = quotaStatus.isBlocked
+
+    if (!shouldShowUsageDetails && !shouldShowWarning && !shouldShowUpgrade) {
+      return null
+    }
+
     return (
       <div className="grid gap-3 rounded-3xl bg-[color-mix(in_srgb,#f59e0b_10%,transparent)] p-4 text-[#b45309]">
-        {showUsageDetails ? (
+        {shouldShowUsageDetails ? (
           <div className="grid gap-1 text-sm font-medium text-inherit">
             <p>
               {t("chats.freeRemainingMessages", {
@@ -48,10 +56,10 @@ export function UsageQuotaNotice({
             </p>
           </div>
         ) : null}
-        {warningMessageKey ? (
+        {shouldShowWarning ? (
           <p className="text-sm font-semibold text-inherit">{t(warningMessageKey)}</p>
         ) : null}
-        {quotaStatus.isBlocked ? (
+        {shouldShowUpgrade ? (
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-sm font-medium text-inherit">{t("chats.freeUpsell")}</p>
             <UpgradeButton />

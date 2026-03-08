@@ -2,24 +2,21 @@
 
 import Image from "next/image";
 import {
-  Coins,
   Eye,
   EyeOff,
-  FileText,
-  Gauge,
-  GitBranch,
+  LoaderCircle,
   Menu,
-  MessageSquare,
-  Sparkles,
   X,
 } from "lucide-react";
 import Link from "next/link";
+import { useFormStatus } from "react-dom";
 import { useEffect, useState } from "react";
 
 import { LanguageToggle } from "@/components/i18n/language-toggle";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { createLegalFooterLinks } from "@/lib/legal-links";
 import type { LegalLocale } from "@/lib/legal-profile";
+import { getLoginPricingPlans } from "@/lib/pricing-plans";
 import { textStyle } from "@/styles/typography";
 
 type LoginPageViewLabels = {
@@ -107,54 +104,28 @@ export function LoginPageView({
       description: labels.branchFeature3Description,
     },
   ]
-  const pricingPlans = [
-    {
-      name: labels.free,
-      price: labels.freePlanPrice,
-      summary: labels.freePlanSummary,
-      ctaLabel: labels.tryFreePlan,
-      iconWrapperClass: "bg-black/5 text-main-soft",
-      features: [
-        {
-          label: labels.freePlanFeature1,
-          icon: MessageSquare,
-        },
-        {
-          label: labels.freePlanFeature2,
-          icon: Coins,
-        },
-        {
-          label: labels.freePlanFeature3,
-          icon: GitBranch,
-        },
-      ],
-    },
-    {
-      name: labels.proPlanTitle,
-      price: labels.proPlanPrice,
-      summary: labels.proPlanSummary,
-      ctaLabel: labels.tryProPlan,
-      iconWrapperClass: "bg-theme-main text-main",
-      features: [
-        {
-          label: labels.proPlanFeature1,
-          icon: Gauge,
-        },
-        {
-          label: labels.proPlanFeature2,
-          icon: Sparkles,
-        },
-        {
-          label: labels.proPlanFeature3,
-          icon: FileText,
-        },
-        {
-          label: labels.proPlanFeature4,
-          icon: GitBranch,
-        },
-      ],
-    },
-  ]
+  const pricingPlans = getLoginPricingPlans((key) => {
+    const labelMap = {
+      "login.free": labels.free,
+      "login.freePlanPrice": labels.freePlanPrice,
+      "login.freePlanSummary": labels.freePlanSummary,
+      "login.freePlanFeature1": labels.freePlanFeature1,
+      "login.freePlanFeature2": labels.freePlanFeature2,
+      "login.freePlanFeature3": labels.freePlanFeature3,
+      "login.proPlanTitle": labels.proPlanTitle,
+      "login.proPlanPrice": labels.proPlanPrice,
+      "login.proPlanSummary": labels.proPlanSummary,
+      "login.proPlanFeature1": labels.proPlanFeature1,
+      "login.proPlanFeature2": labels.proPlanFeature2,
+      "login.proPlanFeature3": labels.proPlanFeature3,
+      "login.proPlanFeature4": labels.proPlanFeature4,
+    } as const
+
+    return labelMap[key]
+  }).map((plan) => ({
+    ...plan,
+    ctaLabel: plan.id === "free" ? labels.tryFreePlan : labels.tryProPlan,
+  }))
   const legalLinks = createLegalFooterLinks(locale).filter((item) => item.href !== "/login")
   const footerItems = [
     { label: labels.aboutBranch, href: "#branch-overview" },
@@ -303,28 +274,7 @@ export function LoginPageView({
               </p>
             </div>
             <form action={googleSignInAction} className="pt-2 text-center">
-              <button
-                type="submit"
-                aria-label="Sign in with Google"
-                className="rounded-full transition-[filter] duration-200 hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82]"
-              >
-                <Image
-                  src="/icons/signin_light.svg"
-                  alt="Sign in with Google"
-                  width={175}
-                  height={40}
-                  className="dark:hidden"
-                  priority
-                />
-                <Image
-                  src="/icons/singin_dark.svg"
-                  alt="Sign in with Google"
-                  width={175}
-                  height={40}
-                  className="hidden dark:block"
-                  priority
-                />
-              </button>
+              <GoogleSignInSubmitButton className="rounded-full transition-[filter] duration-200 hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82]" />
             </form>
           </div>
           <div className="flex items-center justify-center" aria-hidden="true">
@@ -595,26 +545,10 @@ export function LoginPageView({
                 </p>
 
                 <form action={googleSignInAction} className="mt-2">
-                  <button
-                    type="submit"
-                    aria-label="Sign in with Google"
+                  <GoogleSignInSubmitButton
                     className="rounded-full transition-[filter] duration-200 hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82]"
-                  >
-                    <Image
-                      src="/icons/signin_light.svg"
-                      alt="Sign in with Google"
-                      width={175}
-                      height={40}
-                      className="h-auto w-[175px] dark:hidden"
-                    />
-                    <Image
-                      src="/icons/singin_dark.svg"
-                      alt="Sign in with Google"
-                      width={175}
-                      height={40}
-                      className="hidden h-auto w-[175px] dark:block"
-                    />
-                  </button>
+                    imageClassName="h-auto w-[175px]"
+                  />
                 </form>
 
                 <p
@@ -658,5 +592,53 @@ export function LoginPageView({
         </div>
       ) : null}
     </div>
+  )
+}
+
+type GoogleSignInSubmitButtonProps = {
+  className: string
+  imageClassName?: string
+}
+
+function GoogleSignInSubmitButton({
+  className,
+  imageClassName,
+}: GoogleSignInSubmitButtonProps) {
+  const { pending } = useFormStatus()
+
+  return (
+    <button
+      type="submit"
+      aria-label="Sign in with Google"
+      aria-busy={pending}
+      disabled={pending}
+      className={`${className} disabled:cursor-not-allowed disabled:opacity-80`}
+    >
+      <span className="relative inline-flex items-center justify-center">
+        <span className={pending ? "opacity-0" : "opacity-100"}>
+          <Image
+            src="/icons/signin_light.svg"
+            alt="Sign in with Google"
+            width={175}
+            height={40}
+            className={imageClassName ? `${imageClassName} dark:hidden` : "dark:hidden"}
+            priority
+          />
+          <Image
+            src="/icons/singin_dark.svg"
+            alt="Sign in with Google"
+            width={175}
+            height={40}
+            className={imageClassName ? `${imageClassName} hidden dark:block` : "hidden dark:block"}
+            priority
+          />
+        </span>
+        {pending ? (
+          <span className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
+            <LoaderCircle className="h-5 w-5 animate-spin motion-reduce:animate-none" />
+          </span>
+        ) : null}
+      </span>
+    </button>
   )
 }
