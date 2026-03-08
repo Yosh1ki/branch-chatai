@@ -157,10 +157,10 @@ export const jaDictionary = {
   "chats.proWarningWeekly95": "今週の利用可能量が残り少なくなっています",
   "chats.proBlockedWeekly": "今週の利用上限に達したため、送信できません",
   "chats.proBlockedWeeklySub": "次回のリセット後に再度ご利用いただけます（あと{{hours}}時間）",
-  "chats.proWarningRolling80": "直近30日間の利用上限に近づいています",
-  "chats.proWarningRolling95": "直近30日間の利用可能量が残り少なくなっています",
-  "chats.proBlockedRolling": "直近30日間の利用上限に達したため、送信できません",
-  "chats.proBlockedRollingSub": "利用量がrolling 30日枠内に戻るまでお待ちください",
+  "chats.proWarningRolling80": "今週の利用上限に近づいています",
+  "chats.proWarningRolling95": "今週の利用可能量が残り少なくなっています",
+  "chats.proBlockedRolling": "利用上限に達したため、送信できません",
+  "chats.proBlockedRollingSub": "現在の利用状況が上限内に戻るまでお待ちください",
   "chats.viewMode": "表示モード",
   "chats.viewList": "リスト表示",
   "chats.viewDetail": "詳細表示",
@@ -229,7 +229,7 @@ export const jaDictionary = {
   "errors.freeMonthlyTokenLimitReached": "今月の無料トークン上限に達したため、送信できません",
   "errors.proWeeklyTokenLimitReached": "今週の利用上限に達したため、送信できません",
   "errors.proRolling30DayTokenLimitReached":
-    "直近30日間の利用上限に達したため、送信できません",
+    "利用上限に達したため、送信できません",
 
   "richText.fallbackPlainText": "整形できなかったため、プレーンテキストで表示しています。",
 } as const

@@ -4,7 +4,6 @@ import { UpgradeButton } from "@/components/billing/upgrade-button"
 import { useI18n } from "@/components/i18n/i18n-provider"
 import {
   getFreeWarningMessageKey,
-  getPrimaryProUsageWindow,
   getProWarningMessageKey,
 } from "@/lib/usage-quota-messages"
 import type { UsageQuotaStatus } from "@/lib/usage-quota"
@@ -74,9 +73,7 @@ export function UsageQuotaNotice({
     return null
   }
 
-  const primaryWindow = getPrimaryProUsageWindow(quotaStatus)
   const showWeeklySubtext = quotaStatus.blockReason === "pro_weekly_tokens"
-  const showRollingSubtext = quotaStatus.blockReason === "pro_rolling_30_day_tokens"
   const hours = quotaStatus.weeklyTokens?.hoursUntilReset ?? 0
 
   return (
@@ -87,13 +84,7 @@ export function UsageQuotaNotice({
           {t("chats.proBlockedWeeklySub", { hours: numberFormatter.format(hours) })}
         </p>
       ) : null}
-      {showRollingSubtext ? (
-        <p className="text-sm font-medium text-[#c2410c]">{t("chats.proBlockedRollingSub")}</p>
-      ) : null}
-      {showUsageDetails &&
-      !quotaStatus.isBlocked &&
-      primaryWindow === "weekly" &&
-      quotaStatus.weeklyTokens ? (
+      {showUsageDetails && !quotaStatus.isBlocked && quotaStatus.weeklyTokens ? (
         <p className="text-sm font-medium text-[#c2410c]">
           {numberFormatter.format(quotaStatus.weeklyTokens.remaining)} /{" "}
           {numberFormatter.format(quotaStatus.weeklyTokens.limit)}

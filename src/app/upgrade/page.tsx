@@ -4,6 +4,7 @@ import { UpgradeActionButton } from "@/components/billing/upgrade-action-button"
 import { UpgradeBackButton } from "@/components/billing/upgrade-back-button"
 import { createTranslator } from "@/lib/i18n"
 import { resolveRequestLocale } from "@/lib/i18n/locale"
+import { getLoginPricingPlans } from "@/lib/pricing-plans"
 import prisma from "@/lib/prisma"
 
 export default async function UpgradePage() {
@@ -21,6 +22,7 @@ export default async function UpgradePage() {
   })
 
   const planType = user?.planType === "pro" ? "pro" : "free"
+  const pricingPlans = getLoginPricingPlans(t)
 
   return (
     <div className="min-h-screen bg-(--color-app-bg) px-5 py-6 text-main md:px-8">
@@ -34,47 +36,50 @@ export default async function UpgradePage() {
           <p className="mt-2 text-sm text-main-muted">{t("billing.upgradeDescription")}</p>
         </header>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <section className="rounded-3xl border border-(--color-border-soft) bg-(--color-surface) p-6 shadow-(--color-shadow-card)">
-            <p className="text-4xl font-black uppercase leading-none text-main">{t("billing.freePlanName")}</p>
-            <p className="mt-2 text-sm text-main-muted">{t("billing.freePlanSubheading")}</p>
-            <p className="mt-3 text-3xl font-semibold text-main">
-              {t("billing.freePlanPriceAmount")}{" "}
-              <span className="text-sm font-medium text-main-muted">{t("billing.freePlanPriceSuffix")}</span>
-            </p>
-            <ul className="mt-5 space-y-2 text-sm text-main">
-              <li>{t("billing.freeFeatureUsage")}</li>
-              <li>{t("billing.freeFeatureModels")}</li>
-              <li>{t("billing.freeFeatureBranching")}</li>
-            </ul>
-          </section>
+        <div className="grid gap-5 md:grid-cols-2">
+          {pricingPlans.map((plan) => {
+            const isCurrentPlan = plan.id === planType
 
-          <section className="rounded-3xl border border-main bg-(--color-surface) p-6 shadow-(--color-shadow-card) transition-[box-shadow,border-color] duration-200 [&:has(.upgrade-cta:hover)]:border-(--color-focus-ring) [&:has(.upgrade-cta:hover)]:shadow-[0_18px_42px_rgba(20,20,20,0.16)] [&:has(.upgrade-cta:hover)]:ring-2 [&:has(.upgrade-cta:hover)]:ring-(--color-focus-ring)">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-4xl font-black uppercase leading-none text-main">{t("billing.proPlanName")}</p>
-              {planType === "pro" ? (
-                <span className="rounded-full bg-(--color-surface-soft) px-3 py-1 text-xs font-semibold text-main">
-                  {t("billing.currentPlanBadge")}
-                </span>
-              ) : null}
-            </div>
-            <p className="mt-2 text-sm text-main-muted">{t("billing.proPlanSubheading")}</p>
-            <p className="mt-3 text-3xl font-semibold text-main">
-              {t("billing.proPlanPriceAmount")}{" "}
-              <span className="text-sm font-medium text-main-muted">{t("billing.proPlanPriceSuffix")}</span>
-            </p>
-            <p className="mt-2 text-sm font-semibold text-main">{t("billing.proHighlight")}</p>
-            <p className="mt-1 text-sm text-main-muted">{t("billing.proHighlightSub")}</p>
-            <ul className="mt-5 space-y-2 text-sm text-main">
-              <li>{t("billing.proFeatureUsage")}</li>
-              <li>{t("billing.proFeatureModels")}</li>
-              <li>{t("billing.proFeatureBranching")}</li>
-              <li>{t("billing.proFeatureBilling")}</li>
-            </ul>
-            <div className="mt-6">
-              <UpgradeActionButton planType={planType} className="upgrade-cta" />
-            </div>
-          </section>
+            return (
+              <section
+                key={plan.id}
+                className="flex h-full flex-col rounded-[28px] border border-black/5 bg-white/80 p-6"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-3xl font-black uppercase text-main">{plan.name}</p>
+                    <p className="mt-2 text-2xl font-semibold text-main">{plan.price}</p>
+                    <p className="mt-2 text-sm leading-6 text-main-soft">{plan.summary}</p>
+                  </div>
+                  {isCurrentPlan ? (
+                    <span className="rounded-full bg-(--color-surface-soft) px-3 py-1 text-xs font-semibold text-main">
+                      {t("billing.currentPlanBadge")}
+                    </span>
+                  ) : null}
+                </div>
+                <ul className="mt-4 space-y-2.5 text-sm leading-6 text-main">
+                  {plan.features.map((feature) => (
+                    <li
+                      key={feature.label}
+                      className="flex items-start gap-3 rounded-2xl bg-(--color-app-bg) px-4 py-2.5"
+                    >
+                      <span
+                        className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${plan.iconWrapperClass}`}
+                      >
+                        <feature.icon className="h-4 w-4" strokeWidth={2.1} />
+                      </span>
+                      <span>{feature.label}</span>
+                    </li>
+                  ))}
+                </ul>
+                {plan.id === "pro" ? (
+                  <div className="mt-5">
+                    <UpgradeActionButton planType={planType} className="upgrade-cta" />
+                  </div>
+                ) : null}
+              </section>
+            )
+          })}
         </div>
       </div>
     </div>

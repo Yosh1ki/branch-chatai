@@ -2,7 +2,7 @@ import type { Chat, Message } from "@prisma/client"
 import { runChatGraph } from "@/lib/chat-request-graph"
 import { ChatActionError } from "@/lib/chat-errors"
 import type { ModelProvider, ReasoningEffort } from "@/lib/model-catalog"
-import type { UsageQuotaStatus } from "@/lib/usage-quota"
+import { sanitizeQuotaStatusForClient, type UsageQuotaStatus } from "@/lib/usage-quota"
 import prisma from "@/lib/prisma"
 import { inferChatTitleLocale } from "@/lib/chat-title"
 import { generateChatTitle } from "@/lib/title-generator"
@@ -66,7 +66,9 @@ export async function sendChatMessage({
     chat: result.chatRecord,
     userMessage: result.userMessage,
     assistantMessage: result.assistantMessage,
-    quotaStatus: result.quotaStatus,
+    quotaStatus: result.quotaStatus
+      ? sanitizeQuotaStatusForClient(result.quotaStatus)
+      : undefined,
     createdChat: result.createdChat,
     idempotentHit: result.idempotentHit,
   }

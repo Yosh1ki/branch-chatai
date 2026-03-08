@@ -10,6 +10,7 @@ import {
   createFreeQuotaStatus,
   createProQuotaStatus,
   normalizePlanType,
+  sanitizeQuotaStatusForClient,
   sanitizeTokenTotals,
   type UsageLimitReason,
   type UsageQuotaStatus,
@@ -30,7 +31,7 @@ type UsageAggregateRow = {
 }
 
 const createQuotaStatusDetails = (quotaStatus: UsageQuotaStatus) => ({
-  quotaStatus,
+  quotaStatus: sanitizeQuotaStatusForClient(quotaStatus),
   timeZone: DAILY_LIMIT_TIME_ZONE,
 })
 

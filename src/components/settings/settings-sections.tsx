@@ -94,15 +94,6 @@ export function SettingsSections({ locale, settings }: SettingsSectionsProps) {
               </span>
             </div>
           ) : null}
-          {settings.planType === "pro" && settings.quotaStatus.rolling30DayTokens ? (
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-main-muted">{t("settings.rolling30DaysTokensLabel")}</span>
-              <span className="font-semibold text-main">
-                {numberFormatter.format(settings.quotaStatus.rolling30DayTokens.used)} /{" "}
-                {numberFormatter.format(settings.quotaStatus.rolling30DayTokens.limit)}
-              </span>
-            </div>
-          ) : null}
           {settings.planType === "free" ? (
             <>
               <p className="text-xs text-main-muted">
@@ -126,7 +117,6 @@ export function SettingsSections({ locale, settings }: SettingsSectionsProps) {
                   timeZone: DAILY_LIMIT_TIME_ZONE,
                 })}
               </p>
-              <p className="text-xs text-main-muted">{t("settings.rolling30DayDescription")}</p>
             </>
           )}
         </div>
@@ -142,13 +132,13 @@ export function SettingsSections({ locale, settings }: SettingsSectionsProps) {
                   className="flex h-full flex-col rounded-[28px] border border-(--color-border-soft) bg-(--color-app-bg) p-6"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div>
+                  <div>
                       <p className="text-3xl font-black uppercase text-main">{plan.name}</p>
                       <p className="mt-2 text-2xl font-semibold text-main">{plan.price}</p>
                       <p className="mt-2 text-sm leading-6 text-main-soft">{plan.summary}</p>
                     </div>
                     {isCurrentPlan ? (
-                      <span className="rounded-full bg-(--color-surface-soft) px-3 py-1 text-xs font-semibold text-main">
+                      <span className="inline-flex min-w-16 shrink-0 items-center justify-center rounded-full bg-(--color-surface-soft) px-3 py-1 text-xs font-semibold whitespace-nowrap text-main">
                         {t("billing.currentPlanBadge")}
                       </span>
                     ) : null}

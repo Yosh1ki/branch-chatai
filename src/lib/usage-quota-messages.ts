@@ -16,19 +16,6 @@ export const getUsageLimitErrorMessageKey = (code?: string | null): TranslationK
   }
 }
 
-export const getPrimaryProUsageWindow = (quotaStatus: UsageQuotaStatus) => {
-  const weeklyPercent = quotaStatus.weeklyTokens?.percentUsed ?? 0
-  const rollingPercent = quotaStatus.rolling30DayTokens?.percentUsed ?? 0
-
-  if (quotaStatus.blockReason === "pro_rolling_30_day_tokens") {
-    return "rolling30"
-  }
-  if (quotaStatus.blockReason === "pro_weekly_tokens") {
-    return "weekly"
-  }
-  return rollingPercent > weeklyPercent ? "rolling30" : "weekly"
-}
-
 export const getFreeWarningMessageKey = (quotaStatus: UsageQuotaStatus): TranslationKey | null => {
   if (quotaStatus.planType !== "free") {
     return null
@@ -57,27 +44,17 @@ export const getProWarningMessageKey = (quotaStatus: UsageQuotaStatus): Translat
     return null
   }
 
-  const primaryWindow = getPrimaryProUsageWindow(quotaStatus)
-  const warningLevel =
-    primaryWindow === "weekly"
-      ? quotaStatus.weeklyTokens?.warningLevel
-      : quotaStatus.rolling30DayTokens?.warningLevel
-
   if (quotaStatus.blockReason === "pro_weekly_tokens") {
     return "chats.proBlockedWeekly"
   }
-  if (quotaStatus.blockReason === "pro_rolling_30_day_tokens") {
+  if (quotaStatus.isBlocked) {
     return "chats.proBlockedRolling"
   }
-  if (warningLevel === "95") {
-    return primaryWindow === "weekly"
-      ? "chats.proWarningWeekly95"
-      : "chats.proWarningRolling95"
+  if (quotaStatus.weeklyTokens?.warningLevel === "95") {
+    return "chats.proWarningWeekly95"
   }
-  if (warningLevel === "80") {
-    return primaryWindow === "weekly"
-      ? "chats.proWarningWeekly80"
-      : "chats.proWarningRolling80"
+  if (quotaStatus.weeklyTokens?.warningLevel === "80") {
+    return "chats.proWarningWeekly80"
   }
   return null
 }

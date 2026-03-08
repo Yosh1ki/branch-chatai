@@ -220,6 +220,21 @@ export const applyQuotaBypassFlags = (
   options: { disableDailyLimit?: boolean } = {}
 ): UsageQuotaStatus => applyQuotaBypassFlagsToStatus(quotaStatus, options)
 
+export const sanitizeQuotaStatusForClient = (
+  quotaStatus: UsageQuotaStatus
+): UsageQuotaStatus => {
+  if (quotaStatus.planType !== "pro") {
+    return quotaStatus
+  }
+
+  return {
+    ...quotaStatus,
+    blockReason:
+      quotaStatus.blockReason === "pro_rolling_30_day_tokens" ? null : quotaStatus.blockReason,
+    rolling30DayTokens: null,
+  }
+}
+
 export const applyUsageToQuotaStatus = (
   quotaStatus: UsageQuotaStatus | null | undefined,
   usage?: Partial<UsageTokenTotals> | null

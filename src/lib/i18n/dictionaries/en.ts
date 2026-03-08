@@ -160,11 +160,11 @@ export const enDictionary: { [K in keyof JaDictionary]: string } = {
   "chats.proWarningWeekly95": "You have very little of this week's available usage left",
   "chats.proBlockedWeekly": "You cannot send messages because you reached this week's usage limit",
   "chats.proBlockedWeeklySub": "You can use it again after the next reset ({{hours}} hours left)",
-  "chats.proWarningRolling80": "You are approaching the rolling 30-day usage limit",
-  "chats.proWarningRolling95": "You have very little rolling 30-day usage left",
-  "chats.proBlockedRolling":
-    "You cannot send messages because you reached the rolling 30-day usage limit",
-  "chats.proBlockedRollingSub": "Please wait until your rolling 30-day usage drops back below the cap",
+  "chats.proWarningRolling80": "You are approaching this week's usage limit",
+  "chats.proWarningRolling95": "You have very little of this week's available usage left",
+  "chats.proBlockedRolling": "You cannot send messages because you reached the usage limit",
+  "chats.proBlockedRollingSub":
+    "Please wait until your current usage drops back below the cap",
   "chats.viewMode": "View mode",
   "chats.viewList": "List",
   "chats.viewDetail": "Detail",
@@ -242,7 +242,7 @@ export const enDictionary: { [K in keyof JaDictionary]: string } = {
   "errors.proWeeklyTokenLimitReached":
     "You cannot send messages because you reached this week's usage limit",
   "errors.proRolling30DayTokenLimitReached":
-    "You cannot send messages because you reached the rolling 30-day usage limit",
+    "You cannot send messages because you reached the usage limit",
 
   "richText.fallbackPlainText": "Unable to format content, showing plain text instead.",
 }

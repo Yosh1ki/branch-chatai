@@ -1,7 +1,7 @@
 import type { PlanType } from "@prisma/client"
 import prisma from "@/lib/prisma"
 import { getUsageQuotaStatus } from "@/lib/usage-limiter"
-import type { UsageQuotaStatus } from "@/lib/usage-quota"
+import { sanitizeQuotaStatusForClient, type UsageQuotaStatus } from "@/lib/usage-quota"
 
 export type SettingsViewData = {
   email: string | null
@@ -22,7 +22,7 @@ export async function getUserQuotaStatus(userId: string): Promise<{
   })
 
   const planType = user?.planType ?? "free"
-  const quotaStatus = await getUsageQuotaStatus(userId, planType)
+  const quotaStatus = sanitizeQuotaStatusForClient(await getUsageQuotaStatus(userId, planType))
 
   return {
     planType,
