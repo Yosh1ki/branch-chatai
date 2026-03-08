@@ -9,6 +9,9 @@ const isZoomKey = (event: KeyboardEvent) => {
   return key === "+" || key === "-" || key === "0" || key === "=";
 };
 
+const isCanvasTarget = (target: EventTarget | null) =>
+  target instanceof Element && Boolean(target.closest("[data-tree-viewport='true']"));
+
 export function DisableCanvasNavigation() {
   useEffect(() => {
     const html = document.documentElement;
@@ -24,6 +27,9 @@ export function DisableCanvasNavigation() {
     };
 
     const handleWheel = (event: WheelEvent) => {
+      if (isCanvasTarget(event.target)) {
+        return;
+      }
       if (event.ctrlKey) {
         event.preventDefault();
         return;
@@ -34,6 +40,9 @@ export function DisableCanvasNavigation() {
     };
 
     const handleGesture = (event: Event) => {
+      if (isCanvasTarget(event.target)) {
+        return;
+      }
       event.preventDefault();
     };
 

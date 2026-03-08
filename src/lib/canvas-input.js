@@ -1,14 +1,19 @@
 /**
- * @param {{ isMetaPressed: boolean; isSelectableTarget: boolean }} input
+ * @param {{ isMetaPressed: boolean; isInteractiveTarget: boolean; pointerType?: string }} input
  */
-export function getPointerDragBehavior({ isMetaPressed, isSelectableTarget }) {
+export function getPointerDragBehavior({
+  isMetaPressed,
+  isInteractiveTarget,
+  pointerType,
+}) {
   if (isMetaPressed) {
     return { allowDrag: true, allowSelection: false };
   }
-  if (isSelectableTarget) {
+  if (isInteractiveTarget) {
     return { allowDrag: false, allowSelection: true };
   }
-  return { allowDrag: false, allowSelection: false };
+  const isTouchLikePointer = pointerType === "touch" || pointerType === "pen";
+  return { allowDrag: isTouchLikePointer, allowSelection: false };
 }
 
 /**
