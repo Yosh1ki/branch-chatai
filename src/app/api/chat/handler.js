@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server.js";
 import { randomUUID } from "crypto";
+import { logChatTiming } from "@/lib/chat-timing";
 
 const getTokenCallbackStore = () => {
   const storeKey = "__branchTokenCallbacks";
@@ -39,13 +40,30 @@ const buildStreamResponse = ({
 }) => {
   const encoder = new TextEncoder();
   const fallbackChunkSize = 32;
+  const streamStartedAt =
+    typeof performance !== "undefined" && typeof performance.now === "function"
+      ? performance.now()
+      : Date.now();
 
   const streamBody = new ReadableStream({
     start(controller) {
       let isClosed = false;
       let emittedDelta = false;
+      let firstTokenLogged = false;
       const emit = (payload) => {
         if (isClosed) return;
+        if (!firstTokenLogged && payload?.type === "delta") {
+          firstTokenLogged = true;
+          const nowValue =
+            typeof performance !== "undefined" && typeof performance.now === "function"
+              ? performance.now()
+              : Date.now();
+          logChatTiming("chat_api_stream_first_token", {
+            chatId: args.chatId ?? null,
+            durationMs: Math.round((nowValue - streamStartedAt) * 100) / 100,
+            requestId,
+          });
+        }
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
       };
       const close = () => {
@@ -93,6 +111,16 @@ const buildStreamResponse = ({
           }
 
           emit({ type: "final", payload: result });
+          const nowValue =
+            typeof performance !== "undefined" && typeof performance.now === "function"
+              ? performance.now()
+              : Date.now();
+          logChatTiming("chat_api_stream_complete", {
+            chatId: result?.chat?.id ?? args.chatId ?? null,
+            durationMs: Math.round((nowValue - streamStartedAt) * 100) / 100,
+            emittedDelta,
+            requestId,
+          });
         } catch (error) {
           console.error("Error in chat stream API:", error);
           const err = error;
@@ -112,6 +140,17 @@ const buildStreamResponse = ({
           }
 
           emit({ type: "error", error: errorMessage, status, code, details });
+          const nowValue =
+            typeof performance !== "undefined" && typeof performance.now === "function"
+              ? performance.now()
+              : Date.now();
+          logChatTiming("chat_api_stream_error", {
+            chatId: args.chatId ?? null,
+            durationMs: Math.round((nowValue - streamStartedAt) * 100) / 100,
+            errorMessage,
+            requestId,
+            status,
+          });
         } finally {
           unregisterTokenCallback(requestId);
           close();
@@ -143,6 +182,10 @@ export const createChatHandler = ({ auth, sendChatMessage, ChatActionError }) =>
   };
 
   const POST = async (req) => {
+    const requestStartedAt =
+      typeof performance !== "undefined" && typeof performance.now === "function"
+        ? performance.now()
+        : Date.now();
     const session = await auth();
     if (!session?.user?.id) {
       return new NextResponse("Unauthorized", { status: 401 });
@@ -177,6 +220,16 @@ export const createChatHandler = ({ auth, sendChatMessage, ChatActionError }) =>
     };
 
     if (stream) {
+      const nowValue =
+        typeof performance !== "undefined" && typeof performance.now === "function"
+          ? performance.now()
+          : Date.now();
+      logChatTiming("chat_api_request", {
+        chatId: chatId ?? null,
+        durationMs: Math.round((nowValue - requestStartedAt) * 100) / 100,
+        mode: "stream_setup",
+        requestId: resolvedRequestId,
+      });
       return buildStreamResponse({
         sendChatMessage,
         ChatActionError,
@@ -188,11 +241,31 @@ export const createChatHandler = ({ auth, sendChatMessage, ChatActionError }) =>
     try {
       const result = await sendChatMessage(args);
       runAfterResponse(result, args);
+      const nowValue =
+        typeof performance !== "undefined" && typeof performance.now === "function"
+          ? performance.now()
+          : Date.now();
+      logChatTiming("chat_api_request", {
+        chatId: result?.chat?.id ?? chatId ?? null,
+        durationMs: Math.round((nowValue - requestStartedAt) * 100) / 100,
+        mode: "json",
+        requestId: resolvedRequestId,
+      });
 
       return NextResponse.json(result);
     } catch (error) {
       console.error("Error in chat API:", error);
       const err = error;
+      const nowValue =
+        typeof performance !== "undefined" && typeof performance.now === "function"
+          ? performance.now()
+          : Date.now();
+      logChatTiming("chat_api_error", {
+        chatId: chatId ?? null,
+        durationMs: Math.round((nowValue - requestStartedAt) * 100) / 100,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        requestId: resolvedRequestId,
+      });
 
       if (ChatActionError && error instanceof ChatActionError) {
         return NextResponse.json(

@@ -20,6 +20,7 @@ import type { ChatGraphState } from "@/lib/chat-graph-state"
 import { serializeMarkdownContent } from "@/lib/rich-text"
 import { buildDevAssistantResponse } from "@/lib/dev-assistant-response"
 import { fallbackChatTitle, inferChatTitleLocale } from "@/lib/chat-title"
+import { logChatTiming, measureChatTiming } from "@/lib/chat-timing"
 import {
   applyUsageToQuotaStatus,
   createEmptyTokenTotals,
@@ -42,6 +43,8 @@ type GraphState = ChatGraphState & {
   quotaStatus?: UsageQuotaStatus
   tokenUsage?: UsageTokenTotals
 }
+
+type GraphNode = (state: GraphState) => Promise<GraphState>
 
 const ChatGraphAnnotation = Annotation.Root({
   userId: Annotation<string>(),
@@ -76,6 +79,30 @@ const ChatGraphAnnotation = Annotation.Root({
     reducer: (prev, next) => next ?? prev ?? [],
   }),
 })
+
+const withTimedNode = (
+  step: string,
+  node: GraphNode,
+  options: {
+    onError?: (error: unknown, state: GraphState) => Record<string, unknown>
+    onSuccess?: (result: GraphState, state: GraphState) => Record<string, unknown>
+  } = {}
+): GraphNode => {
+  return async (state) =>
+    measureChatTiming(
+      "chat_graph_step",
+      {
+        chatId: state.chatId ?? null,
+        requestId: state.requestId || null,
+        step,
+      },
+      () => node(state),
+      {
+        onError: (error) => (options.onError ? options.onError(error, state) : {}),
+        onSuccess: (result) => (options.onSuccess ? options.onSuccess(result, state) : {}),
+      }
+    )
+}
 
 const resolveModelSelection = async (
   planType: UserPlanType,
@@ -456,13 +483,38 @@ const persistNode = async (state: GraphState) => {
 }
 
 const graphBuilder = new StateGraph(ChatGraphAnnotation)
-  .addNode("validate", validateNode)
-  .addNode("usage", usageNode)
-  .addNode("load_history", historyNode)
-  .addNode("safety", safetyNode)
-  .addNode("model", modelNode)
-  .addNode("moderate_output", outputModerationNode)
-  .addNode("persist", persistNode)
+  .addNode("validate", withTimedNode("validate", validateNode))
+  .addNode("usage", withTimedNode("usage", usageNode))
+  .addNode(
+    "load_history",
+    withTimedNode("load_history", historyNode, {
+      onSuccess: (result) => ({
+        historyLength: result.history?.length ?? 0,
+        summarized: Boolean(result.memorySummary),
+      }),
+    })
+  )
+  .addNode("safety", withTimedNode("safety", safetyNode))
+  .addNode(
+    "model",
+    withTimedNode("model", modelNode, {
+      onSuccess: (result) => ({
+        assistantChars: result.assistantText?.length ?? 0,
+        modelName: result.modelName ?? null,
+        modelProvider: result.modelProvider ?? null,
+      }),
+    })
+  )
+  .addNode("moderate_output", withTimedNode("moderate_output", outputModerationNode))
+  .addNode(
+    "persist",
+    withTimedNode("persist", persistNode, {
+      onSuccess: (result) => ({
+        createdChat: Boolean(result.createdChat),
+        idempotentHit: Boolean(result.idempotentHit),
+      }),
+    })
+  )
   .addEdge("validate", "usage")
   .addEdge("usage", "load_history")
   .addEdge("load_history", "safety")
@@ -475,5 +527,32 @@ graphBuilder.setEntryPoint("validate")
 const chatGraph = graphBuilder.compile()
 
 export const runChatGraph = async (state: GraphState) => {
-  return (await chatGraph.invoke(state)) as GraphState
+  const startedAt = now()
+
+  try {
+    const result = (await chatGraph.invoke(state)) as GraphState
+    logChatTiming("chat_graph_total", {
+      chatId: result.chatId ?? state.chatId ?? null,
+      createdChat: Boolean(result.createdChat),
+      durationMs: roundDuration(now() - startedAt),
+      requestId: result.requestId || state.requestId || null,
+    })
+    return result
+  } catch (error) {
+    logChatTiming("chat_graph_total", {
+      chatId: state.chatId ?? null,
+      durationMs: roundDuration(now() - startedAt),
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      requestId: state.requestId || null,
+    })
+    throw error
+  }
 }
+
+const roundDuration = (value: number) => Math.round(value * 100) / 100
+
+const now = () =>
+  typeof performance !== "undefined" && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now()

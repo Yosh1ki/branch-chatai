@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
+import { measureChatTiming } from "@/lib/chat-timing";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -14,47 +15,61 @@ export async function GET(
   }
 
   try {
-    const chat = await prisma.chat.findFirst({
-      where: {
-        id: chatId,
+    const chat = await measureChatTiming(
+      "chat_detail_query",
+      {
+        chatId,
         userId: session.user.id,
-        isArchived: false,
       },
-      select: {
-        id: true,
-        title: true,
-        languageCode: true,
-        rootMessageId: true,
-        createdAt: true,
-        updatedAt: true,
-        messages: {
+      () =>
+        prisma.chat.findFirst({
+          where: {
+            id: chatId,
+            userId: session.user.id,
+            isArchived: false,
+          },
           select: {
             id: true,
-            role: true,
-            content: true,
-            parentMessageId: true,
-            branchId: true,
-            modelProvider: true,
-            modelName: true,
-            modelReasoningEffort: true,
-          },
-          orderBy: {
-            createdAt: "asc",
-          },
-        },
-        branches: {
-          select: {
-            id: true,
-            parentMessageId: true,
-            side: true,
+            title: true,
+            languageCode: true,
+            rootMessageId: true,
             createdAt: true,
+            updatedAt: true,
+            messages: {
+              select: {
+                id: true,
+                role: true,
+                content: true,
+                parentMessageId: true,
+                branchId: true,
+                modelProvider: true,
+                modelName: true,
+                modelReasoningEffort: true,
+              },
+              orderBy: {
+                createdAt: "asc",
+              },
+            },
+            branches: {
+              select: {
+                id: true,
+                parentMessageId: true,
+                side: true,
+                createdAt: true,
+              },
+              orderBy: {
+                createdAt: "asc",
+              },
+            },
           },
-          orderBy: {
-            createdAt: "asc",
-          },
-        },
-      },
-    });
+        }),
+      {
+        onSuccess: (result) => ({
+          branchCount: result?.branches?.length ?? 0,
+          messageCount: result?.messages?.length ?? 0,
+        }),
+      }
+    );
 
     if (!chat) {
       return NextResponse.json(
