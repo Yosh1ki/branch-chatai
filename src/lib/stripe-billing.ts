@@ -18,6 +18,7 @@ export class StripeApiError extends Error {
 }
 
 const STRIPE_API_BASE_URL = "https://api.stripe.com/v1";
+const DEFAULT_BILLING_RETURN_PATH = "/chats";
 
 const getStripeSecretKey = () => {
   const secretKey = process.env.STRIPE_SECRET_KEY;
@@ -160,6 +161,24 @@ export const createStripePortalSession = async ({
 
   const session = await postStripeForm("/billing_portal/sessions", body);
   return readId(session, "url");
+};
+
+export const normalizeBillingReturnPath = (requestedPath: unknown) => {
+  if (typeof requestedPath !== "string") {
+    return DEFAULT_BILLING_RETURN_PATH;
+  }
+
+  const trimmedPath = requestedPath.trim();
+  if (!trimmedPath.startsWith("/") || trimmedPath.startsWith("//")) {
+    return DEFAULT_BILLING_RETURN_PATH;
+  }
+
+  try {
+    const parsedUrl = new URL(trimmedPath, "https://branch.local");
+    return `${parsedUrl.pathname}${parsedUrl.search}`;
+  } catch {
+    return DEFAULT_BILLING_RETURN_PATH;
+  }
 };
 
 export const resolveAppBaseUrl = (request: Request) => {

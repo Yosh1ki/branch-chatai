@@ -20,10 +20,18 @@ export function UpgradeActionButton({ planType, className }: UpgradeActionButton
       return
     }
 
+    const currentUrl = new URL(window.location.href)
+    currentUrl.searchParams.delete("settings")
+    const returnPath = `${currentUrl.pathname}${currentUrl.search}`
+
     setIsLoading(true)
     try {
       const response = await fetch(isPro ? "/api/billing/portal" : "/api/billing/checkout", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ returnPath }),
       })
       const payload = await response.json().catch(() => ({}))
 

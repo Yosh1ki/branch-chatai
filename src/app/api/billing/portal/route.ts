@@ -4,6 +4,7 @@ import {
   BillingConfigurationError,
   StripeApiError,
   createStripePortalSession,
+  normalizeBillingReturnPath,
   resolveAppBaseUrl,
 } from "@/lib/stripe-billing";
 import { NextResponse } from "next/server";
@@ -15,6 +16,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const payload = (await request.json().catch(() => ({}))) as { returnPath?: unknown };
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -34,10 +36,12 @@ export async function POST(request: Request) {
     }
 
     const baseUrl = resolveAppBaseUrl(request);
-    const returnUrl = new URL("/settings", baseUrl).toString();
+    const returnPath = normalizeBillingReturnPath(payload.returnPath);
+    const returnUrl = new URL(returnPath, baseUrl);
+    returnUrl.searchParams.set("settings", "open");
     const portalUrl = await createStripePortalSession({
       customerId: user.stripeCustomerId,
-      returnUrl,
+      returnUrl: returnUrl.toString(),
     });
 
     return NextResponse.json({ url: portalUrl });
