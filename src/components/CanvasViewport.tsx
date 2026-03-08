@@ -49,6 +49,9 @@ const DRAG_PAN_SENSITIVITY = 1.4;
 const FREE_WHEEL_PAN_SENSITIVITY = 1.4;
 const VERTICAL_WHEEL_PAN_SENSITIVITY = 1.4;
 const TOUCH_DRAG_ACTIVATION_DISTANCE_PX = 8;
+const INERTIA_FRICTION_PER_FRAME = 0.92;
+const INERTIA_MIN_VELOCITY_PX_PER_MS = 0.02;
+const DRAG_VELOCITY_SMOOTHING = 0.35;
 
 const getPinchMetrics = (points: PointerPosition[]) => {
   const dx = points[0].x - points[1].x;
@@ -145,6 +148,10 @@ export function CanvasViewport({
   const pendingInteractivePointers = useRef(new Map<number, PendingInteractivePointer>());
   const pinchState = useRef<PinchState | null>(null);
   const stateRef = useRef(state);
+  const lastDragSampleRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const dragVelocityRef = useRef({ x: 0, y: 0 });
+  const inertiaFrameRef = useRef<number | null>(null);
+  const hadPinchGestureRef = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
@@ -165,6 +172,61 @@ export function CanvasViewport({
     [applyState]
   );
 
+  const stopInertia = useCallback(() => {
+    if (inertiaFrameRef.current != null) {
+      window.cancelAnimationFrame(inertiaFrameRef.current);
+      inertiaFrameRef.current = null;
+    }
+  }, []);
+
+  const startInertia = useCallback(() => {
+    stopInertia();
+    const initialVelocity = dragVelocityRef.current;
+    if (
+      Math.abs(initialVelocity.x) < INERTIA_MIN_VELOCITY_PX_PER_MS &&
+      Math.abs(initialVelocity.y) < INERTIA_MIN_VELOCITY_PX_PER_MS
+    ) {
+      return;
+    }
+
+    let velocityX = initialVelocity.x;
+    let velocityY = initialVelocity.y;
+    let lastTime = performance.now();
+
+    const tick = (now: number) => {
+      const dt = Math.min(32, Math.max(1, now - lastTime));
+      lastTime = now;
+
+      const friction = Math.pow(INERTIA_FRICTION_PER_FRAME, dt / 16.67);
+      velocityX *= friction;
+      velocityY *= friction;
+
+      if (Math.abs(velocityX) < INERTIA_MIN_VELOCITY_PX_PER_MS) {
+        velocityX = 0;
+      }
+      if (Math.abs(velocityY) < INERTIA_MIN_VELOCITY_PX_PER_MS) {
+        velocityY = 0;
+      }
+
+      if (velocityX === 0 && velocityY === 0) {
+        inertiaFrameRef.current = null;
+        dragVelocityRef.current = { x: 0, y: 0 };
+        return;
+      }
+
+      const current = stateRef.current;
+      updateOffsets(
+        navigationMode === "vertical" ? current.offsetX : current.offsetX + velocityX * dt,
+        current.offsetY + velocityY * dt,
+        current.scale
+      );
+      dragVelocityRef.current = { x: velocityX, y: velocityY };
+      inertiaFrameRef.current = window.requestAnimationFrame(tick);
+    };
+
+    inertiaFrameRef.current = window.requestAnimationFrame(tick);
+  }, [navigationMode, stopInertia, updateOffsets]);
+
   const isInteractiveTarget = (target: EventTarget | null) => {
     if (!(target instanceof HTMLElement)) return false;
     if (target.closest("[data-allow-selection='true']")) return true;
@@ -181,21 +243,33 @@ export function CanvasViewport({
       event: React.PointerEvent<HTMLDivElement>,
       initialPoint: PointerPosition = { x: event.clientX, y: event.clientY }
     ) => {
+      stopInertia();
       event.preventDefault();
       event.currentTarget.setPointerCapture(event.pointerId);
       pointerMap.current.set(event.pointerId, initialPoint);
       setIsDragging(true);
       onPanStateChange?.(true);
+      lastDragSampleRef.current = {
+        x: initialPoint.x,
+        y: initialPoint.y,
+        time: performance.now(),
+      };
+      dragVelocityRef.current = { x: 0, y: 0 };
 
       if (pointerMap.current.size === 2) {
         const points = Array.from(pointerMap.current.values());
+        hadPinchGestureRef.current = true;
+        lastDragSampleRef.current = null;
+        dragVelocityRef.current = { x: 0, y: 0 };
         pinchState.current = navigationMode === "free" ? getPinchMetrics(points) : null;
       }
     },
-    [navigationMode, onPanStateChange]
+    [navigationMode, onPanStateChange, stopInertia]
   );
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    stopInertia();
+    dragVelocityRef.current = { x: 0, y: 0 };
     pendingInteractivePointers.current.delete(event.pointerId);
     const behavior = getPointerDragBehavior({
       isMetaPressed: event.metaKey,
@@ -242,6 +316,23 @@ export function CanvasViewport({
     if (pointerMap.current.size === 1 && prev) {
       const dx = (nextPoint.x - prev.x) * DRAG_PAN_SENSITIVITY;
       const dy = (nextPoint.y - prev.y) * DRAG_PAN_SENSITIVITY;
+      const now = performance.now();
+      const lastSample = lastDragSampleRef.current;
+      const dt = lastSample ? Math.max(1, now - lastSample.time) : 16.67;
+      const nextVelocityX =
+        navigationMode === "vertical"
+          ? 0
+          : dragVelocityRef.current.x * (1 - DRAG_VELOCITY_SMOOTHING) +
+            (dx / dt) * DRAG_VELOCITY_SMOOTHING;
+      const nextVelocityY =
+        dragVelocityRef.current.y * (1 - DRAG_VELOCITY_SMOOTHING) +
+        (dy / dt) * DRAG_VELOCITY_SMOOTHING;
+      dragVelocityRef.current = { x: nextVelocityX, y: nextVelocityY };
+      lastDragSampleRef.current = {
+        x: nextPoint.x,
+        y: nextPoint.y,
+        time: now,
+      };
       const current = stateRef.current;
       const nextOffsetX =
         navigationMode === "vertical" ? current.offsetX : current.offsetX + dx;
@@ -279,6 +370,7 @@ export function CanvasViewport({
       );
 
       pinchState.current = metrics;
+      dragVelocityRef.current = { x: 0, y: 0 };
       updateOffsets(nextOffsetX, nextOffsetY, nextScale);
     }
   };
@@ -292,8 +384,22 @@ export function CanvasViewport({
     if (pointerMap.current.size === 0) {
       setIsDragging(false);
       onPanStateChange?.(false);
+      lastDragSampleRef.current = null;
+      if (!hadPinchGestureRef.current) {
+        startInertia();
+      } else {
+        dragVelocityRef.current = { x: 0, y: 0 };
+        stopInertia();
+      }
+      hadPinchGestureRef.current = false;
     }
   };
+
+  useEffect(() => {
+    return () => {
+      stopInertia();
+    };
+  }, [stopInertia]);
 
   useEffect(() => {
     const node = containerRef.current;

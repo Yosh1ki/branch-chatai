@@ -23,6 +23,12 @@ test("free plan blocks GPT-5.2 Thinking while pro allows it", () => {
   assert.equal(proAllowed, true)
 })
 
+test("pro plan also blocks Claude Opus 4.5 because it is no longer selectable", () => {
+  const proAllowed = isModelSelectionAvailableForPlan("anthropic", "claude-opus-4-5", null, "pro")
+
+  assert.equal(proAllowed, false)
+})
+
 test("default model selection remains GPT-5.2", () => {
   assert.deepEqual(getDefaultModelSelectionForPlan("free"), {
     provider: "openai",

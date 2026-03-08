@@ -22,6 +22,10 @@ export const PROVIDER_LABELS: Record<ModelProvider, string> = {
   gemini: "Google",
 }
 
+const LEGACY_MODEL_LABELS: Record<string, string> = {
+  "anthropic:claude-opus-4-5:": "Claude Opus 4.5",
+}
+
 export const MODEL_OPTIONS: ModelOption[] = [
   { id: "gpt-5.2", provider: "openai", model: "gpt-5.2", label: "GPT-5.2" },
   {
@@ -30,12 +34,6 @@ export const MODEL_OPTIONS: ModelOption[] = [
     model: "gpt-5.2",
     label: "GPT-5.2 Thinking",
     reasoningEffort: "high",
-  },
-  {
-    id: "claude-opus-4-5",
-    provider: "anthropic",
-    model: "claude-opus-4-5",
-    label: "Claude Opus 4.5",
   },
   {
     id: "claude-sonnet-4-5",
@@ -89,9 +87,6 @@ export const isModelSelectionAvailableForPlan = (
   reasoningEffort: ReasoningEffort | null | undefined,
   planType: string | null | undefined
 ) => {
-  if (normalizePlanTier(planType) === "pro") {
-    return true
-  }
   const option = findModelOption(provider, model, reasoningEffort)
   return option ? isModelOptionAvailableForPlan(option, planType) : false
 }
@@ -139,6 +134,8 @@ export const getModelLabel = (
         option.provider === provider &&
         option.model === model &&
         (option.reasoningEffort ?? null) === (reasoningEffort ?? null)
-    )?.label ?? model
+    )?.label ??
+    LEGACY_MODEL_LABELS[`${provider}:${model}:${reasoningEffort ?? ""}`] ??
+    model
   )
 }
