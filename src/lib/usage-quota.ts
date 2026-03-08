@@ -7,14 +7,11 @@ import {
   USAGE_WARNING_THRESHOLD_HIGH,
   USAGE_WARNING_THRESHOLD_LOW,
 } from "@/lib/usage-limits"
+import { applyQuotaBypassFlagsToStatus, type UsageLimitReason } from "@/lib/usage-quota-core"
+
+export type { UsageLimitReason } from "@/lib/usage-quota-core"
 
 export type UsageWarningLevel = "none" | "80" | "95"
-
-export type UsageLimitReason =
-  | "free_daily_messages"
-  | "free_monthly_tokens"
-  | "pro_weekly_tokens"
-  | "pro_rolling_30_day_tokens"
 
 export type UsageTokenTotals = {
   inputTokens: number
@@ -217,6 +214,11 @@ export const createProQuotaStatus = ({
     weeklyTokens,
   }
 }
+
+export const applyQuotaBypassFlags = (
+  quotaStatus: UsageQuotaStatus,
+  options: { disableDailyLimit?: boolean } = {}
+): UsageQuotaStatus => applyQuotaBypassFlagsToStatus(quotaStatus, options)
 
 export const applyUsageToQuotaStatus = (
   quotaStatus: UsageQuotaStatus | null | undefined,

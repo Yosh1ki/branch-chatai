@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma"
 import { ChatActionError } from "@/lib/chat-errors"
 import { resolveUsagePeriodContext, type UsagePeriodContext } from "@/lib/usage-day"
 import {
+  applyQuotaBypassFlags,
   createEmptyTokenTotals,
   createFreeQuotaStatus,
   createProQuotaStatus,
@@ -247,11 +248,10 @@ export const assertWithinUsageLimits = async (
   options: UsageLimitOptions = {}
 ) => {
   const disableDailyLimit = process.env.DISABLE_DAILY_LIMIT === "true"
-  if (disableDailyLimit) {
-    return null
-  }
-
-  const quotaStatus = await getUsageQuotaStatus(userId, planType, options)
+  const quotaStatus = applyQuotaBypassFlags(
+    await getUsageQuotaStatus(userId, planType, options),
+    { disableDailyLimit }
+  )
   if (quotaStatus.blockReason) {
     throw buildLimitError(quotaStatus.blockReason, quotaStatus)
   }
