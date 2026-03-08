@@ -76,6 +76,18 @@ type LoginPageViewLabels = {
   footerTerms: string
 }
 
+type BranchHighlight = {
+  title: string
+  description: string
+  image?: {
+    lightSrc: string
+    darkSrc: string
+    alt: string
+    width: number
+    height: number
+  }
+}
+
 type LoginPageViewProps = {
   locale: LegalLocale
   labels: LoginPageViewLabels
@@ -90,18 +102,40 @@ export function LoginPageView({
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isPasswordVisible, setIsPasswordVisible] = useState(false)
-  const branchHighlights = [
+  const [expandedBranchImage, setExpandedBranchImage] = useState<BranchHighlight["image"] | null>(null)
+  const branchHighlights: BranchHighlight[] = [
     {
       title: labels.branchFeature1Title,
       description: labels.branchFeature1Description,
+      image: {
+        lightSrc: "/pictures/branching-light.png",
+        darkSrc: "/pictures/branching-dark.png",
+        alt: labels.branchFeature1Title,
+        width: 1804,
+        height: 1114,
+      },
     },
     {
       title: labels.branchFeature2Title,
       description: labels.branchFeature2Description,
+      image: {
+        lightSrc: "/pictures/multi-conversations-light.png",
+        darkSrc: "/pictures/multi-conversations-dark.png",
+        alt: labels.branchFeature2Title,
+        width: 1804,
+        height: 1114,
+      },
     },
     {
       title: labels.branchFeature3Title,
       description: labels.branchFeature3Description,
+      image: {
+        lightSrc: "/pictures/model-select-light.png",
+        darkSrc: "/pictures/model-select-dark.png",
+        alt: labels.branchFeature3Title,
+        width: 478,
+        height: 474,
+      },
     },
   ]
   const pricingPlans = getLoginPricingPlans((key) => {
@@ -137,13 +171,18 @@ export function LoginPageView({
   ]
 
   useEffect(() => {
-    if (!isLoginModalOpen) {
+    if (!isLoginModalOpen && !expandedBranchImage) {
       return
     }
 
     const previousOverflow = document.body.style.overflow
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        if (expandedBranchImage) {
+          setExpandedBranchImage(null)
+          return
+        }
+
         setIsLoginModalOpen(false)
       }
     }
@@ -155,7 +194,7 @@ export function LoginPageView({
       document.body.style.overflow = previousOverflow
       window.removeEventListener("keydown", handleKeyDown)
     }
-  }, [isLoginModalOpen])
+  }, [expandedBranchImage, isLoginModalOpen])
 
   return (
     <div className="min-h-screen bg-(--color-app-bg) text-main">
@@ -304,8 +343,31 @@ export function LoginPageView({
               {branchHighlights.map((highlight) => (
                 <article
                   key={highlight.title}
-                  className="rounded-[24px] border border-black/5 bg-white/70 p-5"
+                  className="rounded-[28px] border border-(--color-border-soft) bg-(--color-surface) p-5 shadow-[var(--color-shadow-card)]"
                 >
+                  {highlight.image ? (
+                    <button
+                      type="button"
+                      onClick={() => setExpandedBranchImage(highlight.image ?? null)}
+                      aria-label={`${highlight.image.alt} image preview`}
+                      className="mb-5 block w-full overflow-hidden rounded-[22px] border border-(--color-border-soft) bg-(--color-surface-soft) text-left transition-transform hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
+                    >
+                      <Image
+                        src={highlight.image.lightSrc}
+                        alt={highlight.image.alt}
+                        width={highlight.image.width}
+                        height={highlight.image.height}
+                        className="h-auto w-full dark:hidden"
+                      />
+                      <Image
+                        src={highlight.image.darkSrc}
+                        alt={highlight.image.alt}
+                        width={highlight.image.width}
+                        height={highlight.image.height}
+                        className="hidden h-auto w-full dark:block"
+                      />
+                    </button>
+                  ) : null}
                   <p className="text-lg font-semibold text-main">
                     {highlight.title}
                   </p>
@@ -432,6 +494,50 @@ export function LoginPageView({
           </nav>
         </div>
       </footer>
+
+      {expandedBranchImage ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={expandedBranchImage.alt}
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6"
+        >
+          <button
+            type="button"
+            aria-label={labels.closeModal}
+            onClick={() => setExpandedBranchImage(null)}
+            className="absolute inset-0 bg-black/65"
+          />
+          <div className="relative z-10 w-full max-w-6xl">
+            <button
+              type="button"
+              onClick={() => setExpandedBranchImage(null)}
+              aria-label={labels.closeModal}
+              className="absolute right-3 top-3 z-10 rounded-full bg-black/50 p-2 text-white transition-colors hover:bg-black/65 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+            >
+              <X className="h-5 w-5" strokeWidth={2.2} />
+            </button>
+            <div className="overflow-hidden rounded-[24px] border border-white/15 bg-(--color-app-bg) shadow-2xl">
+              <Image
+                src={expandedBranchImage.lightSrc}
+                alt={expandedBranchImage.alt}
+                width={expandedBranchImage.width}
+                height={expandedBranchImage.height}
+                className="h-auto max-h-[85vh] w-full object-contain dark:hidden"
+                priority
+              />
+              <Image
+                src={expandedBranchImage.darkSrc}
+                alt={expandedBranchImage.alt}
+                width={expandedBranchImage.width}
+                height={expandedBranchImage.height}
+                className="hidden h-auto max-h-[85vh] w-full object-contain dark:block"
+                priority
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {isLoginModalOpen ? (
         <div

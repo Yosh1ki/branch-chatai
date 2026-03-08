@@ -18,6 +18,7 @@ import { getSettingsViewData } from "@/lib/settings-view"
 import { SettingsSections } from "@/components/settings/settings-sections"
 import { fallbackChatTitle, inferChatTitleLocale } from "@/lib/chat-title"
 import { getUsageLimitErrorMessageKey } from "@/lib/usage-quota-messages"
+import { measureChatTiming } from "@/lib/chat-timing"
 
 async function getChats(userId: string) {
   const chats = await prisma.chat.findMany({
@@ -80,13 +81,27 @@ async function createChatAction(
   const trimmedPrompt = prompt.trim()
   const titleLocale = inferChatTitleLocale(trimmedPrompt)
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { planType: true },
-  })
+  const user = await measureChatTiming(
+    "create_chat_load_user",
+    {
+      userId: session.user.id,
+    },
+    () =>
+      prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { planType: true },
+      })
+  )
 
   try {
-    await assertWithinUsageLimits(session.user.id, user?.planType)
+    await measureChatTiming(
+      "create_chat_quota_check",
+      {
+        planType: user?.planType ?? "free",
+        userId: session.user.id,
+      },
+      () => assertWithinUsageLimits(session.user.id, user?.planType)
+    )
   } catch (error) {
     if (error instanceof ChatActionError && error.status === 429) {
       const errorCode = getUsageLimitErrorMessageKey(error.code)
@@ -99,14 +114,22 @@ async function createChatAction(
     throw error
   }
 
-  const chat = await prisma.chat.create({
-    data: {
+  const chat = await measureChatTiming(
+    "create_chat_insert",
+    {
+      locale: titleLocale,
       userId: session.user.id,
-      title: fallbackChatTitle(titleLocale),
-      languageCode: titleLocale,
     },
-    select: { id: true },
-  })
+    () =>
+      prisma.chat.create({
+        data: {
+          userId: session.user.id,
+          title: fallbackChatTitle(titleLocale),
+          languageCode: titleLocale,
+        },
+        select: { id: true },
+      })
+  )
 
   const params = new URLSearchParams({
     prompt: trimmedPrompt,
