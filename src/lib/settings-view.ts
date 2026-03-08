@@ -10,6 +10,26 @@ export type SettingsViewData = {
   quotaStatus: UsageQuotaStatus
 }
 
+export async function getUserQuotaStatus(userId: string): Promise<{
+  planType: PlanType
+  quotaStatus: UsageQuotaStatus
+}> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      planType: true,
+    },
+  })
+
+  const planType = user?.planType ?? "free"
+  const quotaStatus = await getUsageQuotaStatus(userId, planType)
+
+  return {
+    planType,
+    quotaStatus,
+  }
+}
+
 export async function getSettingsViewData(userId: string): Promise<SettingsViewData> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -20,8 +40,7 @@ export async function getSettingsViewData(userId: string): Promise<SettingsViewD
     },
   })
 
-  const planType = user?.planType ?? "free"
-  const quotaStatus = await getUsageQuotaStatus(userId, planType)
+  const { planType, quotaStatus } = await getUserQuotaStatus(userId)
 
   return {
     email: user?.email ?? null,

@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client"
 import prisma from "@/lib/prisma"
 import { parseMessageContent } from "@/lib/rich-text"
 import {
@@ -41,15 +42,39 @@ export const buildConversationHistory = async (
     return mainMessages.map((message) => toHistoryMessage(message))
   }
 
-  const allMessages = await prisma.message.findMany({
-    where: { chatId },
-    select: {
-      id: true,
-      role: true,
-      content: true,
-      parentMessageId: true,
-    },
-  })
+  const branchMessages = await prisma.$queryRaw<ConversationHistorySourceMessage[]>(Prisma.sql`
+    WITH RECURSIVE message_chain AS (
+      SELECT
+        id,
+        role,
+        content,
+        parent_message_id AS "parentMessageId",
+        0 AS depth
+      FROM messages
+      WHERE id = ${parentMessageId}
+        AND chat_id = ${chatId}
 
-  return buildParentChain(allMessages, parentMessageId)
+      UNION ALL
+
+      SELECT
+        parent_message.id,
+        parent_message.role,
+        parent_message.content,
+        parent_message.parent_message_id AS "parentMessageId",
+        child_chain.depth + 1
+      FROM messages AS parent_message
+      INNER JOIN message_chain AS child_chain
+        ON parent_message.id = child_chain."parentMessageId"
+      WHERE parent_message.chat_id = ${chatId}
+    )
+    SELECT
+      id,
+      role,
+      content,
+      "parentMessageId"
+    FROM message_chain
+    ORDER BY depth DESC
+  `)
+
+  return branchMessages.map((message) => toHistoryMessage(message))
 }

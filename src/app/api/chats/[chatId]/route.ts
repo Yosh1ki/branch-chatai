@@ -20,13 +20,35 @@ export async function GET(
         userId: session.user.id,
         isArchived: false,
       },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        languageCode: true,
+        rootMessageId: true,
+        createdAt: true,
+        updatedAt: true,
         messages: {
+          select: {
+            id: true,
+            role: true,
+            content: true,
+            parentMessageId: true,
+            branchId: true,
+            modelProvider: true,
+            modelName: true,
+            modelReasoningEffort: true,
+          },
           orderBy: {
             createdAt: "asc",
           },
         },
         branches: {
+          select: {
+            id: true,
+            parentMessageId: true,
+            side: true,
+            createdAt: true,
+          },
           orderBy: {
             createdAt: "asc",
           },

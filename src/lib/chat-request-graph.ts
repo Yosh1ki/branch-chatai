@@ -17,11 +17,11 @@ import { runModerationCheck } from "@/lib/moderation-client"
 import { assertWithinUsageLimits, recordUsageEvent } from "@/lib/usage-limiter"
 import { invokeWithFallback } from "@/lib/model-invoker"
 import type { ChatGraphState } from "@/lib/chat-graph-state"
-import { generateChatTitle } from "@/lib/title-generator"
 import { serializeMarkdownContent } from "@/lib/rich-text"
 import { buildDevAssistantResponse } from "@/lib/dev-assistant-response"
 import { fallbackChatTitle, inferChatTitleLocale } from "@/lib/chat-title"
 import {
+  applyUsageToQuotaStatus,
   createEmptyTokenTotals,
   type UsageQuotaStatus,
   type UsageTokenTotals,
@@ -437,10 +437,11 @@ const persistNode = async (state: GraphState) => {
     },
   })
 
-  const quotaStatus = await recordUsageEvent(
+  await recordUsageEvent(
     state.userId,
     state.planType,
-    state.tokenUsage ?? createEmptyTokenTotals()
+    state.tokenUsage ?? createEmptyTokenTotals(),
+    { skipQuotaStatus: true }
   )
 
   return {
@@ -450,24 +451,8 @@ const persistNode = async (state: GraphState) => {
     branchIdResolved,
     userMessage,
     assistantMessage,
-    quotaStatus,
+    quotaStatus: applyUsageToQuotaStatus(state.quotaStatus, state.tokenUsage) ?? state.quotaStatus,
   }
-}
-
-const titleNode = async (state: GraphState) => {
-  if (!state.chatRecord || !state.createdChat || state.idempotentHit) {
-    return state
-  }
-  const titleLocale = inferChatTitleLocale(state.content)
-  const title = await generateChatTitle(state.content, { locale: titleLocale })
-  await prisma.chat.update({
-    where: { id: state.chatRecord.id },
-    data: {
-      title,
-      languageCode: titleLocale,
-    },
-  })
-  return state
 }
 
 const graphBuilder = new StateGraph(ChatGraphAnnotation)
@@ -478,15 +463,13 @@ const graphBuilder = new StateGraph(ChatGraphAnnotation)
   .addNode("model", modelNode)
   .addNode("moderate_output", outputModerationNode)
   .addNode("persist", persistNode)
-  .addNode("title", titleNode)
   .addEdge("validate", "usage")
   .addEdge("usage", "load_history")
   .addEdge("load_history", "safety")
   .addEdge("safety", "model")
   .addEdge("model", "moderate_output")
   .addEdge("moderate_output", "persist")
-  .addEdge("persist", "title")
-  .addEdge("title", END)
+  .addEdge("persist", END)
 graphBuilder.setEntryPoint("validate")
 
 const chatGraph = graphBuilder.compile()

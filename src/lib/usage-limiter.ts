@@ -18,6 +18,7 @@ import { DAILY_LIMIT_TIME_ZONE, WEEKLY_LIMIT_RESET_DAY } from "@/lib/usage-limit
 
 type UsageLimitOptions = {
   periodContext?: UsagePeriodContext
+  skipQuotaStatus?: boolean
 }
 
 type UsageAggregateRow = {
@@ -319,6 +320,10 @@ export const recordUsageEvent = async (
         },
       })
     }
+  }
+
+  if (options.skipQuotaStatus) {
+    return null
   }
 
   return getUsageQuotaStatus(userId, normalizedPlanType, { periodContext })

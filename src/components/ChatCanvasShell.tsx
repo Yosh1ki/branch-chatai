@@ -40,7 +40,7 @@ type ChatCanvasShellProps = {
   initialModelProvider?: string;
   initialModelName?: string;
   initialModelReasoningEffort?: string;
-  initialQuotaStatus: UsageQuotaStatus;
+  initialQuotaStatus: UsageQuotaStatus | null;
   settingsContent: ReactNode;
   user: {
     name?: string | null;
@@ -110,7 +110,7 @@ export function ChatCanvasShell({
   const selectedModel = useChatSessionStore((store) => store.selectedModel);
   const setSelectedModel = useChatSessionStore((store) => store.setSelectedModel);
   const [promptText, setPromptText] = useState("");
-  const [quotaStatus, setQuotaStatus] = useState(initialQuotaStatus);
+  const [quotaStatus, setQuotaStatus] = useState<UsageQuotaStatus | null>(initialQuotaStatus);
   const isSending = useChatSessionStore((store) => store.isSending);
   const setIsSending = useChatSessionStore((store) => store.setIsSending);
   const sendError = useChatSessionStore((store) => store.sendError);
@@ -336,7 +336,7 @@ export function ChatCanvasShell({
     [t]
   );
 
-  const isUsageBlocked = quotaStatus.isBlocked;
+  const isUsageBlocked = quotaStatus?.isBlocked ?? false;
 
   const getNextTempId = useCallback((prefix: string) => {
     tempIdRef.current += 1;
@@ -868,6 +868,37 @@ export function ChatCanvasShell({
     textarea.style.height = "auto";
     textarea.style.height = `${textarea.scrollHeight}px`;
   }, [promptText]);
+
+  useEffect(() => {
+    if (quotaStatus) {
+      return;
+    }
+
+    let isActive = true;
+
+    const loadQuotaStatus = async () => {
+      try {
+        const response = await fetch("/api/settings", { cache: "no-store" });
+        const payload = (await response.json().catch(() => ({}))) as {
+          quotaStatus?: UsageQuotaStatus;
+        };
+
+        if (!response.ok || !payload?.quotaStatus || !isActive) {
+          return;
+        }
+
+        setQuotaStatus(payload.quotaStatus);
+      } catch (error) {
+        console.error("Failed to load quota status:", error);
+      }
+    };
+
+    void loadQuotaStatus();
+
+    return () => {
+      isActive = false;
+    };
+  }, [quotaStatus]);
 
   const initialModelSelection = useMemo(() => {
     if (
@@ -2069,7 +2100,7 @@ export function ChatCanvasShell({
       data-prevent-viewport-jump="true"
     >
       <div className="grid gap-3">
-        <UsageQuotaNotice quotaStatus={quotaStatus} showUsageDetails={false} />
+        {quotaStatus ? <UsageQuotaNotice quotaStatus={quotaStatus} showUsageDetails={false} /> : null}
         <form
           onSubmit={(event) => {
             event.preventDefault();

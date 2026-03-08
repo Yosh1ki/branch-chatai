@@ -191,24 +191,21 @@ export const fetchDatabaseNow = async (prismaClient: QueryRawClient) => {
 type ResolveDailyLimitUsageDayOptions = {
   prismaClient?: QueryRawClient
   window?: DailyLimitWindow
-}
-
-const loadDefaultPrismaClient = async (): Promise<QueryRawClient> => {
-  const prismaModule = await import("@/lib/prisma")
-  return prismaModule.default as QueryRawClient
+  sourceNow?: Date
 }
 
 export const resolveDailyLimitUsageDay = async ({
   window = DEFAULT_DAILY_LIMIT_WINDOW,
   prismaClient,
+  sourceNow,
 }: ResolveDailyLimitUsageDayOptions = {}): Promise<DailyLimitUsageDay> => {
   const validatedWindow = validateDailyLimitWindow(window)
-  const sourceNow = await fetchDatabaseNow(prismaClient ?? (await loadDefaultPrismaClient()))
-  const usageDay = resolveUsageDayFromNow(sourceNow, validatedWindow)
+  const resolvedSourceNow = sourceNow ?? (prismaClient ? await fetchDatabaseNow(prismaClient) : new Date())
+  const usageDay = resolveUsageDayFromNow(resolvedSourceNow, validatedWindow)
 
   return {
     ...validatedWindow,
-    sourceNow,
+    sourceNow: resolvedSourceNow,
     usageDay,
   }
 }
@@ -260,10 +257,11 @@ type ResolveUsagePeriodContextOptions = ResolveDailyLimitUsageDayOptions & {
 
 export const resolveUsagePeriodContext = async ({
   prismaClient,
+  sourceNow,
   weekStartsOn = 1,
   window = DEFAULT_DAILY_LIMIT_WINDOW,
 }: ResolveUsagePeriodContextOptions = {}): Promise<UsagePeriodContext> => {
   const validatedWindow = validateDailyLimitWindow(window)
-  const sourceNow = await fetchDatabaseNow(prismaClient ?? (await loadDefaultPrismaClient()))
-  return resolveUsagePeriodContextFromNow(sourceNow, validatedWindow, weekStartsOn)
+  const resolvedSourceNow = sourceNow ?? (prismaClient ? await fetchDatabaseNow(prismaClient) : new Date())
+  return resolveUsagePeriodContextFromNow(resolvedSourceNow, validatedWindow, weekStartsOn)
 }
