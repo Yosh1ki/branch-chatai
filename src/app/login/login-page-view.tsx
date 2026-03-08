@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { LanguageToggle } from "@/components/i18n/language-toggle";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -133,8 +133,8 @@ export function LoginPageView({
         lightSrc: "/pictures/model-select-light.png",
         darkSrc: "/pictures/model-select-dark.png",
         alt: labels.branchFeature3Title,
-        width: 478,
-        height: 474,
+        width: 798,
+        height: 520,
       },
     },
   ]
@@ -316,8 +316,8 @@ export function LoginPageView({
               <GoogleSignInSubmitButton className="rounded-full transition-[filter] duration-200 hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82]" />
             </form>
           </div>
-          <div className="flex items-center justify-center" aria-hidden="true">
-            <div className="h-80 w-full rounded-[28px] bg-theme-main sm:h-[380px] md:h-[520px]" />
+          <div className="flex items-center justify-center">
+            <LoginVideoCarousel />
           </div>
         </section>
 
@@ -746,5 +746,137 @@ function GoogleSignInSubmitButton({
         ) : null}
       </span>
     </button>
+  )
+}
+
+type LoginVideo = {
+  src: string
+  caption: string
+}
+
+const LOGIN_VIDEOS: LoginVideo[] = [
+  {
+    src: "/pictures/Branch紹介動画part1.mp4",
+    caption: "次世代のAIチャット",
+  },
+  {
+    src: "/pictures/Branch紹介動画part2.mp4",
+    caption: "ブランチを作成して別の話題に",
+  },
+  {
+    src: "/pictures/Branch紹介動画part3.mp4",
+    caption: "メインの会話はそのまま",
+  },
+]
+
+function LoginVideoCarousel() {
+  const [activeVideoIndex, setActiveVideoIndex] = useState(0)
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
+  const swipeStartX = useRef<number | null>(null)
+
+  const showVideo = (nextIndex: number) => {
+    const normalizedIndex = (nextIndex + LOGIN_VIDEOS.length) % LOGIN_VIDEOS.length
+    setActiveVideoIndex(normalizedIndex)
+  }
+
+  useEffect(() => {
+    videoRefs.current.forEach((videoElement, index) => {
+      if (!videoElement) {
+        return
+      }
+
+      if (index === activeVideoIndex) {
+        videoElement.currentTime = 0
+        const playPromise = videoElement.play()
+
+        if (playPromise) {
+          void playPromise.catch(() => {})
+        }
+
+        return
+      }
+
+      videoElement.pause()
+      videoElement.currentTime = 0
+    })
+  }, [activeVideoIndex])
+
+  const handleSwipeStart = (clientX: number) => {
+    swipeStartX.current = clientX
+  }
+
+  const handleSwipeEnd = (clientX: number) => {
+    if (swipeStartX.current === null) {
+      return
+    }
+
+    const deltaX = clientX - swipeStartX.current
+    swipeStartX.current = null
+
+    if (Math.abs(deltaX) < 48) {
+      return
+    }
+
+    showVideo(activeVideoIndex + (deltaX < 0 ? 1 : -1))
+  }
+
+  return (
+    <div className="w-full">
+      <section
+        aria-label="Branch introduction videos"
+        className="w-full rounded-[28px] bg-theme-main p-4 sm:p-5 md:p-6"
+      >
+        <div className="px-2 pb-4 text-center text-2xl font-semibold text-main sm:text-3xl md:text-4xl">
+          {LOGIN_VIDEOS[activeVideoIndex]?.caption}
+        </div>
+        <div
+          className="flex h-80 flex-col rounded-[22px] bg-transparent p-3 sm:h-[380px] sm:p-4 md:h-[520px]"
+          onPointerDown={(event) => handleSwipeStart(event.clientX)}
+          onPointerUp={(event) => handleSwipeEnd(event.clientX)}
+          onPointerCancel={() => {
+            swipeStartX.current = null
+          }}
+        >
+          <div className="relative flex-1 overflow-hidden rounded-[18px] bg-transparent">
+            {LOGIN_VIDEOS.map((video, index) => (
+              <video
+                key={video.src}
+                ref={(element) => {
+                  videoRefs.current[index] = element
+                }}
+                muted
+                playsInline
+                preload={index === 0 ? "auto" : "metadata"}
+                onEnded={() => showVideo(index + 1)}
+                className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${
+                  index === activeVideoIndex ? "opacity-100" : "pointer-events-none opacity-0"
+                }`}
+              >
+                <source src={video.src} type="video/mp4" />
+              </video>
+            ))}
+          </div>
+
+          <div className="mt-4 flex items-center justify-center gap-2">
+            {LOGIN_VIDEOS.map((video, index) => {
+              const isActive = index === activeVideoIndex
+
+              return (
+                <button
+                  key={video.src}
+                  type="button"
+                  aria-label={`動画 ${index + 1} を表示`}
+                  aria-pressed={isActive}
+                  onClick={() => showVideo(index)}
+                  className={`h-2.5 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${
+                    isActive ? "w-8 bg-white" : "w-2.5 bg-white/45 hover:bg-white/65"
+                  }`}
+                />
+              )
+            })}
+          </div>
+        </div>
+      </section>
+    </div>
   )
 }
