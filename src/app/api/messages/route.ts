@@ -11,6 +11,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const userId = session.user.id;
+
   try {
     const body = await req.json();
     const {
@@ -34,7 +36,7 @@ export async function POST(req: Request) {
     const chat = await prisma.chat.findFirst({
       where: {
         id: chatId,
-        userId: session.user.id,
+        userId,
         isArchived: false,
       },
       select: {
@@ -90,11 +92,11 @@ export async function POST(req: Request) {
 
     // 1. Check Usage Limits for Free Plan
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: userId },
       select: { planType: true },
     });
 
-    await assertWithinUsageLimits(session.user.id, user?.planType);
+    await assertWithinUsageLimits(userId, user?.planType);
 
     // 2. Create Message
     const message = await prisma.message.create({
@@ -125,7 +127,7 @@ export async function POST(req: Request) {
     }
 
     // 4. Update Usage Stats
-    await recordUsageEvent(session.user.id, user?.planType, {
+    await recordUsageEvent(userId, user?.planType, {
       inputTokens: 0,
       outputTokens: 0,
       totalTokens: 0,

@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { LanguageToggle } from "@/components/i18n/language-toggle";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -76,6 +76,18 @@ type LoginPageViewLabels = {
   footerTerms: string
 }
 
+type BranchHighlight = {
+  title: string
+  description: string
+  image?: {
+    lightSrc: string
+    darkSrc: string
+    alt: string
+    width: number
+    height: number
+  }
+}
+
 type LoginPageViewProps = {
   locale: LegalLocale
   labels: LoginPageViewLabels
@@ -90,18 +102,40 @@ export function LoginPageView({
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isPasswordVisible, setIsPasswordVisible] = useState(false)
-  const branchHighlights = [
+  const [expandedBranchImage, setExpandedBranchImage] = useState<BranchHighlight["image"] | null>(null)
+  const branchHighlights: BranchHighlight[] = [
     {
       title: labels.branchFeature1Title,
       description: labels.branchFeature1Description,
+      image: {
+        lightSrc: "/pictures/branching-light.png",
+        darkSrc: "/pictures/branching-dark.png",
+        alt: labels.branchFeature1Title,
+        width: 1804,
+        height: 1114,
+      },
     },
     {
       title: labels.branchFeature2Title,
       description: labels.branchFeature2Description,
+      image: {
+        lightSrc: "/pictures/multi-conversations-light.png",
+        darkSrc: "/pictures/multi-conversations-dark.png",
+        alt: labels.branchFeature2Title,
+        width: 1804,
+        height: 1114,
+      },
     },
     {
       title: labels.branchFeature3Title,
       description: labels.branchFeature3Description,
+      image: {
+        lightSrc: "/pictures/model-select-light.png",
+        darkSrc: "/pictures/model-select-dark.png",
+        alt: labels.branchFeature3Title,
+        width: 798,
+        height: 520,
+      },
     },
   ]
   const pricingPlans = getLoginPricingPlans((key) => {
@@ -137,13 +171,18 @@ export function LoginPageView({
   ]
 
   useEffect(() => {
-    if (!isLoginModalOpen) {
+    if (!isLoginModalOpen && !expandedBranchImage) {
       return
     }
 
     const previousOverflow = document.body.style.overflow
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        if (expandedBranchImage) {
+          setExpandedBranchImage(null)
+          return
+        }
+
         setIsLoginModalOpen(false)
       }
     }
@@ -155,7 +194,7 @@ export function LoginPageView({
       document.body.style.overflow = previousOverflow
       window.removeEventListener("keydown", handleKeyDown)
     }
-  }, [isLoginModalOpen])
+  }, [expandedBranchImage, isLoginModalOpen])
 
   return (
     <div className="min-h-screen bg-(--color-app-bg) text-main">
@@ -277,8 +316,8 @@ export function LoginPageView({
               <GoogleSignInSubmitButton className="rounded-full transition-[filter] duration-200 hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#b7da82]" />
             </form>
           </div>
-          <div className="flex items-center justify-center" aria-hidden="true">
-            <div className="h-80 w-full rounded-[28px] bg-theme-main sm:h-[380px] md:h-[520px]" />
+          <div className="flex items-center justify-center">
+            <LoginVideoCarousel />
           </div>
         </section>
 
@@ -304,8 +343,31 @@ export function LoginPageView({
               {branchHighlights.map((highlight) => (
                 <article
                   key={highlight.title}
-                  className="rounded-[24px] border border-black/5 bg-white/70 p-5"
+                  className="rounded-[28px] border border-(--color-border-soft) bg-(--color-surface) p-5 shadow-[var(--color-shadow-card)]"
                 >
+                  {highlight.image ? (
+                    <button
+                      type="button"
+                      onClick={() => setExpandedBranchImage(highlight.image ?? null)}
+                      aria-label={`${highlight.image.alt} image preview`}
+                      className="mb-5 block w-full overflow-hidden rounded-[22px] border border-(--color-border-soft) bg-(--color-surface-soft) text-left transition-transform hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-focus-ring)"
+                    >
+                      <Image
+                        src={highlight.image.lightSrc}
+                        alt={highlight.image.alt}
+                        width={highlight.image.width}
+                        height={highlight.image.height}
+                        className="h-auto w-full dark:hidden"
+                      />
+                      <Image
+                        src={highlight.image.darkSrc}
+                        alt={highlight.image.alt}
+                        width={highlight.image.width}
+                        height={highlight.image.height}
+                        className="hidden h-auto w-full dark:block"
+                      />
+                    </button>
+                  ) : null}
                   <p className="text-lg font-semibold text-main">
                     {highlight.title}
                   </p>
@@ -432,6 +494,50 @@ export function LoginPageView({
           </nav>
         </div>
       </footer>
+
+      {expandedBranchImage ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={expandedBranchImage.alt}
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6"
+        >
+          <button
+            type="button"
+            aria-label={labels.closeModal}
+            onClick={() => setExpandedBranchImage(null)}
+            className="absolute inset-0 bg-black/65"
+          />
+          <div className="relative z-10 w-full max-w-6xl">
+            <button
+              type="button"
+              onClick={() => setExpandedBranchImage(null)}
+              aria-label={labels.closeModal}
+              className="absolute right-3 top-3 z-10 rounded-full bg-black/50 p-2 text-white transition-colors hover:bg-black/65 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+            >
+              <X className="h-5 w-5" strokeWidth={2.2} />
+            </button>
+            <div className="overflow-hidden rounded-[24px] border border-white/15 bg-(--color-app-bg) shadow-2xl">
+              <Image
+                src={expandedBranchImage.lightSrc}
+                alt={expandedBranchImage.alt}
+                width={expandedBranchImage.width}
+                height={expandedBranchImage.height}
+                className="h-auto max-h-[85vh] w-full object-contain dark:hidden"
+                priority
+              />
+              <Image
+                src={expandedBranchImage.darkSrc}
+                alt={expandedBranchImage.alt}
+                width={expandedBranchImage.width}
+                height={expandedBranchImage.height}
+                className="hidden h-auto max-h-[85vh] w-full object-contain dark:block"
+                priority
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {isLoginModalOpen ? (
         <div
@@ -640,5 +746,137 @@ function GoogleSignInSubmitButton({
         ) : null}
       </span>
     </button>
+  )
+}
+
+type LoginVideo = {
+  src: string
+  caption: string
+}
+
+const LOGIN_VIDEOS: LoginVideo[] = [
+  {
+    src: "/pictures/Branch紹介動画part1.mp4",
+    caption: "次世代のAIチャット",
+  },
+  {
+    src: "/pictures/Branch紹介動画part2.mp4",
+    caption: "ブランチを作成して別の話題に",
+  },
+  {
+    src: "/pictures/Branch紹介動画part3.mp4",
+    caption: "メインの会話はそのまま",
+  },
+]
+
+function LoginVideoCarousel() {
+  const [activeVideoIndex, setActiveVideoIndex] = useState(0)
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
+  const swipeStartX = useRef<number | null>(null)
+
+  const showVideo = (nextIndex: number) => {
+    const normalizedIndex = (nextIndex + LOGIN_VIDEOS.length) % LOGIN_VIDEOS.length
+    setActiveVideoIndex(normalizedIndex)
+  }
+
+  useEffect(() => {
+    videoRefs.current.forEach((videoElement, index) => {
+      if (!videoElement) {
+        return
+      }
+
+      if (index === activeVideoIndex) {
+        videoElement.currentTime = 0
+        const playPromise = videoElement.play()
+
+        if (playPromise) {
+          void playPromise.catch(() => {})
+        }
+
+        return
+      }
+
+      videoElement.pause()
+      videoElement.currentTime = 0
+    })
+  }, [activeVideoIndex])
+
+  const handleSwipeStart = (clientX: number) => {
+    swipeStartX.current = clientX
+  }
+
+  const handleSwipeEnd = (clientX: number) => {
+    if (swipeStartX.current === null) {
+      return
+    }
+
+    const deltaX = clientX - swipeStartX.current
+    swipeStartX.current = null
+
+    if (Math.abs(deltaX) < 48) {
+      return
+    }
+
+    showVideo(activeVideoIndex + (deltaX < 0 ? 1 : -1))
+  }
+
+  return (
+    <div className="w-full">
+      <section
+        aria-label="Branch introduction videos"
+        className="w-full rounded-[28px] bg-theme-main p-4 sm:p-5 md:p-6"
+      >
+        <div className="px-2 pb-4 text-center text-2xl font-semibold text-main sm:text-3xl md:text-4xl">
+          {LOGIN_VIDEOS[activeVideoIndex]?.caption}
+        </div>
+        <div
+          className="flex h-80 flex-col rounded-[22px] bg-transparent p-3 sm:h-[380px] sm:p-4 md:h-[520px]"
+          onPointerDown={(event) => handleSwipeStart(event.clientX)}
+          onPointerUp={(event) => handleSwipeEnd(event.clientX)}
+          onPointerCancel={() => {
+            swipeStartX.current = null
+          }}
+        >
+          <div className="relative flex-1 overflow-hidden rounded-[18px] bg-transparent">
+            {LOGIN_VIDEOS.map((video, index) => (
+              <video
+                key={video.src}
+                ref={(element) => {
+                  videoRefs.current[index] = element
+                }}
+                muted
+                playsInline
+                preload={index === 0 ? "auto" : "metadata"}
+                onEnded={() => showVideo(index + 1)}
+                className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${
+                  index === activeVideoIndex ? "opacity-100" : "pointer-events-none opacity-0"
+                }`}
+              >
+                <source src={video.src} type="video/mp4" />
+              </video>
+            ))}
+          </div>
+
+          <div className="mt-4 flex items-center justify-center gap-2">
+            {LOGIN_VIDEOS.map((video, index) => {
+              const isActive = index === activeVideoIndex
+
+              return (
+                <button
+                  key={video.src}
+                  type="button"
+                  aria-label={`動画 ${index + 1} を表示`}
+                  aria-pressed={isActive}
+                  onClick={() => showVideo(index)}
+                  className={`h-2.5 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${
+                    isActive ? "w-8 bg-white" : "w-2.5 bg-white/45 hover:bg-white/65"
+                  }`}
+                />
+              )
+            })}
+          </div>
+        </div>
+      </section>
+    </div>
   )
 }

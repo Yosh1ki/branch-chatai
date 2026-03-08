@@ -16,8 +16,10 @@ export async function GET() {
     return NextResponse.json({ themePreference: parseThemePreference(undefined) })
   }
 
+  const userId = session.user.id;
+
   try {
-    const themePreference = await getStoredThemePreference(prisma, session.user.id)
+    const themePreference = await getStoredThemePreference(prisma, userId)
     return NextResponse.json({ themePreference })
   } catch (error) {
     console.error("Failed to load theme preference:", error)
@@ -36,10 +38,11 @@ export async function POST(request: Request) {
   }
 
   const nextThemePreference = parseThemePreference(body.themePreference)
+  const userId = session?.user?.id
 
   try {
-    const themePreference = session?.user?.id
-      ? await saveThemePreference(prisma, session.user.id, nextThemePreference)
+    const themePreference = userId
+      ? await saveThemePreference(prisma, userId, nextThemePreference)
       : nextThemePreference
 
     const response = NextResponse.json({ themePreference })

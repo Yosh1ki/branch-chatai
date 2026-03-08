@@ -23,6 +23,7 @@ export function SettingsSectionsLoader({ locale }: SettingsSectionsLoaderProps) 
 
   useEffect(() => {
     let isActive = true
+    const translate = createTranslator(locale)
 
     const loadSettings = async () => {
       try {
@@ -49,7 +50,7 @@ export function SettingsSectionsLoader({ locale }: SettingsSectionsLoaderProps) 
         }
 
         console.error("Failed to load settings sections:", loadError)
-        setError(t("errors.fetchResponseFailed"))
+        setError(translate("errors.fetchResponseFailed"))
       }
     }
 
@@ -58,7 +59,7 @@ export function SettingsSectionsLoader({ locale }: SettingsSectionsLoaderProps) 
     return () => {
       isActive = false
     }
-  }, [t])
+  }, [locale])
 
   if (settings) {
     return <SettingsSections locale={locale} settings={settings} />

@@ -124,8 +124,6 @@ export function PromptCard({ action, planType, quotaStatus }: PromptCardProps) {
         return t("prompt.modelHint.gpt52")
       case "gpt-5.2-thinking":
         return t("prompt.modelHint.gpt52Thinking")
-      case "claude-opus-4-5":
-        return t("prompt.modelHint.claudeOpus45")
       case "claude-sonnet-4-5":
         return t("prompt.modelHint.claudeSonnet45")
       case "gemini-2.5-pro":

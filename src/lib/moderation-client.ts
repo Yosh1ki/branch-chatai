@@ -1,6 +1,7 @@
 import OpenAI from "openai"
 import { getOpenAIClient } from "@/lib/openai-client"
 import { ChatActionError } from "@/lib/chat-errors"
+import { formatModelInvocationError, readErrorStatus, toUpstreamErrorStatus } from "@/lib/model-invoker-errors"
 import { evaluateModerationResult } from "@/lib/moderation-eval"
 import type { Moderation } from "openai/resources/moderations"
 
@@ -29,6 +30,19 @@ export const runModerationCheck = async (
       input,
     })
   } catch (error) {
+    const status = readErrorStatus(error)
+
+    if (status != null && status >= 300 && status < 400) {
+      console.error("OpenAI moderation upstream redirect detected", {
+        status,
+        hasSdkBaseUrlOverrideEnv: Boolean(process.env.OPENAI_BASE_URL),
+      })
+      throw new ChatActionError(
+        formatModelInvocationError("openai", error),
+        toUpstreamErrorStatus(status)
+      )
+    }
+
     if (error instanceof OpenAI.APIError) {
       const status = error.status ?? 500
       let message = "OpenAI moderation request failed."

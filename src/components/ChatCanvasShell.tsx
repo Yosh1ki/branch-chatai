@@ -2319,7 +2319,7 @@ export function ChatCanvasShell({
       </div>
       {indicatorContent ? (
         <div
-          className={`pointer-events-none fixed inset-x-0 bottom-20 z-45 flex justify-center px-4 transition-opacity duration-300 ${
+          className={`pointer-events-none fixed inset-x-0 bottom-12 z-45 flex justify-center px-4 transition-opacity duration-300 sm:bottom-20 ${
             isBranchIndicatorIdle ? "opacity-15" : "opacity-100"
           }`}
         >
