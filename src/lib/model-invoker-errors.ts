@@ -2,6 +2,7 @@ import type { ModelProvider } from "./model-catalog"
 
 export const GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com"
 export const ANTHROPIC_API_BASE_URL = "https://api.anthropic.com"
+export const OPENAI_API_BASE_URL = "https://api.openai.com/v1"
 
 export const readErrorStatus = (error: unknown) => {
   const status = (error as { status?: unknown })?.status
@@ -27,6 +28,10 @@ export const formatModelInvocationError = (provider: ModelProvider, error: unkno
 
     if (provider === "anthropic") {
       return `Anthropic upstream returned redirect status ${status}. Check deployment proxy settings for requests to api.anthropic.com.`
+    }
+
+    if (provider === "openai") {
+      return `OpenAI upstream returned redirect status ${status}. Check deployment proxy settings and OPENAI_BASE_URL.`
     }
   }
 

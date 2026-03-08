@@ -25,6 +25,16 @@ test("formatModelInvocationError explains Anthropic redirect responses", () => {
   assert.match(message, /api\.anthropic\.com/)
 })
 
+test("formatModelInvocationError explains OpenAI redirect responses", () => {
+  const message = formatModelInvocationError("openai", {
+    status: 303,
+    message: "See Other",
+  })
+
+  assert.match(message, /OpenAI upstream returned redirect status 303/)
+  assert.match(message, /OPENAI_BASE_URL/)
+})
+
 test("formatModelInvocationError falls back to upstream message for non-redirect errors", () => {
   const message = formatModelInvocationError("anthropic", {
     status: 429,

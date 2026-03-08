@@ -38,11 +38,17 @@ type PinchState = {
   centerY: number;
 };
 
+type PendingInteractivePointer = {
+  x: number;
+  y: number;
+};
+
 const WHEEL_ZOOM_SENSITIVITY = 0.01;
 const WHEEL_LINE_HEIGHT_PX = 16;
 const DRAG_PAN_SENSITIVITY = 1.4;
 const FREE_WHEEL_PAN_SENSITIVITY = 1.4;
 const VERTICAL_WHEEL_PAN_SENSITIVITY = 1.4;
+const TOUCH_DRAG_ACTIVATION_DISTANCE_PX = 8;
 
 const getPinchMetrics = (points: PointerPosition[]) => {
   const dx = points[0].x - points[1].x;
@@ -136,6 +142,7 @@ export function CanvasViewport({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const pointerMap = useRef(new Map<number, PointerPosition>());
+  const pendingInteractivePointers = useRef(new Map<number, PendingInteractivePointer>());
   const pinchState = useRef<PinchState | null>(null);
   const stateRef = useRef(state);
   const [isDragging, setIsDragging] = useState(false);
@@ -169,7 +176,27 @@ export function CanvasViewport({
     );
   };
 
+  const startPointerDrag = useCallback(
+    (
+      event: React.PointerEvent<HTMLDivElement>,
+      initialPoint: PointerPosition = { x: event.clientX, y: event.clientY }
+    ) => {
+      event.preventDefault();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      pointerMap.current.set(event.pointerId, initialPoint);
+      setIsDragging(true);
+      onPanStateChange?.(true);
+
+      if (pointerMap.current.size === 2) {
+        const points = Array.from(pointerMap.current.values());
+        pinchState.current = navigationMode === "free" ? getPinchMetrics(points) : null;
+      }
+    },
+    [navigationMode, onPanStateChange]
+  );
+
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    pendingInteractivePointers.current.delete(event.pointerId);
     const behavior = getPointerDragBehavior({
       isMetaPressed: event.metaKey,
       isInteractiveTarget: isInteractiveTarget(event.target),
@@ -177,22 +204,35 @@ export function CanvasViewport({
     });
 
     if (!behavior.allowDrag) {
+      if (event.pointerType === "touch" || event.pointerType === "pen") {
+        pendingInteractivePointers.current.set(event.pointerId, {
+          x: event.clientX,
+          y: event.clientY,
+        });
+      }
       return;
     }
 
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    pointerMap.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    setIsDragging(true);
-    onPanStateChange?.(true);
-
-    if (pointerMap.current.size === 2) {
-      const points = Array.from(pointerMap.current.values());
-      pinchState.current = navigationMode === "free" ? getPinchMetrics(points) : null;
-    }
+    startPointerDrag(event);
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!pointerMap.current.has(event.pointerId)) {
+      const pendingPoint = pendingInteractivePointers.current.get(event.pointerId);
+      if (!pendingPoint) return;
+
+      const distance = Math.hypot(
+        event.clientX - pendingPoint.x,
+        event.clientY - pendingPoint.y
+      );
+      if (distance < TOUCH_DRAG_ACTIVATION_DISTANCE_PX) {
+        return;
+      }
+
+      pendingInteractivePointers.current.delete(event.pointerId);
+      startPointerDrag(event, pendingPoint);
+    }
+
     if (!pointerMap.current.has(event.pointerId)) return;
 
     const prev = pointerMap.current.get(event.pointerId);
@@ -244,6 +284,7 @@ export function CanvasViewport({
   };
 
   const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    pendingInteractivePointers.current.delete(event.pointerId);
     pointerMap.current.delete(event.pointerId);
     if (pointerMap.current.size < 2) {
       pinchState.current = null;
