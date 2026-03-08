@@ -3,6 +3,13 @@ import OpenAI from "openai"
 import type { Responses } from "openai/resources/responses/responses"
 import { ChatActionError } from "@/lib/chat-errors"
 import type { ModelProvider, ReasoningEffort } from "@/lib/model-catalog"
+import {
+  ANTHROPIC_API_BASE_URL,
+  formatModelInvocationError,
+  GEMINI_API_BASE_URL,
+  readErrorStatus,
+  toUpstreamErrorStatus,
+} from "@/lib/model-invoker-errors"
 import { getOpenAIClient } from "@/lib/openai-client"
 import {
   appendSourcesSection,
@@ -70,7 +77,10 @@ const getGeminiApiKey = () => {
 let geminiClient: GoogleGenAI | null = null
 const getGeminiClient = () => {
   if (!geminiClient) {
-    geminiClient = new GoogleGenAI({ apiKey: getGeminiApiKey() })
+    geminiClient = new GoogleGenAI({
+      apiKey: getGeminiApiKey(),
+      baseURL: GEMINI_API_BASE_URL,
+    })
   }
   return geminiClient
 }
@@ -322,8 +332,9 @@ const generateAnthropicResponse = async (
   systemPrompt: string,
   onToken?: (token: string) => void | Promise<void>
 ): Promise<ModelInvocationResult> => {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetch(`${ANTHROPIC_API_BASE_URL}/v1/messages`, {
     method: "POST",
+    redirect: "manual",
     headers: {
       "content-type": "application/json",
       "x-api-key": getAnthropicApiKey(),
@@ -337,6 +348,17 @@ const generateAnthropicResponse = async (
       stream: true,
     }),
   })
+
+  if (response.status >= 300 && response.status < 400) {
+    console.error("Anthropic upstream redirect detected", {
+      status: response.status,
+      location: response.headers.get("location"),
+    })
+    throw new ChatActionError(
+      formatModelInvocationError("anthropic", { status: response.status }),
+      toUpstreamErrorStatus(response.status)
+    )
+  }
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({}))
@@ -470,10 +492,17 @@ const generateGeminiResponse = async (
         ),
       }
     } catch (error) {
-      const message = (error as { message?: string })?.message
-      const status = (error as { status?: number; code?: number })?.status
-      lastErrorMessage = typeof message === "string" ? message : "Gemini API error"
-      lastStatus = typeof status === "number" ? status : 502
+      const status = readErrorStatus(error)
+      lastErrorMessage = formatModelInvocationError("gemini", error)
+      lastStatus = toUpstreamErrorStatus(status)
+
+      if (status != null && status >= 300 && status < 400) {
+        console.error("Gemini upstream redirect detected", {
+          status,
+          candidateModel,
+          hasSdkBaseUrlOverrideEnv: Boolean(process.env.GEMINI_NEXT_GEN_API_BASE_URL),
+        })
+      }
     }
   }
 
@@ -524,10 +553,14 @@ export const invokeWithFallback = async (
       generateResponseByModel(primaryModel, messagesForLLM, systemPrompt, onToken)
     )
   } catch (error) {
+    if (error instanceof ChatActionError) {
+      throw error
+    }
+
     const message =
-      (error instanceof OpenAI.APIError ? error.message : undefined) ??
-      (error as Error)?.message ??
-      "Model invocation failed"
-    throw new ChatActionError(message, 502)
+      error instanceof OpenAI.APIError
+        ? error.message
+        : formatModelInvocationError(primaryModel.provider, error)
+    throw new ChatActionError(message, toUpstreamErrorStatus(readErrorStatus(error)))
   }
 }
